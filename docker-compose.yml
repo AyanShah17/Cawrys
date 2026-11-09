@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cawrys
+      POSTGRES_PASSWORD: cawrys
+      POSTGRES_DB: cawrys
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cawrys"]
+      interval: 3s
+      retries: 20
+    ports: ["5432:5432"]
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    volumes:
+      - ./infra/litellm/config.yaml:/app/config.yaml:ro
+    env_file: .env
+    ports: ["4000:4000"]
+
+  intelligence:
+    build: ./services/intelligence
+    env_file: .env
+    environment:
+      # Local Postgres by default. Set NEON_DATABASE_URL in .env to use Neon instead.
+      NEON_DATABASE_URL: ${NEON_DATABASE_URL:-postgresql://cawrys:cawrys@db:5432/cawrys}
+      AUTH_SECRET: ${AUTH_SECRET:?run scripts/init-env.sh or set AUTH_SECRET in .env}
+    volumes:
+      - files:/data/files
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["8001:8001"]
+
+  execution:
+    build: ./services/execution
+    env_file: .env
+    environment:
+      NEON_DATABASE_URL: ${NEON_DATABASE_URL:-postgresql://cawrys:cawrys@db:5432/cawrys}
+      AUTH_SECRET: ${AUTH_SECRET:?run scripts/init-env.sh or set AUTH_SECRET in .env}
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["8002:8002"]
+
+  edge-ingest:
+    build: ./services/edge-ingest
+    environment:
+      INTELLIGENCE_URL: http://intelligence:8001
+      EDGE_API_KEY: ${EDGE_API_KEY:-}
+      PORT: "8080"
+    depends_on: [intelligence]
+    ports: ["8080:8080"]
+
+  web:
+    build: ./apps/web
+    environment:
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      INTELLIGENCE_URL: http://intelligence:8001
+      EXECUTION_URL: http://execution:8002
+    depends_on: [intelligence, execution]
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
+  files:

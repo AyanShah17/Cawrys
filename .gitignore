@@ -1,0 +1,15 @@
+.env
+.venv/
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.pytest_cache/
+.agents/
+.DS_Store
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+services/edge-ingest/edge-ingest

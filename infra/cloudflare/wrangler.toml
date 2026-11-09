@@ -1,0 +1,15 @@
+# Cloudflare edge gateway: auth + rate limiting in front of Cawrys APIs, R2 for files.
+name = "cawrys-gateway"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "cawrys-files"
+
+[vars]
+INTELLIGENCE_ORIGIN = "https://intelligence.example.com"
+EXECUTION_ORIGIN = "https://execution.example.com"
+
+# Expose on-prem services without opening inbound ports:
+#   cloudflared tunnel create cawrys && cloudflared tunnel route dns cawrys api.example.com

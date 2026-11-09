@@ -1,0 +1,22 @@
+model_list:
+  - model_name: cawrys-extract
+    litellm_params:
+      model: gemini/gemini-3.8-flash
+      api_key: os.environ/GEMINI_API_KEY
+  - model_name: cawrys-vision
+    litellm_params:
+      model: gemini/gemini-3.8-flash
+      api_key: os.environ/GEMINI_API_KEY
+  - model_name: cawrys-reason
+    litellm_params:
+      model: gemini/gemini-4-argon
+      api_key: os.environ/GEMINI_API_KEY
+
+router_settings:
+  num_retries: 2
+  timeout: 90
+  fallbacks:
+    - cawrys-reason: [cawrys-extract]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
