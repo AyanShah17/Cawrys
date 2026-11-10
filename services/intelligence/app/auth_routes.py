@@ -23,8 +23,8 @@ DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "cawrys-demo")
 SEED_DEMO = os.environ.get("SEED_DEMO", "1") == "1"
 
 WINDOW = "15 minutes"
-MAX_FAILS_PER_EMAIL = 5
-MAX_FAILS_PER_IP = 30
+MAX_FAILS_PER_EMAIL = 4  # triggers HTTP 429 on 5th attempt (after 4 recorded failures)
+MAX_FAILS_PER_IP = 29    # triggers HTTP 429 on 30th attempt (after 29 recorded failures)
 MIN_PASSWORD = 8
 
 DUMMY_HASH = hash_password("not-a-real-password")  # keeps login timing similar for unknown emails
@@ -264,7 +264,7 @@ def change_password(body: PasswordChange, ctx: Ctx = Depends(current)):
     with conn() as c:
         row = c.execute("select password_hash from users where id=%s", (ctx.user_id,)).fetchone()
         if not row or not verify_password(body.current_password, row["password_hash"]):
-            raise HTTPException(403, "current password is incorrect")
+            raise HTTPException(400, "current password is incorrect")
         c.execute("update users set password_hash=%s where id=%s", (hash_password(body.new_password), ctx.user_id))
         audit(c, ctx.tenant_id, "user.password_changed", actor=ctx.email)
         c.commit()
