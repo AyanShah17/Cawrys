@@ -23,6 +23,16 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL DEFAULT '',
   role TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('admin','engineer','approver','viewer')),
+  is_active INTEGER NOT NULL DEFAULT 1,
+  last_login_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL,
+  ip TEXT NOT NULL DEFAULT '',
+  ok INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -98,6 +108,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_docs_tenant ON documents(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_log(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_extractions_tenant ON extractions(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_executions_tenant ON executions(tenant_id, created_at DESC);
 
 INSERT OR IGNORE INTO tenants (id, name) VALUES ('00000000-0000-0000-0000-000000000001','Demo Tenant');
 """
@@ -139,8 +154,11 @@ class SQLiteCursorWrapper:
     def __init__(self, cursor):
         self._cursor = cursor
 
-    def execute(self, query, params=None):
+    def _translate_query(self, query: str) -> str:
+        # 1. Parameter placeholder %s -> ? (preserves %% and ?tatus literal % behavior)
         q = re.sub(r"(?<!%)(?:%%)*%s", lambda m: m.group(0)[:-2] + "?", query)
+
+        # 2. SELECT DISTINCT ON query rewrite
         if "distinct on" in q.lower():
             q = re.sub(
                 r"select\s+distinct\s+on\s*\(\s*name\s*\)\s+name,\s*version,\s*steps\s+from\s+playbooks\s+where\s+tenant_id=\?\s+order\s+by\s+name,\s*version\s+desc",
@@ -148,6 +166,22 @@ class SQLiteCursorWrapper:
                 q,
                 flags=re.IGNORECASE,
             )
+
+        # 3. Strip Postgres typecasts (::int, ::bigint, ::text, ::numeric, ::float, ::timestamp, ::date)
+        q = re.sub(r"::(?:int|bigint|text|numeric|float|timestamp|date)\b", "", q)
+
+        # 4. Rewrite PostgreSQL date arithmetic:
+        # e.g., now() - interval '15 minutes' -> datetime('now', '-15 minutes')
+        # e.g., now() - interval '1 day' -> datetime('now', '-1 day')
+        q = re.sub(r"now\(\)\s*-\s*interval\s*'([^']+)'", r"datetime('now', '-\1')", q, flags=re.IGNORECASE)
+
+        # 5. Rewrite standalone now() -> CURRENT_TIMESTAMP
+        q = re.sub(r"\bnow\(\)", "CURRENT_TIMESTAMP", q, flags=re.IGNORECASE)
+
+        return q
+
+    def execute(self, query, params=None):
+        q = self._translate_query(query)
         if params is not None:
             p = [str(x) if isinstance(x, uuid.UUID) else x for x in params]
             self._cursor.execute(q, p)
@@ -156,7 +190,7 @@ class SQLiteCursorWrapper:
         return self
 
     def executemany(self, query, seq_of_params):
-        q = re.sub(r"(?<!%)(?:%%)*%s", lambda m: m.group(0)[:-2] + "?", query)
+        q = self._translate_query(query)
         converted_seq = []
         for params in seq_of_params:
             converted_seq.append([str(x) if isinstance(x, uuid.UUID) else x for x in params])
@@ -213,6 +247,28 @@ class SQLiteConnectionWrapper:
                 except Exception:
                     pass
             self._conn.executescript(ddl)
+            self._conn.commit()
+        else:
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS login_attempts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              email TEXT NOT NULL,
+              ip TEXT NOT NULL DEFAULT '',
+              ok INTEGER NOT NULL,
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email, created_at DESC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, created_at DESC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_extractions_tenant ON extractions(tenant_id, created_at DESC)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_executions_tenant ON executions(tenant_id, created_at DESC)")
+
+            user_cols = {col[1] if isinstance(col, tuple) else col["name"] for col in cur.execute("PRAGMA table_info(users)").fetchall()}
+            if "is_active" not in user_cols:
+                cur.execute("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+            if "last_login_at" not in user_cols:
+                cur.execute("ALTER TABLE users ADD COLUMN last_login_at TEXT")
             self._conn.commit()
 
     def cursor(self):

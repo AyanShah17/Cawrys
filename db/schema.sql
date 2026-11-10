@@ -13,6 +13,16 @@ create table if not exists users (
   email text not null unique,
   password_hash text not null default '',
   role text not null default 'viewer' check (role in ('admin','engineer','approver','viewer')),
+  is_active boolean not null default true,
+  last_login_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists login_attempts (
+  id bigserial primary key,
+  email text not null,
+  ip text not null default '',
+  ok boolean not null,
   created_at timestamptz not null default now()
 );
 
@@ -88,6 +98,11 @@ create table if not exists audit_log (
 
 create index if not exists idx_docs_tenant on documents(tenant_id, created_at desc);
 create index if not exists idx_audit_tenant on audit_log(tenant_id, created_at desc);
+create index if not exists idx_login_attempts_email on login_attempts(email, created_at desc);
+create index if not exists idx_login_attempts_ip on login_attempts(ip, created_at desc);
+create index if not exists idx_users_tenant on users(tenant_id);
+create index if not exists idx_extractions_tenant on extractions(tenant_id, created_at desc);
+create index if not exists idx_executions_tenant on executions(tenant_id, created_at desc);
 
 insert into tenants (id, name) values ('00000000-0000-0000-0000-000000000001','Demo Tenant')
 on conflict do nothing;

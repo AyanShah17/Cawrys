@@ -1,3 +1,4 @@
+// apps/web/app/api/[service]/[...path]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE, TARGETS } from "@/lib/server";
 
@@ -18,15 +19,22 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ service: string
       return NextResponse.json({ detail: "cross-origin request refused" }, { status: 403 });
     }
   }
-  const token = req.cookies.get(COOKIE)?.value;
+  const token = req.cookies.get(COOKIE)?.value ?? req.cookies.get("sid")?.value;
   if (!token) return NextResponse.json({ detail: "not signed in" }, { status: 401 });
 
   const headers = new Headers({ Authorization: `Bearer ${token}` });
   const ct = req.headers.get("content-type");
   if (ct) headers.set("content-type", ct);
 
+  // Forward real client IP to upstream services for audit logging and throttling
+  const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  if (ip) headers.set("x-client-ip", ip);
+
   const init: RequestInit & { duplex?: "half" } = { method: req.method, headers, cache: "no-store" };
-  if (req.method !== "GET") { init.body = req.body; init.duplex = "half"; }
+  if (req.method !== "GET" && req.method !== "HEAD" && req.body) {
+    init.body = req.body;
+    init.duplex = "half";
+  }
 
   let upstream: Response;
   try {
@@ -40,4 +48,4 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ service: string
   });
 }
 
-export { handle as GET, handle as POST };
+export { handle as GET, handle as POST, handle as PATCH, handle as PUT, handle as DELETE };
