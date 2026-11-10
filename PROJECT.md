@@ -29,7 +29,7 @@
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | UI & Snapshot Feature Restoration (`ui` branch) | Restore white-labeling, login throttling, user management, dashboard in `apps/web` and `services/intelligence`, update proxy route | none | IN_PROGRESS |
+| M1 | UI & Snapshot Feature Restoration (`ui` branch) | Restore white-labeling, login throttling, user management, dashboard in `apps/web` and `services/intelligence`, update proxy route | none | DONE |
 | M2 | OpenHands Agent Harness (`openhands` branch) | Implement agent execution harness in `services/execution/app/harness/`, event stream, action-observation loop, Gemini 4 Argon/3.8 Flash routing, policy gating | none | PLANNED |
 | M3 | E2E Test Suite & Infrastructure Extension | Extend `tests/e2e/` with `test_09_agent_harness.py`, `test_10_snapshot_features.py`, and `mock_server.py` updates | M1, M2 | PLANNED |
 | M4 | Combined Branch Integration (`combined` branch) | Merge `ui` and `openhands` branches into `combined`, execute full test suite, resolve any integration discrepancies | M1, M2, M3 | PLANNED |
