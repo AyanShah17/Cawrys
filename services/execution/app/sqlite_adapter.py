@@ -98,13 +98,41 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_docs_tenant ON documents(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_log(tenant_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS agent_sessions (
+  id TEXT PRIMARY KEY DEFAULT (gen_random_uuid()),
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  task TEXT NOT NULL,
+  context TEXT NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'running'
+    CHECK (status IN ('running','awaiting_approval','completed','failed','rejected')),
+  current_step INTEGER NOT NULL DEFAULT 0,
+  max_steps INTEGER NOT NULL DEFAULT 10,
+  result TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS agent_events (
+  id TEXT PRIMARY KEY DEFAULT (gen_random_uuid()),
+  session_id TEXT NOT NULL REFERENCES agent_sessions(id) ON DELETE CASCADE,
+  seq INTEGER NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('action','observation')),
+  name TEXT NOT NULL,
+  payload TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (session_id, seq)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_sessions_tenant ON agent_sessions(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_events_session_seq ON agent_events(session_id, seq ASC);
 
 INSERT OR IGNORE INTO tenants (id, name) VALUES ('00000000-0000-0000-0000-000000000001','Demo Tenant');
 """
 
 JSON_COLUMNS = {
     "fields", "validation", "decision", "model_trace",
-    "input_schema", "steps", "result", "detail", "inputs", "tools"
+    "input_schema", "steps", "result", "detail", "inputs", "tools",
+    "payload", "context"
 }
 
 
@@ -213,6 +241,40 @@ class SQLiteConnectionWrapper:
                 except Exception:
                     pass
             self._conn.executescript(ddl)
+            self._conn.commit()
+
+        # Idempotently ensure agent tables exist even if DB was already initialized
+        cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='agent_sessions'")
+        if not cur.fetchone():
+            self._conn.executescript("""
+CREATE TABLE IF NOT EXISTS agent_sessions (
+  id TEXT PRIMARY KEY DEFAULT (gen_random_uuid()),
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  task TEXT NOT NULL,
+  context TEXT NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'running'
+    CHECK (status IN ('running','awaiting_approval','completed','failed','rejected')),
+  current_step INTEGER NOT NULL DEFAULT 0,
+  max_steps INTEGER NOT NULL DEFAULT 10,
+  result TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS agent_events (
+  id TEXT PRIMARY KEY DEFAULT (gen_random_uuid()),
+  session_id TEXT NOT NULL REFERENCES agent_sessions(id) ON DELETE CASCADE,
+  seq INTEGER NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('action','observation')),
+  name TEXT NOT NULL,
+  payload TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (session_id, seq)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_sessions_tenant ON agent_sessions(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_events_session_seq ON agent_events(session_id, seq ASC);
+""")
             self._conn.commit()
 
     def cursor(self):

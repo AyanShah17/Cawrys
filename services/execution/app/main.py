@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from . import connectors, policy
 from .auth import Ctx, current, require
+from .harness.routes import router as harness_router
 from .sqlite_adapter import get_connection
 
 DATABASE_URL = os.environ.get("NEON_DATABASE_URL") or os.environ.get("DATABASE_URL") or ""
@@ -69,6 +70,7 @@ def ensure_seeded(c, tenant_id: str):
 
 app = FastAPI(title="Cawrys Execution Service", version="0.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [], allow_methods=["*"], allow_headers=["*"])
+app.include_router(harness_router, prefix="/v1/agent", tags=["agent"])
 
 
 class ToolIn(BaseModel):
