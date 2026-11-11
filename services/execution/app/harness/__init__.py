@@ -1,0 +1,63 @@
+"""OpenHands Agent Execution Harness Package.
+
+Exports FastAPI router, event models, and event stream manager.
+"""
+from .models import (
+    Action,
+    ActionType,
+    AgentFinishPayload,
+    AgentSession,
+    ApprovalRequestPayload,
+    ApproveSessionRequest,
+    CreateSessionRequest,
+    DelegatePayload,
+    DelegateResultPayload,
+    ErrorObservationPayload,
+    Event,
+    EventType,
+    Observation,
+    ObservationType,
+    PlanPayload,
+    PolicyObservationPayload,
+    RejectSessionRequest,
+    SessionCreateIn,
+    SessionResponse,
+    SessionStartPayload,
+    SessionStatus,
+    StateChangedPayload,
+    ToolCallPayload,
+    ToolResultPayload,
+)
+from .routes import router
+from .stream import EventStream, EventStreamManager, event_stream
+
+__all__ = [
+    "Action",
+    "ActionType",
+    "AgentFinishPayload",
+    "AgentSession",
+    "ApprovalRequestPayload",
+    "ApproveSessionRequest",
+    "CreateSessionRequest",
+    "DelegatePayload",
+    "DelegateResultPayload",
+    "ErrorObservationPayload",
+    "Event",
+    "EventStream",
+    "EventStreamManager",
+    "EventType",
+    "Observation",
+    "ObservationType",
+    "PlanPayload",
+    "PolicyObservationPayload",
+    "RejectSessionRequest",
+    "SessionCreateIn",
+    "SessionResponse",
+    "SessionStartPayload",
+    "SessionStatus",
+    "StateChangedPayload",
+    "ToolCallPayload",
+    "ToolResultPayload",
+    "event_stream",
+    "router",
+]
