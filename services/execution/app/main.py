@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import uuid
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 from . import connectors, policy
 from .auth import Ctx, current, require
 from .harness.routes import router as harness_router
-from .sqlite_adapter import get_connection
+from .sqlite_adapter import get_connection, is_sqlite
 
 DATABASE_URL = os.environ.get("NEON_DATABASE_URL") or os.environ.get("DATABASE_URL") or ""
 
@@ -96,6 +97,147 @@ class RunIn(BaseModel):
 @app.get("/health")
 def health():
     return {"ok": True, "service": "execution"}
+
+
+@app.get("/health/ready")
+def health_ready():
+    return {"ok": True, "service": "execution"}
+
+
+@app.get("/v1/dashboard/summary")
+def dashboard_summary(days: int = 14, ctx: Ctx = Depends(current)):
+    days = max(1, min(days, 90))
+    tenant_id = ctx.tenant_id
+    with conn() as c:
+        ensure_seeded(c, tenant_id)
+
+        by_status = {
+            r["status"]: int(r["n"])
+            for r in c.execute(
+                "select status, count(*) as n from executions where tenant_id=%s group by status", (tenant_id,)
+            ).fetchall()
+        }
+
+        pb_row = c.execute(
+            "select count(distinct name) as n from playbooks where tenant_id=%s", (tenant_id,)
+        ).fetchone()
+        playbook_count = int(pb_row["n"]) if pb_row and pb_row["n"] is not None else 0
+
+        tool_row = c.execute(
+            "select count(*) as n from tools where tenant_id=%s", (tenant_id,)
+        ).fetchone()
+        tool_count = int(tool_row["n"]) if tool_row and tool_row["n"] is not None else 0
+
+        agent_by_status = {
+            r["status"]: int(r["n"])
+            for r in c.execute(
+                "select status, count(*) as n from agent_sessions where tenant_id=%s group by status", (tenant_id,)
+            ).fetchall()
+        }
+        agent_session_count = sum(agent_by_status.values())
+
+        today = datetime.datetime.now(datetime.timezone.utc).date()
+        day_strs = [(today - datetime.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days - 1, -1, -1)]
+
+        if is_sqlite():
+            exec_rows = c.execute(
+                "select e.id, e.status, e.result, e.created_at, strftime('%Y-%m-%d', e.created_at) as day, p.name as pb_name "
+                "from executions e left join playbooks p on p.id = e.playbook_id "
+                "where e.tenant_id=%s and e.created_at >= datetime('now', '-' || %s || ' days') "
+                "order by e.created_at desc",
+                (tenant_id, days),
+            ).fetchall()
+        else:
+            exec_rows = c.execute(
+                "select e.id::text as id, e.status, e.result, e.created_at::text as created_at, to_char(e.created_at, 'YYYY-MM-DD') as day, p.name as pb_name "
+                "from executions e left join playbooks p on p.id = e.playbook_id "
+                "where e.tenant_id=%s and e.created_at >= now() - make_interval(days => %s::int) "
+                "order by e.created_at desc",
+                (tenant_id, days),
+            ).fetchall()
+
+        day_counts: dict[str, dict[str, int]] = {}
+        pb_stats: dict[str, dict[str, int]] = {}
+        for r in exec_rows:
+            d = r.get("day")
+            st = r.get("status")
+            if d:
+                bucket = day_counts.setdefault(d, {"succeeded": 0, "awaiting_approval": 0, "rejected_or_failed": 0})
+                if st == "succeeded":
+                    bucket["succeeded"] += 1
+                elif st == "awaiting_approval":
+                    bucket["awaiting_approval"] += 1
+                elif st in ("failed", "rejected"):
+                    bucket["rejected_or_failed"] += 1
+
+            raw_res = r.get("result")
+            res_obj = json.loads(raw_res) if isinstance(raw_res, str) else (raw_res or {})
+            pb_name = r.get("pb_name") or (res_obj.get("playbook") if isinstance(res_obj, dict) else None) or "unknown"
+            ps = pb_stats.setdefault(pb_name, {"runs": 0, "succeeded": 0})
+            ps["runs"] += 1
+            if st == "succeeded":
+                ps["succeeded"] += 1
+
+        per_day = [
+            {
+                "day": d,
+                "succeeded": day_counts.get(d, {}).get("succeeded", 0),
+                "awaiting_approval": day_counts.get(d, {}).get("awaiting_approval", 0),
+                "rejected_or_failed": day_counts.get(d, {}).get("rejected_or_failed", 0),
+            }
+            for d in day_strs
+        ]
+
+        period_total = len(exec_rows)
+        succeeded_period = sum(1 for r in exec_rows if r.get("status") == "succeeded")
+        terminal_period = sum(1 for r in exec_rows if r.get("status") in ("succeeded", "failed", "rejected"))
+        success_rate = round(succeeded_period / terminal_period, 4) if terminal_period > 0 else None
+
+        top_playbooks = sorted(
+            [{"name": k, "runs": v["runs"], "succeeded": v["succeeded"]} for k, v in pb_stats.items()],
+            key=lambda x: x["runs"],
+            reverse=True,
+        )[:5]
+
+        pending_rows = c.execute(
+            "select e.id, e.result, e.created_at, p.name as pb_name "
+            "from executions e left join playbooks p on p.id = e.playbook_id "
+            "where e.tenant_id=%s and e.status='awaiting_approval' "
+            "order by e.created_at desc limit 10",
+            (tenant_id,),
+        ).fetchall()
+        pending_approvals = []
+        for r in pending_rows:
+            raw_res = r.get("result")
+            res_obj = json.loads(raw_res) if isinstance(raw_res, str) else (raw_res or {})
+            pb_name = r.get("pb_name") or (res_obj.get("playbook") if isinstance(res_obj, dict) else None) or "unknown"
+            reason = (res_obj.get("reason") if isinstance(res_obj, dict) else None) or "awaiting approval"
+            pending_approvals.append({
+                "id": str(r["id"]),
+                "playbook": pb_name,
+                "reason": reason,
+                "created_at": str(r["created_at"]),
+            })
+
+    return {
+        "days": days,
+        "executions": {
+            "total": sum(by_status.values()),
+            "period_total": period_total,
+            "by_status": by_status,
+            "per_day": per_day,
+            "success_rate": success_rate,
+        },
+        "playbooks": playbook_count,
+        "tools": {"total": tool_count},
+        "agent_sessions": {
+            "total": agent_session_count,
+            "by_status": agent_by_status,
+        },
+        "agent_session_count": agent_session_count,
+        "top_playbooks": top_playbooks,
+        "pending_approvals": pending_approvals,
+    }
 
 
 @app.post("/v1/tools")

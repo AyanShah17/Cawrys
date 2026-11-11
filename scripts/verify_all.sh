@@ -46,7 +46,7 @@ run_static() {
     (cd services/edge-ingest && go vet ./... && go build -v -o /dev/null .)
 
     echo "--> [Python Services] Source compilation & syntax check..."
-    "$PYTHON" -m py_compile services/intelligence/app/*.py services/execution/app/*.py
+    "$PYTHON" -m py_compile services/intelligence/app/*.py services/execution/app/*.py services/execution/app/harness/*.py
 
     echo "Static checks and builds passed successfully."
 }
@@ -55,6 +55,9 @@ run_tests() {
     echo "========================================="
     echo "=== [2/3] Automated E2E & Stress Tests ==="
     echo "========================================="
+
+    echo "--> [Agent Harness] Running OpenHands agent harness unit/integration tests..."
+    PYTHONPATH=. "$PYTHON" -m pytest tests/test_agent_harness.py -q
 
     echo "--> [E2E Suite] Running 4-tier E2E tests..."
     PYTHONPATH=. "$PYTHON" tests/e2e/runner.py --tier all

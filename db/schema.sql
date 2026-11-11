@@ -96,6 +96,31 @@ create table if not exists audit_log (
   created_at timestamptz not null default now()
 );
 
+create table if not exists agent_sessions (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants(id),
+  task text not null,
+  context jsonb not null default '{}',
+  status text not null default 'running'
+    check (status in ('running','awaiting_approval','completed','failed','rejected')),
+  current_step int not null default 0,
+  max_steps int not null default 10,
+  result jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists agent_events (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references agent_sessions(id) on delete cascade,
+  seq int not null,
+  event_type text not null check (event_type in ('action','observation')),
+  name text not null,
+  payload jsonb not null default '{}',
+  created_at timestamptz not null default now(),
+  unique (session_id, seq)
+);
+
 create index if not exists idx_docs_tenant on documents(tenant_id, created_at desc);
 create index if not exists idx_audit_tenant on audit_log(tenant_id, created_at desc);
 create index if not exists idx_login_attempts_email on login_attempts(email, created_at desc);
@@ -103,6 +128,8 @@ create index if not exists idx_login_attempts_ip on login_attempts(ip, created_a
 create index if not exists idx_users_tenant on users(tenant_id);
 create index if not exists idx_extractions_tenant on extractions(tenant_id, created_at desc);
 create index if not exists idx_executions_tenant on executions(tenant_id, created_at desc);
+create index if not exists idx_agent_sessions_tenant on agent_sessions(tenant_id, created_at desc);
+create index if not exists idx_agent_events_session_seq on agent_events(session_id, seq asc);
 
 insert into tenants (id, name) values ('00000000-0000-0000-0000-000000000001','Demo Tenant')
 on conflict do nothing;

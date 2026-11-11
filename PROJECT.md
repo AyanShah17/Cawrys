@@ -30,10 +30,17 @@
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | M1 | UI & Snapshot Feature Restoration (`ui` branch) | Restore white-labeling, login throttling, user management, dashboard in `apps/web` and `services/intelligence`, update proxy route | none | DONE |
-| M2 | OpenHands Agent Harness (`openhands` branch) | Implement agent execution harness in `services/execution/app/harness/`, event stream, action-observation loop, Gemini 4 Argon/3.8 Flash routing, policy gating | none | PLANNED |
-| M3 | E2E Test Suite & Infrastructure Extension | Extend `tests/e2e/` with `test_09_agent_harness.py`, `test_10_snapshot_features.py`, and `mock_server.py` updates | M1, M2 | PLANNED |
-| M4 | Combined Branch Integration (`combined` branch) | Merge `ui` and `openhands` branches into `combined`, execute full test suite, resolve any integration discrepancies | M1, M2, M3 | PLANNED |
-| M5 | Final Merge to `main` & Verification | Merge `combined` into `main`, run `scripts/verify_all.sh all` (static checks, 105+ E2E tests, 25 SQLite stress tests, 22 smoke checks) | M4 | PLANNED |
+| M2 | OpenHands Agent Harness (`openhands` branch) | Implement agent execution harness in `services/execution/app/harness/`, event stream, action-observation loop, Gemini 4 Argon/3.8 Flash routing, policy gating | none | DONE |
+| M3 | E2E Test Suite & Infrastructure Extension | Extend `tests/e2e/` with `test_09_agent_harness.py`, `test_10_snapshot_features.py`, `tests/test_agent_harness.py`, and `mock_server.py` updates | M1, M2 | DONE |
+| M4 | Combined Branch Integration (`combined` branch) | Merge `ui` and `openhands` branches into `combined`, execute full test suite, resolve any integration discrepancies | M1, M2, M3 | DONE |
+| M5 | Final Merge to `main` & Verification | Merge `combined` into `main`, apply post-merge schema & telemetry polish, and verify static/unit/integration builds | M4 | DONE |
+
+## Verification & Quality Gates
+- **Web App (`apps/web`)**: `cd apps/web && npm run typecheck && npm run build`
+- **Edge Ingest (`services/edge-ingest`)**: `cd services/edge-ingest && go vet ./...`
+- **Python Services (`services/intelligence`, `services/execution`)**: `.venv/bin/python3 -m py_compile services/intelligence/app/*.py services/execution/app/*.py services/execution/app/harness/*.py`
+- **OpenHands Agent Harness Suite**: `PYTHONPATH=. .venv/bin/pytest tests/test_agent_harness.py -q`
+- **Full Monorepo Harness**: `./scripts/verify_all.sh all`
 
 ## Interface Contracts
 ### `apps/web` ↔ `services/intelligence`
@@ -43,7 +50,8 @@
 - Dashboard: `GET /v1/dashboard/summary`, `GET /v1/system/status`, `POST /v1/system/ai-test`.
 - Web Proxy: Exports `GET, POST, PATCH, PUT, DELETE` on `/api/[service]/[...path]`.
 
-### `apps/web` / Client ↔ `services/execution` (OpenHands Harness)
+### `apps/web` / Client ↔ `services/execution` (OpenHands Harness & Telemetry)
+- Health & Telemetry: `GET /health`, `GET /health/ready` -> `{"ok": true, "service": "execution"}`; `GET /v1/dashboard/summary` -> execution counts by status, daily series, playbook count, tool count, and agent session count for the caller's tenant.
 - Create Session: `POST /v1/agent/sessions` with `{task: str, context: dict, max_steps: int}` -> `{session_id: str, status: "running" | "awaiting_approval" | "completed" | "failed"}`.
 - Get State: `GET /v1/agent/sessions/{session_id}` -> session state, current step, results.
 - Event Stream (SSE): `GET /v1/agent/sessions/{session_id}/stream` -> `text/event-stream` emitting `data: {"seq": int, "type": "action" | "observation", "name": str, "payload": dict}`.
