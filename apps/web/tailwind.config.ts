@@ -4,6 +4,9 @@ const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      colors: {
+        brand: "rgb(var(--brand) / <alpha-value>)",
+      },
       animation: { spotlight: "spotlight 2s ease .75s 1 forwards" },
       keyframes: {
         spotlight: {

@@ -1,61 +1,76 @@
-# Project: Cawrys Monorepo Setup & Model Routing
+# Project: Cawrys OpenHands Harness & Feature Restoration
 
 ## Architecture
-Cawrys is a distributed, security-hardened workflow and document intelligence monorepo consisting of:
-- `apps/web`: Next.js 15, React 19, TypeScript web interface with server-side proxy (`/api/[service]/...`) and `httpOnly` session cookies.
-- `services/intelligence`: Python 3.12 / FastAPI intelligence service for extraction, document OCR/vision, reasoning, and document storage.
-- `services/execution`: Python 3.12 / FastAPI execution service managing action proposals, risk policies, approvals, and tool registry.
-- `services/edge-ingest`: Go 1.22 streaming ingest proxy with rate limiting and API key authentication.
-- `infra/litellm`: LiteLLM Proxy routing abstract model names (`cawrys-reason`, `cawrys-extract`, `cawrys-vision`) to upstream AI providers.
-- `scripts`: Automation and verification suite (`init-env.sh`, `smoke_test.sh`).
-
-## Code Layout
-- `apps/web/` — Web application frontend and proxy API
-- `services/intelligence/` — Document intelligence & reasoning API
-- `services/execution/` — Action execution & policy enforcement API
-- `services/edge-ingest/` — Ingestion proxy service
-- `infra/litellm/` — LiteLLM gateway routing configuration
-- `db/` — Database schema definitions
-- `scripts/` — Environment setup and end-to-end verification scripts
-- `.agents/teamwork/` — Teamwork orchestration metadata only
+- **Monorepo Structure**:
+  - `apps/web`: Next.js 15 (React 19) frontend, dynamic proxy routes (`/api/[service]/[...path]`), session auth cookies.
+  - `services/intelligence`: FastAPI service (port 8001), document processing, auth, users, operational dashboard, LiteLLM gateway.
+  - `services/execution`: FastAPI service (port 8002), playbook executions, policy engine, connector tool registry, and new OpenHands agent execution harness.
+  - `services/edge-ingest`: Go service (port 8080), fast ingestion gateway.
+  - `infra/litellm`: Multi-model routing config mapping `cawrys-reason` -> `gemini-4-argon` and `cawrys-extract`/`cawrys-vision` -> `gemini-3.8-flash`.
+  - `tests/e2e`: Centralized pytest test harness with 4 tiers of tests and dual-mode live/mock runner.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Archive Extraction | Extract `media_1794243001841_2b6e8ff4.zip` into `/Users/ayanshah/LionTix` preserving directory layout and `.agents/` | M1 | R1 / Survey |
-| 2 | Dependency Installation | Set up dependencies for `apps/web` (npm), Python services (uv/pip), and Go modules | M1 | R1 / Survey |
-| 3 | Environment Script Portability | Fix macOS BSD `sed` compatibility in `scripts/init-env.sh` | M1 | Survey |
-| 4 | Orchestrator Model Routing | Route orchestrator (`cawrys-reason` / `MODEL_REASON`) to Gemini 4 Argon (`gemini/gemini-4-argon`) in `infra/litellm/config.yaml` | M2 | R2 / Survey |
-| 5 | Worker & Sub-Agent Model Routing | Route worker (`cawrys-extract` / `MODEL_EXTRACT`) and sub-agent (`cawrys-vision` / `MODEL_VISION`) to Gemini 3.8 Flash (`gemini/gemini-3.8-flash`) | M2 | R2 / Survey |
-| 6 | Environment Model Configurations | Update `.env.example` and generated `.env` with `GEMINI_API_KEY` and Gemini model mappings | M2 | R2 / Survey |
-| 7 | Deterministic AI Mock | Verify and support offline execution via `MOCK_AI=1` (`services/intelligence/app/mock.py`) | M3 | R3 / Survey |
-| 8 | Database Fallback Support | Provide local fallback (SQLite adapter or local DB) when live Neon DB credentials are not provided | M3 | R3 / Survey |
-| 9 | Local Storage Fallback | Verify local disk storage fallback when `R2_ENDPOINT` is omitted | M3 | R3 / Survey |
-| 10 | Web App Build & Lint | `apps/web` type-check (`tsc --noEmit`) and production build | M4 | R4 / Survey |
-| 11 | Go Edge-Ingest Build & Vet | `services/edge-ingest` build and `go vet` | M4 | R4 / Survey |
-| 12 | Python Services Syntax & Check | `services/intelligence` and `services/execution` syntax and import compilation | M4 | R4 / Survey |
-| 13 | Full Stack Smoke Test | `scripts/smoke_test.sh` end-to-end integration test execution | M4 | R4 / Survey |
-| 14 | Final E2E Test Suite | Comprehensive opaque-box E2E test verification | Final | Dual Track |
+| 1 | White-Labeling | Configurable branding via env vars (`BRAND_NAME`, `BRAND_COMPANY`, `BRAND_TAGLINE`, `BRAND_PRIMARY_COLOR`, etc.), `lib/brand.ts`, dynamic logo, sidebar, icon, settings page | M1 | /tmp/cawrys_snapshot.json |
+| 2 | Login Throttling & Security | DB table `login_attempts`, sliding window rate limiting (5 fails/email, 30 fails/IP per 15 min, HTTP 429 + `Retry-After`), user `is_active` check | M1 | /tmp/cawrys_snapshot.json |
+| 3 | User Management | `GET/POST/PATCH /v1/auth/users`, `POST /v1/auth/me/password`, `app/team/page.tsx`, `components/team-manager.tsx`, admin bootstrapping | M1 | /tmp/cawrys_snapshot.json |
+| 4 | Operational Dashboard | `services/intelligence/app/dashboard.py` endpoints, SVG chart components, UI kit, operational dashboard page at `app/page.tsx` | M1 | /tmp/cawrys_snapshot.json |
+| 5 | Web Proxy Method Expansion | Expand `apps/web/app/api/[service]/[...path]/route.ts` to export `GET, POST, PATCH, PUT, DELETE` and forward client IP | M1 | /tmp/cawrys_snapshot.json |
+| 6 | OpenHands Event Stream | Monotonic append-only event stream (`agent_events` table), typed `Action` and `Observation` schemas | M2 | OpenHands Architecture |
+| 7 | Action-Observation Loop | Execution loop in `services/execution/app/harness/`, step progression, execution trace, max steps guard | M2 | OpenHands Architecture |
+| 8 | Policy Gating & Sandboxing | Interlocking with `policy.decide`: block forbidden connectors (`plc`, `machine_direct`), gate medium/high risk on approval, pause on `awaiting_approval` | M2 | Cawrys Execution Policy |
+| 9 | Multi-Model Routing & Mocks | Gemini 4 Argon (`cawrys-reason`) for orchestrator planning, Gemini 3.8 Flash (`cawrys-extract`/`vision`) for worker execution, deterministic `MOCK_AI=1` fallbacks | M2 | ORIGINAL_REQUEST §R1 |
+| 10 | Agent REST & SSE Streaming API | `GET /v1/agent/sessions/{id}/stream` (SSE), session CRUD, `/approve` and `/reject` endpoints, proxy passthrough via `/api/execution/v1/agent/...` | M2 | ORIGINAL_REQUEST §R1 |
+| 11 | E2E Test Suite Extension | 15 test cases in `test_09_agent_harness.py`, 6 test cases in `test_10_snapshot_features.py`, offline mock server updates in `mock_server.py` | M3 | Verification Survey |
+| 12 | Combined Branch Integration | Merge `ui` and `openhands` branches into `combined`, verify cross-service flows, SQLite WAL concurrency, zero regression | M4 | ORIGINAL_REQUEST §R3 |
+| 13 | Main Branch Merge & Smoke Test | Merge `combined` into `main`, execute `scripts/verify_all.sh all` and `scripts/smoke_test.sh`, achieving 100% pass | M5 | ORIGINAL_REQUEST §R3 |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Codebase Extraction & Setup | Extract archive, install dependencies, fix script portability | none | DONE |
-| M2 | Model Routing & Agent Configuration | Configure Gemini 4 Argon for orchestrator and Gemini 3.8 Flash for worker/sub-agents | M1 | DONE |
-| M3 | Environment & Local Mock Support | Configure deterministic AI mock, local DB fallback, local storage fallback | M1, M2 | DONE |
-| M4 | Monorepo Build, Lint & Smoke Verification | Compile web app, Go service, Python services; run smoke test | M1, M2, M3 | DONE |
-| Final | E2E Test Suite Verification | Pass 100% of requirement-derived E2E tests | M4, TEST_READY | DONE |
+| M1 | UI & Snapshot Feature Restoration (`ui` branch) | Restore white-labeling, login throttling, user management, dashboard in `apps/web` and `services/intelligence`, update proxy route | none | DONE |
+| M2 | OpenHands Agent Harness (`openhands` branch) | Implement agent execution harness in `services/execution/app/harness/`, event stream, action-observation loop, Gemini 4 Argon/3.8 Flash routing, policy gating | none | PLANNED |
+| M3 | E2E Test Suite & Infrastructure Extension | Extend `tests/e2e/` with `test_09_agent_harness.py`, `test_10_snapshot_features.py`, and `mock_server.py` updates | M1, M2 | PLANNED |
+| M4 | Combined Branch Integration (`combined` branch) | Merge `ui` and `openhands` branches into `combined`, execute full test suite, resolve any integration discrepancies | M1, M2, M3 | PLANNED |
+| M5 | Final Merge to `main` & Verification | Merge `combined` into `main`, run `scripts/verify_all.sh all` (static checks, 105+ E2E tests, 25 SQLite stress tests, 22 smoke checks) | M4 | PLANNED |
 
 ## Interface Contracts
-### Intelligence ↔ LiteLLM Router
-- In live mode, Intelligence calls LiteLLM Proxy (`http://localhost:4000/chat/completions`) using OpenAI-compatible API with models: `cawrys-reason`, `cawrys-extract`, `cawrys-vision`.
-- In mock mode (`MOCK_AI=1`), Intelligence executes `mock.py` deterministically without network calls.
+### `apps/web` ↔ `services/intelligence`
+- Auth: `POST /v1/auth/login` returns `{access_token, token_type, user: {id, email, role, tenant_id}}`.
+- Rate Limiting: 429 Too Many Requests with header `Retry-After: 900` when failed login exceeds 5/email or 30/IP in 15 min.
+- Users: `GET /v1/auth/users` (admin only), `POST /v1/auth/users` (admin only), `PATCH /v1/auth/users/{user_id}` (admin only), `POST /v1/auth/me/password` (authenticated).
+- Dashboard: `GET /v1/dashboard/summary`, `GET /v1/system/status`, `POST /v1/system/ai-test`.
+- Web Proxy: Exports `GET, POST, PATCH, PUT, DELETE` on `/api/[service]/[...path]`.
 
-### Intelligence / Execution ↔ Database
-- In live cloud mode, uses `NEON_DATABASE_URL` / `DATABASE_URL` (PostgreSQL with PgBouncer compatibility).
-- In local fallback mode, uses embedded SQLite adapter when external DB credentials are absent.
+### `apps/web` / Client ↔ `services/execution` (OpenHands Harness)
+- Create Session: `POST /v1/agent/sessions` with `{task: str, context: dict, max_steps: int}` -> `{session_id: str, status: "running" | "awaiting_approval" | "completed" | "failed"}`.
+- Get State: `GET /v1/agent/sessions/{session_id}` -> session state, current step, results.
+- Event Stream (SSE): `GET /v1/agent/sessions/{session_id}/stream` -> `text/event-stream` emitting `data: {"seq": int, "type": "action" | "observation", "name": str, "payload": dict}`.
+- Approval Workflow: `POST /v1/agent/sessions/{session_id}/approve` -> resumes paused session; `POST /v1/agent/sessions/{session_id}/reject` -> terminates session as rejected.
+- Policy Enforcement: Blocks `plc` and `machine_direct`; requires approver/admin for high risk; requires approval for medium/high risk tools.
 
-### Web Proxy ↔ Backend Services
-- `/api/intelligence/...` forwards to `http://localhost:8001/...`
-- `/api/execution/...` forwards to `http://localhost:8002/...`
-- Uses internal service bearer tokens / JWT session authentication.
+## Code Layout
+- `apps/web/`:
+  - `lib/brand.ts`: White-labeling configuration loader.
+  - `components/logo.tsx`, `components/sidebar.tsx`, `components/charts.tsx`, `components/ui/kit.tsx`, `components/team-manager.tsx`.
+  - `app/page.tsx`, `app/settings/page.tsx`, `app/team/page.tsx`, `app/documents/page.tsx`, `app/licenses/page.tsx`, `app/icon.svg/route.ts`.
+  - `app/api/[service]/[...path]/route.ts`: Web proxy route.
+- `services/intelligence/`:
+  - `app/auth_routes.py`: Throttling, user management endpoints.
+  - `app/dashboard.py`: Dashboard summary & system status endpoints.
+  - `app/sqlite_adapter.py`: SQLite schema for `login_attempts` and user columns.
+- `services/execution/`:
+  - `app/harness/`: OpenHands agent execution harness subpackage.
+    - `models.py`: Event, Action, Observation, Session schemas.
+    - `stream.py`: Event stream manager and SSE streaming.
+    - `orchestrator.py`: Gemini 4 Argon (`cawrys-reason`) planning & delegation.
+    - `worker.py`: Gemini 3.8 Flash (`cawrys-extract`/`vision`) worker execution.
+    - `loop.py`: Action-observation loop and state machine.
+    - `policy_guard.py`: Integration with `app/policy.py`.
+    - `mock.py`: Deterministic offline execution for `MOCK_AI=1`.
+    - `routes.py`: REST and SSE router mounted on FastAPI.
+- `tests/e2e/`:
+  - `tier1_feature/test_09_agent_harness.py`: 15 OpenHands harness tests.
+  - `tier1_feature/test_10_snapshot_features.py`: 6 snapshot feature tests.
+  - `mock_server.py`: Extended mock endpoints for offline test execution.

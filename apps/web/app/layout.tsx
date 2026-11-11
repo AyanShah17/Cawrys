@@ -1,26 +1,40 @@
+// apps/web/app/layout.tsx
 import "./globals.css";
-import Link from "next/link";
-import { UserMenu } from "@/components/user-menu";
+import React from "react";
+import type { Metadata } from "next";
+import { Sidebar } from "@/components/sidebar";
+import { getBrand } from "@/lib/brand";
 import { getMe } from "@/lib/server";
 
-export const metadata = { title: "Cawrys", description: "Customer-owned AI operations platform" };
+export async function generateMetadata(): Promise<Metadata> {
+  const b = getBrand();
+  return {
+    title: { default: b.name, template: `%s · ${b.name}` },
+    description: b.tagline,
+    icons: { icon: "/icon.svg" },
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const brand = getBrand();
   const me = await getMe();
   return (
     <html lang="en">
+      <head>
+        {/* brand colour is validated to digits in lib/brand.ts, so this cannot carry markup */}
+        <style dangerouslySetInnerHTML={{ __html: `:root{--brand:${brand.rgb}}` }} />
+      </head>
       <body className="min-h-screen antialiased">
-        {me && (
-          <nav className="flex items-center gap-6 border-b border-white/10 px-6 py-3 text-sm">
-            <Link href="/" className="font-semibold tracking-tight">Cawrys</Link>
-            <Link href="/" className="text-neutral-400 hover:text-white">Intelligence</Link>
-            <Link href="/playbooks" className="text-neutral-400 hover:text-white">Execution</Link>
-            <Link href="/approvals" className="text-neutral-400 hover:text-white">Approvals</Link>
-            <Link href="/audit" className="text-neutral-400 hover:text-white">Audit</Link>
-            <UserMenu email={me.email} role={me.role} />
-          </nav>
+        {me ? (
+          <div className="flex min-h-screen">
+            <Sidebar brand={brand} email={me.email} role={me.role} />
+            <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
+              <div className="mx-auto max-w-6xl">{children}</div>
+            </main>
+          </div>
+        ) : (
+          children
         )}
-        {children}
       </body>
     </html>
   );

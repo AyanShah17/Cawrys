@@ -13,6 +13,16 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL DEFAULT '',
   role TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('admin','engineer','approver','viewer')),
+  is_active INTEGER NOT NULL DEFAULT 1,
+  last_login_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL,
+  ip TEXT NOT NULL DEFAULT '',
+  ok INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -88,5 +98,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_docs_tenant ON documents(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_log(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_extractions_tenant ON extractions(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_executions_tenant ON executions(tenant_id, created_at DESC);
 
 INSERT OR IGNORE INTO tenants (id, name) VALUES ('00000000-0000-0000-0000-000000000001','Demo Tenant');

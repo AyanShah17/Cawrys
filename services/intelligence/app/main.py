@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth_routes, ingest, models, storage, validate
+from . import auth_routes, dashboard, ingest, models, storage, validate
 from .auth import Ctx, current, require
 from .config import MODEL_EXTRACT, MODEL_REASON, MODEL_VISION
 from .db import audit, conn
@@ -20,6 +20,10 @@ async def lifespan(_app):
             auth_routes.seed_demo_users()
         except Exception as e:  # DB may still be starting; the API keeps serving
             print(f"demo user seed skipped: {e}")
+    try:
+        auth_routes.bootstrap_admin()
+    except Exception as e:
+        print(f"bootstrap admin skipped: {e}")
     yield
 
 
@@ -27,6 +31,7 @@ app = FastAPI(title="Cawrys Intelligence Service", version="0.3.0", lifespan=lif
 # Browsers reach the services through the web app's server-side proxy, so cross-origin access is not needed.
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [], allow_methods=["*"], allow_headers=["*"])
 app.include_router(auth_routes.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health")
