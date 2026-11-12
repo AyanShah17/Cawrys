@@ -2,6 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { AiTest, PasswordForm } from "@/components/settings-forms";
+import { LiteLLMSettingsCard } from "@/components/litellm-settings-card";
 import { Card, Notice, PageHeader, Pill } from "@/components/ui/kit";
 import { getBrand } from "@/lib/brand";
 import { label } from "@/lib/format";
@@ -20,6 +21,7 @@ export default async function Settings() {
     <div className="space-y-6">
       <PageHeader title="Settings" subtitle="Your account, the connection to the AI, and how this system is branded" />
       <div className="grid gap-4 lg:grid-cols-2">
+        <LiteLLMSettingsCard />
         <Card title="Your account">
           <dl className="mb-4 grid grid-cols-[7rem_1fr] gap-y-1 text-sm">
             <dt className="text-neutral-500">Email</dt>

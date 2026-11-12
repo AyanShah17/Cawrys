@@ -142,6 +142,31 @@ CREATE TABLE IF NOT EXISTS marketplace_connections (
 
 CREATE INDEX IF NOT EXISTS idx_marketplace_connections_tenant ON marketplace_connections(tenant_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  session_id TEXT NOT NULL DEFAULT 'default',
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  metadata TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_overrides (
+  tenant_id TEXT PRIMARY KEY REFERENCES tenants(id),
+  metrics TEXT NOT NULL DEFAULT '{}',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS litellm_user_configs (
+  tenant_id TEXT PRIMARY KEY REFERENCES tenants(id),
+  provider TEXT NOT NULL DEFAULT 'gemini',
+  model TEXT NOT NULL DEFAULT 'gemini/gemini-2.5-flash',
+  api_key TEXT NOT NULL DEFAULT '',
+  base_url TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 INSERT OR IGNORE INTO tenants (id, name) VALUES ('00000000-0000-0000-0000-000000000001','Demo Tenant');
 """
 

@@ -5,6 +5,14 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { post, getJSON } from "@/lib/api";
 import { Badge, Button } from "@/components/ui/kit";
+import {
+  DEFAULT_LITELLM_CONFIG,
+  LITELLM_PROVIDERS,
+  LiteLLMConfig,
+  LiteLLMModal,
+  loadLiteLLMConfig,
+  saveLiteLLMConfig,
+} from "./litellm-modal";
 
 type ToolCall = {
   app: string;
@@ -44,6 +52,7 @@ type ChatInterfaceProps = {
   initialTools?: ConnectedTool[];
   initialConnections?: MarketplaceConnection[];
   initialOverrides?: Record<string, any>;
+  initialDocsCount?: number;
 };
 
 const SUGGESTED_PROMPTS = [
@@ -60,19 +69,37 @@ export function ChatInterface({
   initialTools = [],
   initialConnections = [],
   initialOverrides = {},
+  initialDocsCount = 0,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [connections, setConnections] = useState<MarketplaceConnection[]>(initialConnections);
   const [overrides, setOverrides] = useState<Record<string, any>>(initialOverrides);
+  const [docsCount, setDocsCount] = useState<number>(initialDocsCount);
+  const [modelConfig, setModelConfig] = useState<LiteLLMConfig>(DEFAULT_LITELLM_CONFIG);
+  const [isLiteLLMModalOpen, setIsLiteLLMModalOpen] = useState(false);
   const [showToolDetails, setShowToolDetails] = useState<Record<string, boolean>>({});
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load history and tools on mount
+  // Check URL query parameters for ?configure_ai=1 or ?litellm=1
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("configure_ai") === "1" || sp.get("litellm") === "1") {
+        setIsLiteLLMModalOpen(true);
+      }
+    }
+  }, []);
+
+  // Load history, tools, and model config on mount
+  useEffect(() => {
+    // Immediate local config restore
+    const local = loadLiteLLMConfig();
+    setModelConfig(local);
+
     async function loadData() {
       try {
         const histRes = await getJSON<{ ok: boolean; messages: ChatMessage[] }>(
@@ -100,12 +127,65 @@ export function ChatInterface({
         }>("/api/execution/v1/chat/tools");
         if (toolsRes?.connections) setConnections(toolsRes.connections);
         if (toolsRes?.overrides) setOverrides(toolsRes.overrides);
+
+        // Fetch model config from execution backend
+        try {
+          const cfgRes = await getJSON<{
+            ok: boolean;
+            provider?: string;
+            model?: string;
+            api_key?: string;
+            base_url?: string;
+          }>("/api/execution/v1/chat/model_config");
+          if (cfgRes?.provider && cfgRes?.model) {
+            const serverConfig: LiteLLMConfig = {
+              provider: (cfgRes.provider in LITELLM_PROVIDERS)
+                ? (cfgRes.provider as any)
+                : local.provider,
+              model: cfgRes.model || local.model,
+              apiKey: cfgRes.api_key || local.apiKey || "",
+              baseUrl: cfgRes.base_url || local.baseUrl || "",
+            };
+            setModelConfig(serverConfig);
+            saveLiteLLMConfig(serverConfig);
+          }
+        } catch {
+          // local config remains active
+        }
+
+        // Fetch documents count if initialDocsCount is 0
+        if (!initialDocsCount) {
+          try {
+            const docsRes = await getJSON<any>("/api/intelligence/v1/documents?limit=100");
+            const cnt = Array.isArray(docsRes)
+              ? docsRes.length
+              : (docsRes?.total ?? docsRes?.items?.length ?? 0);
+            if (cnt > 0) setDocsCount(cnt);
+          } catch {
+            // ignore
+          }
+        }
       } catch (err) {
         console.error("Failed to load initial chat tools:", err);
       }
     }
     loadData();
-  }, []);
+  }, [initialDocsCount]);
+
+  async function handleSaveModelConfig(newConfig: LiteLLMConfig) {
+    setModelConfig(newConfig);
+    saveLiteLLMConfig(newConfig);
+    try {
+      await post("/api/execution/v1/chat/model_config", {
+        provider: newConfig.provider,
+        model: newConfig.model,
+        api_key: newConfig.apiKey,
+        base_url: newConfig.baseUrl,
+      });
+    } catch (err) {
+      console.warn("Could not sync model config to backend:", err);
+    }
+  }
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -143,6 +223,10 @@ export function ChatInterface({
         message: textToSend,
         session_id: "default",
         history: messages.slice(-10),
+        provider: modelConfig.provider,
+        model: modelConfig.model,
+        api_key: modelConfig.apiKey || undefined,
+        base_url: modelConfig.baseUrl || undefined,
       });
 
       const assistantMsg: ChatMessage = {
@@ -192,64 +276,150 @@ export function ChatInterface({
 
   return (
     <div className="flex h-[calc(100vh-9rem)] flex-col rounded-xl border border-white/10 bg-[#0a0b10] shadow-2xl overflow-hidden">
-      {/* Top Banner: Marketplace Connected Tools & Dashboard Overrides */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/40 px-4 py-2.5 text-xs backdrop-blur-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-neutral-300">Connected Data Toolkits:</span>
-          {connections.length > 0 ? (
-            connections.map((c) => (
-              <Badge
-                key={c.app_key}
-                variant="success"
-                className="py-0.5 text-[11px]"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                {c.app_name}
-              </Badge>
-            ))
-          ) : (
-            <span className="text-neutral-500">FastMCP Industrial Tools Active (SAP, Siemens, Rockwell)</span>
-          )}
-          <Link
-            href="/marketplace"
-            className="rounded-md border border-white/10 px-2.5 py-0.5 text-neutral-400 hover:bg-white/5 hover:text-white transition"
-          >
-            + Connect Marketplace Tools
-          </Link>
-        </div>
+      {/* Top Header Bar: LiteLLM Model Selector & Live Context Badges */}
+      <div className="border-b border-white/10 bg-black/60 px-4 py-2.5 backdrop-blur-md space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* LiteLLM Model & Provider Selector Pill Button */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLiteLLMModalOpen(true)}
+              className="group flex items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-3.5 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:border-brand hover:bg-brand/20 active:scale-95"
+              title="Click to configure AI Provider, Model, and API Key"
+            >
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-semibold text-brand">⚡ LiteLLM:</span>
+              <span className="text-neutral-200">
+                {LITELLM_PROVIDERS[modelConfig.provider]?.name || modelConfig.provider}
+              </span>
+              <span className="text-neutral-500 font-mono text-[11px]">·</span>
+              <span className="font-mono text-neutral-300 text-[11px] max-w-[180px] truncate">
+                {modelConfig.model.split("/").pop() || modelConfig.model}
+              </span>
+              <span className="text-neutral-400 group-hover:text-white transition-colors text-[11px]">
+                ⚙ ▾
+              </span>
+            </button>
+          </div>
 
-        {hasOverrides && (
+          {/* Live Context Badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-brand font-medium">⚡ Dashboard Targets:</span>
-            {overrides.production_target && (
-              <span className="text-neutral-300">Target: <strong className="text-white">{overrides.production_target}</strong></span>
-            )}
-            {overrides.risk_level && (
-              <Badge
-                variant={
-                  overrides.risk_level === "LOW"
-                    ? "success"
-                    : overrides.risk_level === "HIGH"
-                    ? "destructive"
-                    : "warning"
-                }
-                className="font-bold py-0 text-[10px]"
-              >
-                {overrides.risk_level}
-              </Badge>
-            )}
-            {overrides.oee && <span className="text-neutral-300">OEE: <strong className="text-white">{overrides.oee}</strong></span>}
-            {overrides.operational_status && (
-              <span className="text-neutral-300">Status: <strong className="text-white">{overrides.operational_status}</strong></span>
-            )}
+            {/* 📊 Live Dashboard Sync */}
             <Link
               href="/"
-              className="font-medium text-brand hover:underline flex items-center gap-1 text-xs"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-neutral-300 hover:border-white/20 hover:bg-white/[0.08] transition shadow-sm"
+              title="Live operational metrics synced with dashboard"
             >
-              View on Dashboard &rarr;
+              <span>📊</span>
+              <span className="font-medium text-white">Live Dashboard Sync</span>
+              <span className="text-neutral-600">·</span>
+              <span className="text-emerald-400 font-mono text-[11px]">
+                {overrides.production_target
+                  ? `Target: ${overrides.production_target}`
+                  : overrides.oee
+                  ? `OEE: ${overrides.oee}`
+                  : "Active"}
+              </span>
+            </Link>
+
+            {/* 🔌 Connected Toolkits */}
+            <Link
+              href="/marketplace"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-neutral-300 hover:border-white/20 hover:bg-white/[0.08] transition shadow-sm"
+              title="Connected industrial and enterprise toolkits"
+            >
+              <span>🔌</span>
+              <span className="font-medium text-white">
+                {connections.length > 0 ? connections.length : 3} Connected Toolkits
+              </span>
+            </Link>
+
+            {/* 📄 Active Documents */}
+            <Link
+              href="/documents"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-neutral-300 hover:border-white/20 hover:bg-white/[0.08] transition shadow-sm"
+              title="Ingested industrial documents and CAD drawings"
+            >
+              <span>📄</span>
+              <span className="font-medium text-white">
+                {docsCount} Active Documents
+              </span>
             </Link>
           </div>
-        )}
+        </div>
+
+        {/* Row 2: Connected Toolkits chips & Dashboard targets */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-neutral-400 text-[11px]">Toolkits:</span>
+            {connections.length > 0 ? (
+              connections.map((c) => (
+                <Badge
+                  key={c.app_key}
+                  variant="success"
+                  className="py-0 text-[10px]"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  {c.app_name}
+                </Badge>
+              ))
+            ) : (
+              <>
+                <Badge variant="outline" className="py-0 text-[10px] text-neutral-300">
+                  SAP S/4HANA
+                </Badge>
+                <Badge variant="outline" className="py-0 text-[10px] text-neutral-300">
+                  Siemens PLM
+                </Badge>
+                <Badge variant="outline" className="py-0 text-[10px] text-neutral-300">
+                  Rockwell FastMCP
+                </Badge>
+              </>
+            )}
+            <Link
+              href="/marketplace"
+              className="rounded border border-white/10 px-2 py-0.5 text-[11px] text-neutral-400 hover:bg-white/5 hover:text-white transition"
+            >
+              + Connect Marketplace Tools
+            </Link>
+          </div>
+
+          {hasOverrides && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-brand font-medium text-[11px]">⚡ Dashboard Targets:</span>
+              {overrides.production_target && (
+                <span className="text-neutral-300 text-[11px]">
+                  Target: <strong className="text-white">{overrides.production_target}</strong>
+                </span>
+              )}
+              {overrides.risk_level && (
+                <Badge
+                  variant={
+                    overrides.risk_level === "LOW"
+                      ? "success"
+                      : overrides.risk_level === "HIGH"
+                      ? "destructive"
+                      : "warning"
+                  }
+                  className="font-bold py-0 text-[10px]"
+                >
+                  {overrides.risk_level}
+                </Badge>
+              )}
+              {overrides.oee && (
+                <span className="text-neutral-300 text-[11px]">
+                  OEE: <strong className="text-white">{overrides.oee}</strong>
+                </span>
+              )}
+              <Link
+                href="/"
+                className="font-medium text-brand hover:underline flex items-center gap-1 text-[11px]"
+              >
+                View on Dashboard &rarr;
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Suggested Prompts Pill Bar */}
@@ -395,16 +565,48 @@ export function ChatInterface({
                   </div>
                 )}
 
-                <div
-                  className={`mt-1.5 text-[10px] ${
-                    isUser ? "text-white/70 text-right" : "text-neutral-500"
-                  }`}
-                >
-                  {new Date(m.timestamp).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
+                {/* Message Timestamp & Model Routing Metadata */}
+                {isUser ? (
+                  <div className="mt-1.5 text-[10px] text-white/70 text-right">
+                    {new Date(m.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1.5 text-[10px] text-neutral-400">
+                    <div className="flex flex-wrap items-center gap-1.5 font-mono">
+                      <span className="flex items-center gap-1 text-brand font-medium">
+                        <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+                        via {m.metadata?.model || modelConfig.model}
+                      </span>
+                      {m.metadata?.latency_ms !== undefined && (
+                        <>
+                          <span className="text-neutral-600">·</span>
+                          <span>{m.metadata.latency_ms}ms</span>
+                        </>
+                      )}
+                      {m.metadata?.provider && (
+                        <>
+                          <span className="text-neutral-600">·</span>
+                          <span className="capitalize">{m.metadata.provider}</span>
+                        </>
+                      )}
+                      {m.metadata?.context_used && (
+                        <>
+                          <span className="text-neutral-600">·</span>
+                          <span className="text-emerald-400/90 font-sans">grounded in context</span>
+                        </>
+                      )}
+                    </div>
+                    <span>
+                      {new Date(m.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {isUser && (
@@ -500,6 +702,14 @@ export function ChatInterface({
           </Button>
         </form>
       </div>
+
+      {/* LiteLLM Model & Provider Configuration Modal */}
+      <LiteLLMModal
+        isOpen={isLiteLLMModalOpen}
+        onClose={() => setIsLiteLLMModalOpen(false)}
+        currentConfig={modelConfig}
+        onSave={handleSaveModelConfig}
+      />
     </div>
   );
 }

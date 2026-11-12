@@ -32,6 +32,13 @@ export default async function ChatPage() {
     serverGet<ChatToolsResponse>("execution", "/v1/chat/tools")
   );
 
+  const docsData = await safe(
+    serverGet<any>("intelligence", "/v1/documents?limit=100")
+  );
+  const docsCount = Array.isArray(docsData)
+    ? docsData.length
+    : (docsData?.total ?? docsData?.items?.length ?? 0);
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -43,6 +50,7 @@ export default async function ChatPage() {
         initialConnections={data?.connections ?? []}
         initialTools={data?.tools ?? []}
         initialOverrides={data?.overrides ?? {}}
+        initialDocsCount={docsCount}
       />
     </div>
   );
