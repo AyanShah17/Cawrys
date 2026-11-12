@@ -18,7 +18,8 @@ import {
   saveLiteLLMConfig,
 } from "./litellm-modal";
 
-export function LiteLLMSettingsCard() {
+export function LiteLLMSettingsCard({ role }: { role?: string }) {
+  const isEngineer = role === "engineer";
   const [config, setConfig] = useState<LiteLLMConfig>(DEFAULT_LITELLM_CONFIG);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [syncedWithServer, setSyncedWithServer] = useState(false);
@@ -112,22 +113,34 @@ export function LiteLLMSettingsCard() {
                   <div className="text-[11px] text-neutral-400 font-mono">{config.model}</div>
                 </div>
               </div>
-              <Badge variant="success" className="text-[10px]">
-                Active Routing
-              </Badge>
+              {isEngineer ? (
+                <Badge variant="warning" className="text-[10px]">
+                  Configured by Administrator
+                </Badge>
+              ) : (
+                <Badge variant="success" className="text-[10px]">
+                  Active Routing
+                </Badge>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-2 text-xs">
               <div>
                 <span className="text-neutral-500">API Key: </span>
                 <span className="text-neutral-300 font-mono">
-                  {hasCustomKey ? "•••••••• (Tenant Key)" : "System Default"}
+                  {isEngineer
+                    ? "Configured by Administrator"
+                    : hasCustomKey
+                    ? "•••••••• (Tenant Key)"
+                    : "System Default"}
                 </span>
               </div>
               <div>
                 <span className="text-neutral-500">Base URL: </span>
                 <span className="text-neutral-300 font-mono truncate">
-                  {config.baseUrl || "Standard Endpoint"}
+                  {isEngineer
+                    ? "Managed Endpoint"
+                    : config.baseUrl || "Standard Endpoint"}
                 </span>
               </div>
             </div>
@@ -140,8 +153,20 @@ export function LiteLLMSettingsCard() {
               onClick={() => setIsModalOpen(true)}
               className="gap-1.5"
             >
-              <IconTune className="h-3.5 w-3.5 text-neutral-300" />
-              <span>Configure Provider &amp; Model</span>
+              {isEngineer ? (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-400">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span>View Configuration (Admin Managed)</span>
+                </>
+              ) : (
+                <>
+                  <IconTune className="h-3.5 w-3.5 text-neutral-300" />
+                  <span>Configure Provider &amp; Model</span>
+                </>
+              )}
             </Button>
 
             <Link
@@ -159,6 +184,8 @@ export function LiteLLMSettingsCard() {
         onClose={() => setIsModalOpen(false)}
         currentConfig={config}
         onSave={handleSaveConfig}
+        role={role}
+        readOnly={isEngineer}
       />
     </>
   );

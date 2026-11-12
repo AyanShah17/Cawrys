@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import type { Brand } from "@/lib/brand";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
+import { useAppMode } from "@/lib/mode-context";
+import { ModeSwitcher } from "@/components/mode-switcher";
 
 type Item = {
   href: string;
@@ -15,22 +17,78 @@ type Item = {
   badge?: string;
 };
 
-const ITEMS: Item[] = [
-  { href: "/", label: "Dashboard", icon: "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" },
-  { href: "/chat", label: "Agent Chat", icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z", badge: "AI" },
-  { href: "/documents", label: "Documents", icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" },
-  { href: "/playbooks", label: "Execution", icon: "M5 3l14 9-14 9z" },
-  { href: "/marketplace", label: "Marketplace", icon: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" },
-  { href: "/connectors", label: "Connectors", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
-  { href: "/approvals", label: "Approvals", icon: "M5 12l5 5L20 7" },
-  { href: "/audit", label: "Audit log", icon: "M4 6h16M4 12h16M4 18h10" },
-  { href: "/team", label: "Team", icon: "M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c0-4 3.6-6 8-6s8 2 8 6", roles: ["admin"] },
-  { href: "/settings", label: "Settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19 12l2-1-2-4-2 1a7 7 0 00-2-1l-.5-2h-5l-.5 2a7 7 0 00-2 1l-2-1-2 4 2 1a7 7 0 000 2l-2 1 2 4 2-1a7 7 0 002 1l.5 2h5l.5-2a7 7 0 002-1l2 1 2-4-2-1a7 7 0 000-2z" },
+// AI Mode navigation items
+const AI_ITEMS: Item[] = [
+  {
+    href: "/chat",
+    label: "Agent Chat",
+    icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+    badge: "AI",
+  },
+  {
+    href: "/connectors",
+    label: "Connectors",
+    icon: "M13 10V3L4 14h7v7l9-11h-7z",
+  },
+  {
+    href: "/marketplace",
+    label: "Marketplace",
+    icon: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19 12l2-1-2-4-2 1a7 7 0 00-2-1l-.5-2h-5l-.5 2a7 7 0 00-2 1l-2-1-2 4 2 1a7 7 0 000 2l-2 1 2 4 2-1a7 7 0 002 1l.5 2h5l.5-2a7 7 0 002-1l2 1 2-4-2-1a7 7 0 000-2z",
+  },
+];
+
+// Dashboard Mode navigation items
+const DASHBOARD_ITEMS: Item[] = [
+  {
+    href: "/",
+    label: "Dashboard",
+    icon: "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10",
+  },
+  {
+    href: "/documents",
+    label: "Documents",
+    icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
+  },
+  {
+    href: "/playbooks",
+    label: "Execution",
+    icon: "M5 3l14 9-14 9z",
+  },
+  {
+    href: "/approvals",
+    label: "Approvals",
+    icon: "M5 12l5 5L20 7",
+  },
+  {
+    href: "/audit",
+    label: "Audit log",
+    icon: "M4 6h16M4 12h16M4 18h10",
+  },
+  {
+    href: "/team",
+    label: "Team",
+    icon: "M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c0-4 3.6-6 8-6s8 2 8 6",
+    roles: ["admin"],
+  },
 ];
 
 function Icon({ d }: { d: string }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d={d} />
     </svg>
   );
@@ -38,7 +96,10 @@ function Icon({ d }: { d: string }) {
 
 export function Sidebar({ brand, email, role }: { brand: Brand; email: string; role: string }) {
   const path = usePathname();
-  const items = ITEMS.filter((i) => !i.roles || i.roles.includes(role));
+  const { mode } = useAppMode();
+
+  const rawItems = mode === "ai" ? AI_ITEMS : DASHBOARD_ITEMS;
+  const items = rawItems.filter((i) => !i.roles || i.roles.includes(role));
   const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
   async function signOut() {
@@ -51,9 +112,20 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
   return (
     <>
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/10 bg-black/40 backdrop-blur-xl p-4 md:flex">
-        <Link href="/" className="mb-6 flex items-center px-2 py-1 transition-opacity hover:opacity-90">
+        <Link href="/" className="mb-4 flex items-center px-2 py-1 transition-opacity hover:opacity-90">
           <Logo brand={brand} />
         </Link>
+
+        {/* Dual Mode Switcher Pill */}
+        <div className="mb-4">
+          <ModeSwitcher size="full" />
+        </div>
+
+        {/* Mode Label */}
+        <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          {mode === "ai" ? "AI Workspace" : "Plant Operations"}
+        </div>
+
         <nav className="flex-1 space-y-1">
           {items.map((i) => {
             const isItemActive = active(i.href);
@@ -116,12 +188,16 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
         </div>
       </aside>
 
+      {/* Mobile Top Header */}
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07080d]/95 backdrop-blur-md md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <Logo brand={brand} />
           <Button variant="ghost" size="sm" onClick={signOut} className="text-xs text-neutral-400">
             Sign out
           </Button>
+        </div>
+        <div className="px-3 pb-2">
+          <ModeSwitcher size="full" />
         </div>
         <nav className="flex gap-1.5 overflow-x-auto px-3 pb-2.5">
           {items.map((i) => {

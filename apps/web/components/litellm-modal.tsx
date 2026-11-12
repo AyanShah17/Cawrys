@@ -447,6 +447,8 @@ interface LiteLLMModalProps {
   onClose: () => void;
   currentConfig?: LiteLLMConfig;
   onSave: (config: LiteLLMConfig) => Promise<void> | void;
+  role?: string;
+  readOnly?: boolean;
 }
 
 export function LiteLLMModal({
@@ -454,7 +456,10 @@ export function LiteLLMModal({
   onClose,
   currentConfig,
   onSave,
+  role,
+  readOnly,
 }: LiteLLMModalProps) {
+  const isEngineer = role === "engineer" || Boolean(readOnly);
   const [providerList, setProviderList] = useState<Record<string, LiteLLMProviderInfo>>(LITELLM_PROVIDERS);
   const [providerSearch, setProviderSearch] = useState<string>("");
   const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState<boolean>(false);
@@ -784,6 +789,21 @@ export function LiteLLMModal({
         </div>
 
         {/* Feedback Alert */}
+        {isEngineer && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200 flex items-start gap-2.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-amber-400 shrink-0 mt-0.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <div>
+              <span className="font-semibold text-amber-300">Configured by Administrator</span>
+              <p className="mt-0.5 text-neutral-300 leading-relaxed">
+                On-site engineers have view-only access to AI model configuration. AI provider, model selection, API key, and base URL are managed by your administrator.
+              </p>
+            </div>
+          </div>
+        )}
+
         {statusMessage && (
           <div
             className={`rounded-lg px-3.5 py-2.5 text-xs flex items-center gap-2 ${
@@ -815,8 +835,11 @@ export function LiteLLMModal({
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-                className="w-full flex items-center justify-between rounded-lg border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-neutral-100 shadow-sm hover:border-white/30 focus:border-white/40 focus:outline-none transition"
+                disabled={isEngineer}
+                onClick={() => !isEngineer && setIsProviderDropdownOpen(!isProviderDropdownOpen)}
+                className={`w-full flex items-center justify-between rounded-lg border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-neutral-100 shadow-sm transition ${
+                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-white/30 focus:border-white/40 focus:outline-none"
+                }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <ProviderBrandIcon provider={currentProviderInfo.id} className="h-4 w-4 text-brand shrink-0" />
@@ -931,8 +954,11 @@ export function LiteLLMModal({
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                className="w-full flex items-center justify-between rounded-lg border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-neutral-100 shadow-sm hover:border-white/30 focus:border-white/40 focus:outline-none transition"
+                disabled={isEngineer}
+                onClick={() => !isEngineer && setIsModelDropdownOpen(!isModelDropdownOpen)}
+                className={`w-full flex items-center justify-between rounded-lg border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-neutral-100 shadow-sm transition ${
+                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-white/30 focus:border-white/40 focus:outline-none"
+                }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-mono text-xs text-brand truncate">
@@ -943,7 +969,7 @@ export function LiteLLMModal({
               </button>
 
               {/* Model Dropdown Panel */}
-              {isModelDropdownOpen && (
+              {!isEngineer && isModelDropdownOpen && (
                 <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-xl border border-white/15 bg-[#0e1017] p-2 shadow-2xl space-y-2 backdrop-blur-xl max-h-72 flex flex-col">
                   {/* Search Input */}
                   <div className="relative">
@@ -1018,6 +1044,7 @@ export function LiteLLMModal({
               <div className="pt-2">
                 <Input
                   type="text"
+                  disabled={isEngineer}
                   placeholder={`e.g. ${provider}/custom-model-name or hosted_vllm/...`}
                   value={customModel}
                   onChange={(e) => setCustomModel(e.target.value)}
@@ -1042,53 +1069,67 @@ export function LiteLLMModal({
                     Pre-configured in Environment
                   </Badge>
                 )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="text-[11px] text-neutral-400 hover:text-white flex items-center gap-1 transition"
-              >
-                {showApiKey ? (
-                  <>
-                    <IconEyeOff className="h-3.5 w-3.5" />
-                    <span>Hide</span>
-                  </>
-                ) : (
-                  <>
-                    <IconEye className="h-3.5 w-3.5" />
-                    <span>Show</span>
-                  </>
+                {isEngineer && (
+                  <Badge variant="warning" className="text-[9px] py-0 px-1.5">
+                    Configured by Administrator
+                  </Badge>
                 )}
-              </button>
+              </div>
+              {!isEngineer && (
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="text-[11px] text-neutral-400 hover:text-white flex items-center gap-1 transition"
+                >
+                  {showApiKey ? (
+                    <>
+                      <IconEyeOff className="h-3.5 w-3.5" />
+                      <span>Hide</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconEye className="h-3.5 w-3.5" />
+                      <span>Show</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
             <div className="relative">
               <Input
                 type={showApiKey ? "text" : "password"}
+                disabled={isEngineer}
                 placeholder={
-                  currentProviderInfo.env_api_key_set
+                  isEngineer
+                    ? "Configured by Administrator (Locked)"
+                    : currentProviderInfo.env_api_key_set
                     ? `Pre-configured via ${currentProviderInfo.env_key_name || "Environment"} (leave blank or override)`
                     : `Enter ${currentProviderInfo.name} API Key (${currentProviderInfo.keyPlaceholder || "Required"})`
                 }
-                value={apiKey}
+                value={isEngineer ? "••••••••••••••••" : apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className="font-mono text-xs pr-10"
+                className={`font-mono text-xs pr-10 ${isEngineer ? "cursor-not-allowed opacity-70 bg-black/60" : ""}`}
               />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2.5 top-2.5 text-neutral-500 hover:text-neutral-300"
-                tabIndex={-1}
-                aria-label={showApiKey ? "Hide API key" : "Show API key"}
-              >
-                {showApiKey ? (
-                  <IconEyeOff className="h-4 w-4" />
-                ) : (
-                  <IconEye className="h-4 w-4" />
-                )}
-              </button>
+              {!isEngineer && (
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-2.5 top-2.5 text-neutral-500 hover:text-neutral-300"
+                  tabIndex={-1}
+                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                >
+                  {showApiKey ? (
+                    <IconEyeOff className="h-4 w-4" />
+                  ) : (
+                    <IconEye className="h-4 w-4" />
+                  )}
+                </button>
+              )}
             </div>
             <p className="text-[11px] text-neutral-400">
-              Stored securely per tenant session for direct LiteLLM model routing.
+              {isEngineer
+                ? "Credential secured and managed centrally by system administrator."
+                : "Stored securely per tenant session for direct LiteLLM model routing."}
             </p>
           </div>
 
@@ -1098,7 +1139,7 @@ export function LiteLLMModal({
               <label className="text-xs font-semibold text-neutral-300">
                 Custom Base URL <span className="font-normal text-neutral-500">(Optional)</span>
               </label>
-              {currentProviderInfo.defaultBaseUrl && (
+              {!isEngineer && currentProviderInfo.defaultBaseUrl && (
                 <button
                   type="button"
                   onClick={() => setBaseUrl(currentProviderInfo.defaultBaseUrl || "")}
@@ -1110,10 +1151,15 @@ export function LiteLLMModal({
             </div>
             <Input
               type="text"
-              placeholder={currentProviderInfo.defaultBaseUrl || "http://localhost:11434 or proxy URL"}
+              disabled={isEngineer}
+              placeholder={
+                isEngineer
+                  ? "Configured by Administrator (Standard Endpoint)"
+                  : currentProviderInfo.defaultBaseUrl || "http://localhost:11434 or proxy URL"
+              }
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              className="font-mono text-xs"
+              className={`font-mono text-xs ${isEngineer ? "cursor-not-allowed opacity-70 bg-black/60" : ""}`}
             />
             <p className="text-[11px] text-neutral-400">
               Useful for self-hosted Ollama, vLLM, Azure endpoints, or corporate LiteLLM proxy gateways.
@@ -1122,36 +1168,50 @@ export function LiteLLMModal({
 
           {/* Modal Actions */}
           <div className="flex items-center justify-end gap-2.5 border-t border-white/10 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="default"
-              size="sm"
-              disabled={isSubmitting}
-              className="gap-1.5"
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10" strokeDasharray="30" strokeDashoffset="10" />
-                  </svg>
-                  <span>Applying...</span>
-                </>
-              ) : (
-                <>
-                  <IconBolt className="h-3.5 w-3.5" />
-                  <span>Save &amp; Apply Model</span>
-                </>
-              )}
-            </Button>
+            {isEngineer ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="w-full text-xs"
+              >
+                Close (Configured by Administrator)
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="default"
+                  size="sm"
+                  disabled={isSubmitting}
+                  className="gap-1.5"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10" strokeDasharray="30" strokeDashoffset="10" />
+                      </svg>
+                      <span>Applying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconBolt className="h-3.5 w-3.5" />
+                      <span>Save &amp; Apply Model</span>
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </div>

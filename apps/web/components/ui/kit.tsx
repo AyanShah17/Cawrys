@@ -66,11 +66,15 @@ export function Stat({
   value,
   hint,
   tone,
+  trend,
+  trendPositive,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "warn" | "good" | "bad";
+  trend?: string;
+  trendPositive?: boolean;
 }) {
   const color =
     tone === "warn"
@@ -80,10 +84,27 @@ export function Stat({
       : tone === "bad"
       ? "text-red-300"
       : "text-white";
+
+  const isPositive = trendPositive !== undefined ? trendPositive : trend ? trend.startsWith("+") : false;
+
   return (
-    <div className="rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-4 shadow-sm transition-all duration-200 hover:border-white/20">
-      <div className="text-xs font-medium text-neutral-400">{l}</div>
-      <div className={cn("mt-1.5 text-2xl font-bold tracking-tight tabular-nums", color)}>{value}</div>
+    <div className="group relative rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-4 shadow-sm transition-all duration-200 hover:border-white/20 hover:shadow-md">
+      <div className="flex items-center justify-between gap-1">
+        <div className="text-xs font-medium text-neutral-400 truncate">{l}</div>
+        {trend && (
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shrink-0",
+              isPositive
+                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                : "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+            )}
+          >
+            <span>{trend}</span>
+          </span>
+        )}
+      </div>
+      <div className={cn("mt-2 text-2xl font-bold tracking-tight tabular-nums", color)}>{value}</div>
       {hint && <div className="mt-1 text-xs text-neutral-500 font-normal">{hint}</div>}
     </div>
   );

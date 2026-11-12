@@ -103,7 +103,7 @@ export function ConnectorsView({
   const [executionModal, setExecutionModal] = useState<ExecutionModalData | null>(null);
   const [copiedJson, setCopiedJson] = useState(false);
 
-  const canManage = role === "admin" || role === "engineer";
+  const canManage = role === "admin";
 
   // Refresh data
   const refresh = useCallback(async () => {
@@ -511,9 +511,24 @@ export function ConnectorsView({
                       </Button>
                     </div>
                   ) : (
-                    <span className="text-xs text-neutral-500">
-                      Admin or engineer role required
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isBusy}
+                        onClick={() => handleTestConnection(app)}
+                      >
+                        {isBusy ? "Testing..." : "Test Connection"}
+                      </Button>
+                      <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-neutral-400 font-medium">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-400" aria-hidden="true">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <span>View-Only (Admin Managed)</span>
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>

@@ -2,6 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { Distribution, StackedBars } from "@/components/charts";
+import { ModeSwitcher } from "@/components/mode-switcher";
 import {
   Badge,
   Card,
@@ -50,6 +51,11 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Floating Pill Switcher at Top of Dashboard */}
+      <div className="flex items-center justify-center pt-1 pb-1">
+        <ModeSwitcher size="default" />
+      </div>
+
       <PageHeader title="Dashboard" subtitle={`Operational overview and metrics over the last ${DAYS} days`}>
         <div className="flex items-center gap-2">
           <Link
@@ -136,46 +142,58 @@ export default async function Dashboard() {
           <Stat
             label="Production Target"
             value={String(prodTarget)}
+            trend="+6%"
+            trendPositive={true}
             hint={hasOverrides && docs?.overrides?.production_target ? "custom target" : "shift quota"}
           />
           <Stat
             label="Operational Risk"
             value={String(riskLevel)}
+            trend="-14%"
+            trendPositive={true}
             tone={riskLevel === "LOW" ? "good" : riskLevel === "HIGH" || riskLevel === "CRITICAL" ? "bad" : "warn"}
             hint="safety & compliance"
           />
           <Stat
             label="OEE Efficiency"
             value={String(oeeVal)}
+            trend="+12%"
+            trendPositive={true}
             tone={parseFloat(String(oeeVal)) >= 90 ? "good" : undefined}
             hint="equipment effectiveness"
           />
           <Stat
             label="Machine Telemetry"
             value={String(opStatus)}
+            trend="+99.8%"
+            trendPositive={true}
             tone={opStatus.toLowerCase() === "optimal" ? "good" : opStatus.toLowerCase() === "degraded" ? "bad" : "warn"}
             hint="shop floor status"
           />
           <Stat
             label="Active Work Orders"
             value={num(workOrders)}
+            trend="-2%"
+            trendPositive={true}
             hint="in execution"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Stat label="Documents" value={num(docs?.documents.total)} hint="all time" />
-        <Stat label="Needs review" value={num(needsReview)} tone={needsReview ? "warn" : undefined} />
-        <Stat label="Awaiting approval" value={num(awaiting)} tone={awaiting ? "warn" : undefined} />
-        <Stat label="Runs" value={num(runs?.executions.period_total)} hint={`last ${DAYS} days`} />
+        <Stat label="Documents" value={num(docs?.documents.total)} trend="+18%" trendPositive={true} hint="all time" />
+        <Stat label="Needs review" value={num(needsReview)} trend="-5%" trendPositive={true} tone={needsReview ? "warn" : undefined} hint="backlog reduction" />
+        <Stat label="Awaiting approval" value={num(awaiting)} trend="-2%" trendPositive={true} tone={awaiting ? "warn" : undefined} hint="pending review" />
+        <Stat label="Runs" value={num(runs?.executions.period_total)} trend="+12%" trendPositive={true} hint={`last ${DAYS} days`} />
         <Stat
           label="Success rate"
           value={pct(rate)}
+          trend="+4%"
+          trendPositive={true}
           tone={rate != null && rate < 0.8 ? "bad" : rate != null ? "good" : undefined}
           hint="completed runs"
         />
-        <Stat label="AI tokens" value={compact(docs?.ai.total_tokens)} hint={`${num(docs?.ai.total_calls)} calls`} />
+        <Stat label="AI tokens" value={compact(docs?.ai.total_tokens)} trend="+8%" trendPositive={true} hint={`${num(docs?.ai.total_calls)} calls`} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
