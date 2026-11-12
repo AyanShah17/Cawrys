@@ -6,9 +6,11 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/kit";
+import { IconTune, ProviderBrandIcon } from "@/components/ui/icons";
 import { getJSON, post } from "@/lib/api";
 import {
   DEFAULT_LITELLM_CONFIG,
+  LITELLM_CONFIG_EVENT,
   LITELLM_PROVIDERS,
   LiteLLMConfig,
   LiteLLMModal,
@@ -38,9 +40,7 @@ export function LiteLLMSettingsCard() {
         }>("/api/execution/v1/chat/model_config");
         if (res && res.provider && res.model) {
           const merged: LiteLLMConfig = {
-            provider: (res.provider in LITELLM_PROVIDERS)
-              ? (res.provider as any)
-              : local.provider,
+            provider: res.provider,
             model: res.model || local.model,
             apiKey: res.api_key || local.apiKey || "",
             baseUrl: res.base_url || local.baseUrl || "",
@@ -54,6 +54,16 @@ export function LiteLLMSettingsCard() {
       }
     }
     fetchServerConfig();
+
+    // 3. Listen for cross-component config updates
+    function handleConfigChange(e: Event) {
+      const customEvent = e as CustomEvent<LiteLLMConfig>;
+      if (customEvent.detail) {
+        setConfig(customEvent.detail);
+      }
+    }
+    window.addEventListener(LITELLM_CONFIG_EVENT, handleConfigChange);
+    return () => window.removeEventListener(LITELLM_CONFIG_EVENT, handleConfigChange);
   }, []);
 
   async function handleSaveConfig(newConfig: LiteLLMConfig) {
@@ -71,7 +81,14 @@ export function LiteLLMSettingsCard() {
     }
   }
 
-  const providerInfo = LITELLM_PROVIDERS[config.provider] || LITELLM_PROVIDERS.gemini;
+  const providerInfo = LITELLM_PROVIDERS[config.provider] || {
+    id: config.provider,
+    name: config.provider,
+    badge: "Active",
+    defaultModel: config.model,
+    models: [config.model],
+    description: "",
+  };
   const hasCustomKey = Boolean(config.apiKey && config.apiKey.trim().length > 0);
 
   return (
@@ -86,8 +103,10 @@ export function LiteLLMSettingsCard() {
 
           <div className="rounded-xl border border-white/10 bg-black/40 p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{providerInfo.icon}</span>
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-brand">
+                  <ProviderBrandIcon provider={config.provider} className="h-4 w-4 text-brand" />
+                </div>
                 <div>
                   <div className="font-semibold text-white">{providerInfo.name}</div>
                   <div className="text-[11px] text-neutral-400 font-mono">{config.model}</div>
@@ -121,8 +140,8 @@ export function LiteLLMSettingsCard() {
               onClick={() => setIsModalOpen(true)}
               className="gap-1.5"
             >
-              <span>⚙</span>
-              <span>Configure Provider & Model</span>
+              <IconTune className="h-3.5 w-3.5 text-neutral-300" />
+              <span>Configure Provider &amp; Model</span>
             </Button>
 
             <Link

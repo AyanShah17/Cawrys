@@ -360,7 +360,7 @@ export function MarketplaceGrid({
   const canManage = role === "admin" || role === "engineer";
   const isProWhitelabel = catalog.tier === "pro" || catalog.whitelabel_enabled;
 
-  // Keyboard shortcut listener for ⌘K or / to focus search input
+  // Keyboard shortcut listener for Ctrl+K / Cmd+K or / to focus search input
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -664,7 +664,7 @@ export function MarketplaceGrid({
           title: `Opening Composio Connect for ${appName}...`,
           detail: `Configuration saved. Direct authentication initiated in a new window. If blocked, click the link below.`,
           actionUrl: redirectUrl,
-          actionLabel: `Open Composio Connect ↗`,
+          actionLabel: `Open Composio Connect`,
         });
 
         try {
@@ -913,7 +913,14 @@ export function MarketplaceGrid({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg hover:bg-indigo-500 transition"
                   >
-                    <span>{banner.actionLabel || "Open Direct Link ↗"}</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      {banner.actionLabel || "Open Direct Link"}
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </span>
                   </a>
                 </div>
               )}
@@ -1091,13 +1098,17 @@ export function MarketplaceGrid({
                 }}
                 className="absolute right-3 top-2.5 text-xs text-neutral-400 hover:text-white"
                 title="Clear search"
+                aria-label="Clear search"
               >
-                ✕
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             ) : (
               <div className="pointer-events-none absolute right-3 top-2.5 hidden sm:flex items-center gap-1">
                 <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-mono text-neutral-400">
-                  ⌘K
+                  Ctrl+K
                 </kbd>
               </div>
             )}
@@ -1247,11 +1258,14 @@ export function MarketplaceGrid({
                   setSelectedCategories([]);
                   setCurrentPage(1);
                 }}
-                className="ml-1 rounded-full p-0.5 text-neutral-400 hover:bg-white/20 hover:text-white transition"
+                className="ml-1 rounded-full p-0.5 text-neutral-400 hover:bg-white/20 hover:text-white transition inline-flex items-center justify-center"
                 title="Clear category filter"
                 aria-label="Clear category filter"
               >
-                ✕
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </span>
             <button
@@ -1420,7 +1434,14 @@ export function MarketplaceGrid({
                           rel="noopener noreferrer"
                           className="text-neutral-400 hover:text-white"
                         >
-                          Specs ↗
+                          <span className="inline-flex items-center gap-1">
+                            Specs
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                              <polyline points="15 3 21 3 21 9"></polyline>
+                              <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                          </span>
                         </a>
                       </>
                     )}
@@ -1612,7 +1633,10 @@ export function MarketplaceGrid({
                 className="rounded p-1 text-neutral-400 hover:bg-white/10 hover:text-white transition"
                 aria-label="Close modal"
               >
-                ✕
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
@@ -1641,9 +1665,24 @@ export function MarketplaceGrid({
                 <button
                   type="button"
                   onClick={() => handleCopyJson(executionModal.result)}
-                  className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-neutral-300 hover:bg-white/10 hover:text-white transition flex items-center gap-1"
+                  className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-neutral-300 hover:bg-white/10 hover:text-white transition flex items-center gap-1.5"
                 >
-                  {copiedJson ? "✓ Copied!" : "📋 Copy JSON"}
+                  {copiedJson ? (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-400" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span className="text-emerald-300">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3" aria-hidden="true">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                      </svg>
+                      <span>Copy JSON</span>
+                    </>
+                  )}
                 </button>
               </div>
 

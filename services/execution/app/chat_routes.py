@@ -53,116 +53,514 @@ LITELLM_PROVIDERS: Dict[str, Dict[str, Any]] = {
     "gemini": {
         "id": "gemini",
         "name": "Google Gemini",
-        "description": "Google Gemini multimodal & reasoning models (Gemini 2.5 Flash, 2.0 Flash, 1.5 Pro).",
-        "default_model": "gemini/gemini-2.5-flash",
+        "description": "Google Gemini multimodal and reasoning models (Gemini 2.0 Flash, 2.5 Flash, 1.5 Pro).",
+        "default_base_url": "https://generativelanguage.googleapis.com",
+        "base_url": "https://generativelanguage.googleapis.com",
+        "env_key": "GEMINI_API_KEY",
+        "env_key_name": "GEMINI_API_KEY",
+        "default_model": "gemini-2.0-flash",
         "models": [
-            "gemini/gemini-2.5-flash",
-            "gemini/gemini-2.0-flash",
-            "gemini/gemini-1.5-pro",
-            "gemini/gemini-1.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.5-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+        ],
+        "popular_models": [
+            "gemini-2.0-flash",
+            "gemini-2.5-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
         ],
         "key_prefix": "AIza",
         "requires_key": True,
-        "default_base_url": "",
     },
     "openai": {
         "id": "openai",
         "name": "OpenAI",
         "description": "OpenAI GPT-4o, GPT-4o-mini, o1, and o3-mini models.",
-        "default_model": "openai/gpt-4o",
+        "default_base_url": "https://api.openai.com/v1",
+        "base_url": "https://api.openai.com/v1",
+        "env_key": "OPENAI_API_KEY",
+        "env_key_name": "OPENAI_API_KEY",
+        "default_model": "gpt-4o",
         "models": [
-            "openai/gpt-4o",
-            "openai/gpt-4o-mini",
-            "openai/o1",
-            "openai/o3-mini",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "o1",
+            "o3-mini",
+            "gpt-4-turbo",
+        ],
+        "popular_models": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "o1",
+            "o3-mini",
+            "gpt-4-turbo",
         ],
         "key_prefix": "sk-",
         "requires_key": True,
-        "default_base_url": "",
     },
     "anthropic": {
         "id": "anthropic",
-        "name": "Anthropic Claude",
-        "description": "Claude 3.5 Sonnet, Claude 3.5 Haiku, and Claude 3 Opus.",
-        "default_model": "anthropic/claude-3-5-sonnet-20241022",
+        "name": "Anthropic",
+        "description": "Claude 3.7 Sonnet, Claude 3.5 Sonnet, and Claude 3.5 Haiku reasoning models.",
+        "default_base_url": "https://api.anthropic.com",
+        "base_url": "https://api.anthropic.com",
+        "env_key": "ANTHROPIC_API_KEY",
+        "env_key_name": "ANTHROPIC_API_KEY",
+        "default_model": "claude-3-7-sonnet-20250219",
         "models": [
-            "anthropic/claude-3-5-sonnet-20241022",
-            "anthropic/claude-3-5-haiku-20241022",
-            "anthropic/claude-3-opus-20240229",
+            "claude-3-7-sonnet-20250219",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku-20241022",
+            "claude-3-opus-20240229",
+        ],
+        "popular_models": [
+            "claude-3-7-sonnet-20250219",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku-20241022",
+            "claude-3-opus-20240229",
         ],
         "key_prefix": "sk-ant-",
         "requires_key": True,
-        "default_base_url": "",
     },
     "deepseek": {
         "id": "deepseek",
         "name": "DeepSeek",
         "description": "DeepSeek Chat (V3) and DeepSeek Reasoner (R1) models.",
-        "default_model": "deepseek/deepseek-chat",
+        "default_base_url": "https://api.deepseek.com",
+        "base_url": "https://api.deepseek.com",
+        "env_key": "DEEPSEEK_API_KEY",
+        "env_key_name": "DEEPSEEK_API_KEY",
+        "default_model": "deepseek-chat",
         "models": [
-            "deepseek/deepseek-chat",
-            "deepseek/deepseek-reasoner",
+            "deepseek-chat",
+            "deepseek-reasoner",
+        ],
+        "popular_models": [
+            "deepseek-chat",
+            "deepseek-reasoner",
         ],
         "key_prefix": "sk-",
         "requires_key": True,
-        "default_base_url": "https://api.deepseek.com",
     },
     "groq": {
         "id": "groq",
-        "name": "Groq LPU",
-        "description": "Ultra-low-latency Llama 3.3 70B and Mixtral inference.",
-        "default_model": "groq/llama-3.3-70b-versatile",
+        "name": "Groq",
+        "description": "Ultra-low-latency LPU inference for Llama 3.3 and Mixtral.",
+        "default_base_url": "https://api.groq.com/openai/v1",
+        "base_url": "https://api.groq.com/openai/v1",
+        "env_key": "GROQ_API_KEY",
+        "env_key_name": "GROQ_API_KEY",
+        "default_model": "llama-3.3-70b-versatile",
         "models": [
-            "groq/llama-3.3-70b-versatile",
-            "groq/mixtral-8x7b-32768",
-            "groq/llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+            "deepseek-r1-distill-llama-70b",
+        ],
+        "popular_models": [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+            "deepseek-r1-distill-llama-70b",
         ],
         "key_prefix": "gsk_",
         "requires_key": True,
-        "default_base_url": "",
-    },
-    "ollama": {
-        "id": "ollama",
-        "name": "Ollama (Local)",
-        "description": "Locally hosted open weights models (Qwen 2.5, Llama 3.1, Mistral).",
-        "default_model": "ollama/qwen2.5",
-        "models": [
-            "ollama/qwen2.5",
-            "ollama/llama3.1",
-            "ollama/mistral",
-            "ollama/deepseek-r1",
-        ],
-        "key_prefix": "",
-        "requires_key": False,
-        "default_base_url": "http://localhost:11434",
     },
     "mistral": {
         "id": "mistral",
         "name": "Mistral AI",
-        "description": "Mistral Large and Codestral frontier reasoning models.",
-        "default_model": "mistral/mistral-large-latest",
+        "description": "Mistral Large, Codestral, and European sovereign reasoning models.",
+        "default_base_url": "https://api.mistral.ai/v1",
+        "base_url": "https://api.mistral.ai/v1",
+        "env_key": "MISTRAL_API_KEY",
+        "env_key_name": "MISTRAL_API_KEY",
+        "default_model": "mistral-large-latest",
         "models": [
-            "mistral/mistral-large-latest",
-            "mistral/codestral-latest",
-            "mistral/mistral-small-latest",
+            "mistral-large-latest",
+            "codestral-latest",
+            "mistral-small-latest",
+            "ministral-8b-latest",
+        ],
+        "popular_models": [
+            "mistral-large-latest",
+            "codestral-latest",
+            "mistral-small-latest",
+            "ministral-8b-latest",
         ],
         "key_prefix": "",
         "requires_key": True,
-        "default_base_url": "",
+    },
+    "ollama": {
+        "id": "ollama",
+        "name": "Ollama",
+        "description": "Local and on-premise self-hosted models (Llama 3.2, Mistral, Qwen 2.5).",
+        "default_base_url": "http://localhost:11434",
+        "base_url": "http://localhost:11434",
+        "env_key": "",
+        "env_key_name": "",
+        "default_model": "llama3.2:latest",
+        "models": [
+            "llama3.2:latest",
+            "mistral:latest",
+            "qwen2.5:latest",
+            "deepseek-r1:latest",
+            "codellama:latest",
+        ],
+        "popular_models": [
+            "llama3.2:latest",
+            "mistral:latest",
+            "qwen2.5:latest",
+            "deepseek-r1:latest",
+            "codellama:latest",
+        ],
+        "key_prefix": "",
+        "requires_key": False,
+    },
+    "openrouter": {
+        "id": "openrouter",
+        "name": "OpenRouter",
+        "description": "Unified gateway routing across frontier and open-weights models.",
+        "default_base_url": "https://openrouter.ai/api/v1",
+        "base_url": "https://openrouter.ai/api/v1",
+        "env_key": "OPENROUTER_API_KEY",
+        "env_key_name": "OPENROUTER_API_KEY",
+        "default_model": "anthropic/claude-3.5-sonnet",
+        "models": [
+            "anthropic/claude-3.5-sonnet",
+            "openai/gpt-4o",
+            "meta-llama/llama-3.3-70b-instruct",
+            "deepseek/deepseek-r1",
+        ],
+        "popular_models": [
+            "anthropic/claude-3.5-sonnet",
+            "openai/gpt-4o",
+            "meta-llama/llama-3.3-70b-instruct",
+            "deepseek/deepseek-r1",
+        ],
+        "key_prefix": "sk-or-",
+        "requires_key": True,
+    },
+    "perplexity": {
+        "id": "perplexity",
+        "name": "Perplexity",
+        "description": "Search-grounded real-time reasoning and citations.",
+        "default_base_url": "https://api.perplexity.ai",
+        "base_url": "https://api.perplexity.ai",
+        "env_key": "PERPLEXITY_API_KEY",
+        "env_key_name": "PERPLEXITY_API_KEY",
+        "default_model": "sonar-pro",
+        "models": [
+            "sonar-pro",
+            "sonar",
+            "sonar-reasoning",
+            "sonar-reasoning-pro",
+        ],
+        "popular_models": [
+            "sonar-pro",
+            "sonar",
+            "sonar-reasoning",
+            "sonar-reasoning-pro",
+        ],
+        "key_prefix": "pplx-",
+        "requires_key": True,
+    },
+    "together_ai": {
+        "id": "together_ai",
+        "name": "Together AI",
+        "description": "Fast dedicated inference for Llama 3.3, DeepSeek R1, and Qwen.",
+        "default_base_url": "https://api.together.xyz/v1",
+        "base_url": "https://api.together.xyz/v1",
+        "env_key": "TOGETHER_API_KEY",
+        "env_key_name": "TOGETHER_API_KEY",
+        "default_model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "models": [
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            "deepseek-ai/DeepSeek-R1",
+            "Qwen/Qwen2.5-72B-Instruct-Turbo",
+        ],
+        "popular_models": [
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            "deepseek-ai/DeepSeek-R1",
+            "Qwen/Qwen2.5-72B-Instruct-Turbo",
+        ],
+        "key_prefix": "",
+        "requires_key": True,
+    },
+    "cohere": {
+        "id": "cohere",
+        "name": "Cohere",
+        "description": "Enterprise Command R+ reasoning and retrieval-augmented generation.",
+        "default_base_url": "https://api.cohere.com/v1",
+        "base_url": "https://api.cohere.com/v1",
+        "env_key": "COHERE_API_KEY",
+        "env_key_name": "COHERE_API_KEY",
+        "default_model": "command-r-plus",
+        "models": [
+            "command-r-plus",
+            "command-r",
+            "command-light",
+        ],
+        "popular_models": [
+            "command-r-plus",
+            "command-r",
+            "command-light",
+        ],
+        "key_prefix": "",
+        "requires_key": True,
+    },
+    "xai": {
+        "id": "xai",
+        "name": "xAI / Grok",
+        "description": "Frontier Grok reasoning and vision models from xAI.",
+        "default_base_url": "https://api.x.ai/v1",
+        "base_url": "https://api.x.ai/v1",
+        "env_key": "XAI_API_KEY",
+        "env_key_name": "XAI_API_KEY",
+        "default_model": "grok-2-latest",
+        "models": [
+            "grok-2-latest",
+            "grok-beta",
+            "grok-vision-beta",
+        ],
+        "popular_models": [
+            "grok-2-latest",
+            "grok-beta",
+            "grok-vision-beta",
+        ],
+        "key_prefix": "xai-",
+        "requires_key": True,
+    },
+    "azure": {
+        "id": "azure",
+        "name": "Azure OpenAI",
+        "description": "Enterprise Microsoft Azure OpenAI Service deployment endpoints.",
+        "default_base_url": "https://{resource}.openai.azure.com",
+        "base_url": "https://{resource}.openai.azure.com",
+        "env_key": "AZURE_API_KEY",
+        "env_key_name": "AZURE_API_KEY",
+        "default_model": "gpt-4o",
+        "models": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "o1",
+        ],
+        "popular_models": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "o1",
+        ],
+        "key_prefix": "",
+        "requires_key": True,
+    },
+    "bedrock": {
+        "id": "bedrock",
+        "name": "AWS Bedrock",
+        "description": "Amazon Web Services Bedrock managed model runtime.",
+        "default_base_url": "https://bedrock-runtime.us-east-1.amazonaws.com",
+        "base_url": "https://bedrock-runtime.us-east-1.amazonaws.com",
+        "env_key": "AWS_ACCESS_KEY_ID",
+        "env_key_name": "AWS_ACCESS_KEY_ID",
+        "default_model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "models": [
+            "anthropic.claude-3-5-sonnet-20241022-v2:0",
+            "anthropic.claude-3-haiku-20240307-v1:0",
+            "meta.llama3-3-70b-instruct-v1:0",
+            "amazon.titan-text-express-v1",
+        ],
+        "popular_models": [
+            "anthropic.claude-3-5-sonnet-20241022-v2:0",
+            "anthropic.claude-3-haiku-20240307-v1:0",
+            "meta.llama3-3-70b-instruct-v1:0",
+            "amazon.titan-text-express-v1",
+        ],
+        "key_prefix": "AKIA",
+        "requires_key": True,
+    },
+    "vertex_ai": {
+        "id": "vertex_ai",
+        "name": "Google Vertex AI",
+        "description": "Google Cloud Vertex AI enterprise foundation model platform.",
+        "default_base_url": "https://{region}-aiplatform.googleapis.com",
+        "base_url": "https://{region}-aiplatform.googleapis.com",
+        "env_key": "VERTEXAI_PROJECT",
+        "env_key_name": "VERTEXAI_PROJECT",
+        "default_model": "gemini-2.0-flash",
+        "models": [
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "claude-3-5-sonnet-v2@20241022",
+        ],
+        "popular_models": [
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "claude-3-5-sonnet-v2@20241022",
+        ],
+        "key_prefix": "",
+        "requires_key": True,
+    },
+    "cloudflare": {
+        "id": "cloudflare",
+        "name": "Cloudflare Workers AI",
+        "description": "Global edge serverless AI inference network.",
+        "default_base_url": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run",
+        "base_url": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run",
+        "env_key": "CLOUDFLARE_API_KEY",
+        "env_key_name": "CLOUDFLARE_API_KEY",
+        "default_model": "@cf/meta/llama-3.3-70b-instruct",
+        "models": [
+            "@cf/meta/llama-3.3-70b-instruct",
+            "@cf/meta/llama-3.1-8b-instruct",
+            "@cf/mistral/mistral-7b-instruct-v0.2",
+            "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+        ],
+        "popular_models": [
+            "@cf/meta/llama-3.3-70b-instruct",
+            "@cf/meta/llama-3.1-8b-instruct",
+            "@cf/mistral/mistral-7b-instruct-v0.2",
+            "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+        ],
+        "key_prefix": "",
+        "requires_key": True,
+    },
+    "fireworks_ai": {
+        "id": "fireworks_ai",
+        "name": "Fireworks AI",
+        "description": "Production-grade inference platform with compound AI systems.",
+        "default_base_url": "https://api.fireworks.ai/inference/v1",
+        "base_url": "https://api.fireworks.ai/inference/v1",
+        "env_key": "FIREWORKS_API_KEY",
+        "env_key_name": "FIREWORKS_API_KEY",
+        "default_model": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        "models": [
+            "accounts/fireworks/models/llama-v3p3-70b-instruct",
+            "accounts/fireworks/models/deepseek-r1",
+            "accounts/fireworks/models/qwen2p5-coder-32b-instruct",
+        ],
+        "popular_models": [
+            "accounts/fireworks/models/llama-v3p3-70b-instruct",
+            "accounts/fireworks/models/deepseek-r1",
+            "accounts/fireworks/models/qwen2p5-coder-32b-instruct",
+        ],
+        "key_prefix": "fw_",
+        "requires_key": True,
+    },
+    "anyscale": {
+        "id": "anyscale",
+        "name": "Anyscale",
+        "description": "Ray-powered scalable LLM endpoints.",
+        "default_base_url": "https://api.anyscale.com/v1",
+        "base_url": "https://api.anyscale.com/v1",
+        "env_key": "ANYSCALE_API_KEY",
+        "env_key_name": "ANYSCALE_API_KEY",
+        "default_model": "meta-llama/Meta-Llama-3-70B-Instruct",
+        "models": [
+            "meta-llama/Meta-Llama-3-70B-Instruct",
+            "meta-llama/Meta-Llama-3-8B-Instruct",
+            "mistralai/Mistral-7B-Instruct-v0.1",
+        ],
+        "popular_models": [
+            "meta-llama/Meta-Llama-3-70B-Instruct",
+            "meta-llama/Meta-Llama-3-8B-Instruct",
+            "mistralai/Mistral-7B-Instruct-v0.1",
+        ],
+        "key_prefix": "esecret_",
+        "requires_key": True,
+    },
+    "replicate": {
+        "id": "replicate",
+        "name": "Replicate",
+        "description": "Cloud API to run open-source machine learning models.",
+        "default_base_url": "https://api.replicate.com/v1",
+        "base_url": "https://api.replicate.com/v1",
+        "env_key": "REPLICATE_API_TOKEN",
+        "env_key_name": "REPLICATE_API_TOKEN",
+        "default_model": "meta/meta-llama-3-70b-instruct",
+        "models": [
+            "meta/meta-llama-3-70b-instruct",
+            "deepseek-ai/deepseek-r1",
+            "mistralai/mistral-7b-instruct-v0.2",
+        ],
+        "popular_models": [
+            "meta/meta-llama-3-70b-instruct",
+            "deepseek-ai/deepseek-r1",
+            "mistralai/mistral-7b-instruct-v0.2",
+        ],
+        "key_prefix": "r8_",
+        "requires_key": True,
     },
     "custom": {
         "id": "custom",
         "name": "Custom LiteLLM Proxy / Endpoint",
         "description": "Corporate LiteLLM Proxy, vLLM, or custom OpenAI-compatible endpoint.",
+        "default_base_url": "http://localhost:4000",
+        "base_url": "http://localhost:4000",
+        "env_key": "",
+        "env_key_name": "",
         "default_model": "custom/model",
         "models": [
             "custom/model",
+            "custom/enterprise-llm",
+        ],
+        "popular_models": [
+            "custom/model",
+            "custom/enterprise-llm",
         ],
         "key_prefix": "",
         "requires_key": False,
-        "default_base_url": "http://localhost:4000",
     },
 }
+
+KNOWN_CONTEXT_WINDOWS: Dict[str, int] = {
+    "gemini-2.0-flash": 1048576,
+    "gemini-2.5-flash": 1048576,
+    "gemini-1.5-pro": 2097152,
+    "gemini-1.5-flash": 1048576,
+    "gpt-4o": 128000,
+    "gpt-4o-mini": 128000,
+    "o1": 200000,
+    "o3-mini": 200000,
+    "gpt-4-turbo": 128000,
+    "claude-3-7-sonnet-20250219": 200000,
+    "claude-3-5-sonnet-20241022": 200000,
+    "claude-3-5-haiku-20241022": 200000,
+    "claude-3-opus-20240229": 200000,
+    "deepseek-chat": 64000,
+    "deepseek-reasoner": 64000,
+    "llama-3.3-70b-versatile": 128000,
+    "llama-3.1-8b-instant": 128000,
+    "mixtral-8x7b-32768": 32768,
+    "mistral-large-latest": 128000,
+    "codestral-latest": 32768,
+    "mistral-small-latest": 32768,
+    "llama3.2:latest": 131072,
+    "sonar-pro": 200000,
+    "sonar": 128000,
+    "command-r-plus": 128000,
+    "grok-2-latest": 131072,
+    "grok-beta": 131072,
+}
+
+
+def _get_context_window(model_id: str) -> Optional[int]:
+    """Infers or returns known context window size in tokens."""
+    clean_id = model_id.split("/")[-1] if "/" in model_id else model_id
+    if clean_id in KNOWN_CONTEXT_WINDOWS:
+        return KNOWN_CONTEXT_WINDOWS[clean_id]
+    if model_id in KNOWN_CONTEXT_WINDOWS:
+        return KNOWN_CONTEXT_WINDOWS[model_id]
+    if "flash" in clean_id or ("pro" in clean_id and "gemini" in model_id):
+        return 1048576
+    if "claude" in clean_id:
+        return 200000
+    if "gpt-4" in clean_id or "o1" in clean_id or "o3" in clean_id:
+        return 128000
+    return 128000
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +724,13 @@ def _save_tenant_model_config(
 
 
 def _get_env_api_key(provider: str) -> str:
-    p = (provider or "").lower()
+    p = (provider or "").lower().strip()
+    pdata = LITELLM_PROVIDERS.get(p)
+    if pdata:
+        env_key = pdata.get("env_key") or pdata.get("env_key_name")
+        if env_key and os.environ.get(env_key):
+            return os.environ[env_key]
+    # Check common aliases
     if p == "gemini":
         return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     elif p == "openai":
@@ -339,12 +743,63 @@ def _get_env_api_key(provider: str) -> str:
         return os.environ.get("GROQ_API_KEY") or ""
     elif p == "mistral":
         return os.environ.get("MISTRAL_API_KEY") or ""
+    elif p == "openrouter":
+        return os.environ.get("OPENROUTER_API_KEY") or ""
+    elif p == "perplexity":
+        return os.environ.get("PERPLEXITY_API_KEY") or ""
+    elif p == "together_ai":
+        return os.environ.get("TOGETHER_API_KEY") or ""
+    elif p == "cohere":
+        return os.environ.get("COHERE_API_KEY") or ""
+    elif p == "xai":
+        return os.environ.get("XAI_API_KEY") or ""
+    elif p == "azure":
+        return os.environ.get("AZURE_API_KEY") or ""
+    elif p == "bedrock":
+        return os.environ.get("AWS_ACCESS_KEY_ID") or ""
+    elif p == "vertex_ai":
+        return os.environ.get("VERTEXAI_PROJECT") or ""
+    elif p == "cloudflare":
+        return os.environ.get("CLOUDFLARE_API_KEY") or ""
+    elif p == "fireworks_ai":
+        return os.environ.get("FIREWORKS_API_KEY") or ""
+    elif p == "anyscale":
+        return os.environ.get("ANYSCALE_API_KEY") or ""
+    elif p == "replicate":
+        return os.environ.get("REPLICATE_API_TOKEN") or ""
     return os.environ.get("LITELLM_API_KEY") or ""
 
 
 def _get_provider_default_base_url(provider: str) -> str:
-    prov_meta = LITELLM_PROVIDERS.get((provider or "").lower(), {})
-    return prov_meta.get("default_base_url") or os.environ.get("LITELLM_BASE_URL", "")
+    prov_meta = LITELLM_PROVIDERS.get((provider or "").lower().strip(), {})
+    return prov_meta.get("default_base_url") or prov_meta.get("base_url") or os.environ.get("LITELLM_BASE_URL", "")
+
+
+def _build_provider_list() -> List[Dict[str, Any]]:
+    """Returns the complete provider list with default_base_url, env_key_name, default_model, popular_models, and whether an environment key is already present."""
+    providers = []
+    for pid, pdata in LITELLM_PROVIDERS.items():
+        env_key_name = pdata.get("env_key") or pdata.get("env_key_name") or ""
+        env_val = _get_env_api_key(pid)
+        env_set = bool(env_val)
+        models = pdata.get("models") or []
+        providers.append({
+            "id": pdata["id"],
+            "name": pdata["name"],
+            "description": pdata.get("description", ""),
+            "default_base_url": pdata.get("default_base_url") or pdata.get("base_url") or "",
+            "base_url": pdata.get("base_url") or pdata.get("default_base_url") or "",
+            "env_key_name": env_key_name,
+            "env_key": env_key_name,
+            "default_model": pdata.get("default_model", ""),
+            "popular_models": list(models),
+            "models": list(models),
+            "env_api_key_set": env_set,
+            "env_key_present": env_set,
+            "has_env_key": env_set,
+            "requires_key": pdata.get("requires_key", bool(env_key_name)),
+        })
+    return providers
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +819,12 @@ class ChatMessageIn(BaseModel):
 class ModelConfigIn(BaseModel):
     provider: str = "gemini"
     model: str = "gemini/gemini-2.5-flash"
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+
+
+class FetchModelsIn(BaseModel):
+    provider: str
     api_key: Optional[str] = None
     base_url: Optional[str] = None
 
@@ -776,6 +1237,7 @@ def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, 
         "",
         "### INSTRUCTIONS:",
         "- Answer clearly, professionally, and concisely in GitHub Flavored Markdown.",
+        "- STRICT FORMATTING RULE: Strictly ZERO emojis in assistant responses or system prompts. Use clean industrial markdown formatting with bullet points and bold tags.",
         "- Reference real telemetry numbers, tool data, and document names from the context above.",
         "- If the user asks to modify a dashboard metric, confirm that the change has been applied.",
     ])
@@ -961,8 +1423,10 @@ def _execute_litellm_completion(
         litellm.suppress_debug_info = True
 
         actual_model = model
-        if provider and provider != "custom" and not ("/" in model):
-            actual_model = f"{provider}/{model}"
+        if provider and provider != "custom":
+            if not actual_model.startswith(f"{provider}/"):
+                if "/" not in actual_model or provider in ("openrouter", "together_ai", "fireworks_ai", "replicate", "cloudflare"):
+                    actual_model = f"{provider}/{actual_model}"
 
         kwargs: Dict[str, Any] = {
             "model": actual_model,
@@ -987,6 +1451,119 @@ def _execute_litellm_completion(
 # ---------------------------------------------------------------------------
 # API Routes
 # ---------------------------------------------------------------------------
+
+@router.get("/providers")
+def get_chat_providers(ctx: Ctx = Depends(current)) -> List[Dict[str, Any]]:
+    """Returns the complete provider list with default_base_url, env_key_name, default_model, popular_models, and whether an environment key is already present."""
+    return _build_provider_list()
+
+
+@router.post("/models/fetch")
+def fetch_chat_models(req: FetchModelsIn, ctx: Ctx = Depends(current)) -> List[Dict[str, Any]]:
+    """Dynamically queries live models (e.g. via httpx GET {base_url}/models with Authorization Bearer if key provided or Ollama /api/tags),
+    and gracefully falls back to the rich provider model catalog. Returns list of { id: str, name: str, context_window: Optional[int], provider: str }.
+    """
+    provider_id = (req.provider or "").strip().lower()
+    pdata = LITELLM_PROVIDERS.get(provider_id)
+    if not pdata:
+        pdata = LITELLM_PROVIDERS.get("custom", {
+            "id": provider_id or "custom",
+            "name": provider_id or "Custom",
+            "default_base_url": "",
+            "models": [],
+        })
+
+    # Catalog fallback list
+    catalog_models = pdata.get("models") or pdata.get("popular_models") or []
+    fallback_list: List[Dict[str, Any]] = [
+        {
+            "id": m,
+            "name": m,
+            "context_window": _get_context_window(m),
+            "provider": provider_id,
+        }
+        for m in catalog_models
+    ]
+
+    base_url = (req.base_url or "").strip() or pdata.get("default_base_url") or pdata.get("base_url") or ""
+    api_key = (req.api_key or "").strip()
+    if not api_key:
+        tenant_cfg = _get_tenant_model_config(ctx.tenant_id)
+        if tenant_cfg.get("provider") == provider_id and tenant_cfg.get("api_key"):
+            api_key = tenant_cfg["api_key"]
+        else:
+            api_key = _get_env_api_key(provider_id)
+
+    # In MOCK_AI mode or without base_url, return catalog models
+    if os.environ.get("MOCK_AI") == "1" or not base_url:
+        return fallback_list
+
+    # Unresolved templated base URLs like https://{resource}.openai.azure.com
+    if "{" in base_url and "}" in base_url:
+        return fallback_list
+
+    try:
+        if provider_id == "ollama":
+            url = f"{base_url.rstrip('/')}/api/tags"
+            with httpx.Client(timeout=4.0) as client:
+                res = client.get(url)
+                if res.status_code == 200:
+                    tags_data = res.json()
+                    models_raw = tags_data.get("models", [])
+                    fetched = []
+                    for item in models_raw:
+                        m_name = item.get("name") or item.get("model")
+                        if m_name:
+                            fetched.append({
+                                "id": m_name,
+                                "name": m_name,
+                                "context_window": _get_context_window(m_name),
+                                "provider": provider_id,
+                            })
+                    if fetched:
+                        return fetched
+        else:
+            headers = {}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            endpoints_to_try = [f"{base_url.rstrip('/')}/models"]
+            if not base_url.rstrip("/").endswith("/v1"):
+                endpoints_to_try.append(f"{base_url.rstrip('/')}/v1/models")
+
+            with httpx.Client(timeout=4.0) as client:
+                for ep in endpoints_to_try:
+                    try:
+                        res = client.get(ep, headers=headers)
+                        if res.status_code == 200:
+                            data = res.json()
+                            raw_list = data.get("data") or data.get("models") or []
+                            if isinstance(raw_list, list) and len(raw_list) > 0:
+                                fetched = []
+                                for item in raw_list:
+                                    if isinstance(item, dict):
+                                        m_id = item.get("id") or item.get("name")
+                                        cw = item.get("context_window") or _get_context_window(m_id or "")
+                                    elif isinstance(item, str):
+                                        m_id = item
+                                        cw = _get_context_window(m_id)
+                                    else:
+                                        continue
+                                    if m_id:
+                                        fetched.append({
+                                            "id": m_id,
+                                            "name": m_id,
+                                            "context_window": cw,
+                                            "provider": provider_id,
+                                        })
+                                if fetched:
+                                    return fetched
+                    except Exception:
+                        continue
+    except Exception as exc:
+        logger.debug(f"Live model fetch error for {provider_id}: {exc}")
+
+    return fallback_list
+
 
 @router.get("/model_config")
 def get_model_config(ctx: Ctx = Depends(current)):
@@ -1171,7 +1748,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         new_overrides = apply_dashboard_overrides(tenant_id, filtered_updates, clear=is_clear, actor=ctx.email)
 
         if is_clear:
-            reply_text = "✓ Cleared all dashboard overrides. The dashboard has been reset to system defaults."
+            reply_text = "Cleared all dashboard overrides. The dashboard has been reset to system defaults."
         else:
             changes = []
             if "production_target" in filtered_updates:
@@ -1187,7 +1764,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
             if "active_documents" in filtered_updates:
                 changes.append(f"active documents set to {filtered_updates['active_documents']}")
 
-            reply_text = f"✓ Updated dashboard UI: {', and '.join(changes)}."
+            reply_text = f"Updated dashboard UI: {', and '.join(changes)}."
 
         latency_ms = int((time.time() - start_time) * 1000)
         bot_msg_id = str(uuid.uuid4())

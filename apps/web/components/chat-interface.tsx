@@ -7,12 +7,22 @@ import { post, getJSON } from "@/lib/api";
 import { Badge, Button } from "@/components/ui/kit";
 import {
   DEFAULT_LITELLM_CONFIG,
+  LITELLM_CONFIG_EVENT,
   LITELLM_PROVIDERS,
   LiteLLMConfig,
   LiteLLMModal,
   loadLiteLLMConfig,
   saveLiteLLMConfig,
 } from "./litellm-modal";
+import {
+  IconBolt,
+  IconChart,
+  IconCheck,
+  IconFile,
+  IconPlug,
+  IconTune,
+  ProviderBrandIcon,
+} from "@/components/ui/icons";
 
 type ToolCall = {
   app: string;
@@ -92,6 +102,18 @@ export function ChatInterface({
         setIsLiteLLMModalOpen(true);
       }
     }
+  }, []);
+
+  // Listen for real-time LiteLLM config updates from modal or settings card
+  useEffect(() => {
+    function handleConfigChange(e: Event) {
+      const customEvent = e as CustomEvent<LiteLLMConfig>;
+      if (customEvent.detail) {
+        setModelConfig(customEvent.detail);
+      }
+    }
+    window.addEventListener(LITELLM_CONFIG_EVENT, handleConfigChange);
+    return () => window.removeEventListener(LITELLM_CONFIG_EVENT, handleConfigChange);
   }, []);
 
   // Load history, tools, and model config on mount
@@ -251,7 +273,7 @@ export function ChatInterface({
         {
           id: "err-" + Date.now(),
           role: "assistant",
-          content: `⚠️ Failed to execute: ${err.message || "An unexpected error occurred while communicating with the agent service."}`,
+          content: `Failed to execute: ${err.message || "An unexpected error occurred while communicating with the agent service."}`,
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -288,7 +310,8 @@ export function ChatInterface({
               title="Click to configure AI Provider, Model, and API Key"
             >
               <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-semibold text-brand">⚡ LiteLLM:</span>
+              <ProviderBrandIcon provider={modelConfig.provider} className="h-3.5 w-3.5 text-brand" />
+              <span className="font-semibold text-brand">LiteLLM:</span>
               <span className="text-neutral-200">
                 {LITELLM_PROVIDERS[modelConfig.provider]?.name || modelConfig.provider}
               </span>
@@ -296,21 +319,19 @@ export function ChatInterface({
               <span className="font-mono text-neutral-300 text-[11px] max-w-[180px] truncate">
                 {modelConfig.model.split("/").pop() || modelConfig.model}
               </span>
-              <span className="text-neutral-400 group-hover:text-white transition-colors text-[11px]">
-                ⚙ ▾
-              </span>
+              <IconTune className="h-3.5 w-3.5 text-neutral-400 group-hover:text-white transition-colors" />
             </button>
           </div>
 
           {/* Live Context Badges */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* 📊 Live Dashboard Sync */}
+            {/* Live Dashboard Sync */}
             <Link
               href="/"
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-neutral-300 hover:border-white/20 hover:bg-white/[0.08] transition shadow-sm"
               title="Live operational metrics synced with dashboard"
             >
-              <span>📊</span>
+              <IconChart className="h-3.5 w-3.5 text-neutral-400 group-hover:text-white transition-colors" />
               <span className="font-medium text-white">Live Dashboard Sync</span>
               <span className="text-neutral-600">·</span>
               <span className="text-emerald-400 font-mono text-[11px]">
@@ -322,25 +343,25 @@ export function ChatInterface({
               </span>
             </Link>
 
-            {/* 🔌 Connected Toolkits */}
+            {/* Connected Toolkits */}
             <Link
               href="/marketplace"
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-neutral-300 hover:border-white/20 hover:bg-white/[0.08] transition shadow-sm"
               title="Connected industrial and enterprise toolkits"
             >
-              <span>🔌</span>
+              <IconPlug className="h-3.5 w-3.5 text-neutral-400 group-hover:text-white transition-colors" />
               <span className="font-medium text-white">
                 {connections.length > 0 ? connections.length : 3} Connected Toolkits
               </span>
             </Link>
 
-            {/* 📄 Active Documents */}
+            {/* Active Documents */}
             <Link
               href="/documents"
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-neutral-300 hover:border-white/20 hover:bg-white/[0.08] transition shadow-sm"
               title="Ingested industrial documents and CAD drawings"
             >
-              <span>📄</span>
+              <IconFile className="h-3.5 w-3.5 text-neutral-400 group-hover:text-white transition-colors" />
               <span className="font-medium text-white">
                 {docsCount} Active Documents
               </span>
@@ -386,7 +407,10 @@ export function ChatInterface({
 
           {hasOverrides && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-brand font-medium text-[11px]">⚡ Dashboard Targets:</span>
+              <span className="flex items-center gap-1 text-brand font-medium text-[11px]">
+                <IconBolt className="h-3 w-3 text-brand" />
+                <span>Dashboard Targets:</span>
+              </span>
               {overrides.production_target && (
                 <span className="text-neutral-300 text-[11px]">
                   Target: <strong className="text-white">{overrides.production_target}</strong>
@@ -483,8 +507,8 @@ export function ChatInterface({
                       <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-200">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400 text-black font-bold">
-                              ✓
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400 text-black">
+                              <IconCheck className="h-3 w-3 stroke-[3]" />
                             </span>
                             <span className="font-semibold text-emerald-300">
                               Dashboard UI Updated

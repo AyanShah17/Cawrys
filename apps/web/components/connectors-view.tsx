@@ -340,7 +340,16 @@ export function ConnectorsView({
         <Card className="p-8 text-center">
           <Empty>
             <div className="space-y-3">
-              <div className="text-3xl">🔌</div>
+              <div className="flex justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-neutral-400">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden="true">
+                    <path d="M12 22v-5" />
+                    <path d="M9 8V2" />
+                    <path d="M15 2v6" />
+                    <path d="M18 8v5a6 6 0 0 1-12 0V8c0-.6.4-1 1-1h10c.6 0 1 .4 1 1z" />
+                  </svg>
+                </div>
+              </div>
               <div className="text-base font-semibold text-white">No Connected Toolkits Yet</div>
               <p className="text-xs text-neutral-400 max-w-md mx-auto">
                 Configure and connect SaaS toolkits from Composio (1,640+) or Industrial FastMCP enterprise servers to start automating workflows.
@@ -350,7 +359,13 @@ export function ConnectorsView({
                   href="/marketplace"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-lg hover:bg-indigo-500 transition"
                 >
-                  <span>Browse Marketplace ↗</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    Browse Marketplace
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </span>
                 </Link>
               </div>
             </div>
@@ -542,8 +557,12 @@ export function ConnectorsView({
                 type="button"
                 onClick={() => setExecutionModal(null)}
                 className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/10 hover:text-white transition"
+                aria-label="Close modal"
               >
-                ✕
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
@@ -555,9 +574,24 @@ export function ConnectorsView({
                   variant="outline"
                   size="sm"
                   onClick={() => handleCopyJson(executionModal.result)}
-                  className="h-7 text-xs"
+                  className="h-7 text-xs flex items-center gap-1.5"
                 >
-                  {copiedJson ? "✓ Copied!" : "📋 Copy JSON"}
+                  {copiedJson ? (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-400" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span className="text-emerald-300">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3" aria-hidden="true">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                      </svg>
+                      <span>Copy JSON</span>
+                    </>
+                  )}
                 </Button>
               </div>
               <pre className="flex-1 overflow-auto rounded-lg border border-white/10 bg-black/60 p-4 font-mono text-xs text-emerald-400/90 leading-relaxed shadow-inner">

@@ -119,8 +119,11 @@ export default async function Dashboard() {
               Operational Telemetry &amp; Live Targets
             </span>
             {hasOverrides && (
-              <Badge variant="default" className="text-[11px] py-0 px-2 font-semibold">
-                ⚡ Modified via Agent Chat
+              <Badge variant="default" className="text-[11px] py-0 px-2 font-semibold flex items-center gap-1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-brand" aria-hidden="true">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                <span>Modified via Agent Chat</span>
               </Badge>
             )}
           </div>

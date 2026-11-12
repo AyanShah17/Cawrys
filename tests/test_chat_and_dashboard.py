@@ -377,3 +377,251 @@ def test_litellm_completion_invocation_and_metadata(exec_client, auth_headers, m
     assert "CURRENT OPERATIONAL CONTEXT" in system_msg["content"]
 
 
+def test_chat_providers_discovery_all_providers(exec_client, auth_headers):
+    """GET /v1/chat/providers returns complete list of all 19+ major LiteLLM providers."""
+    res = exec_client.get("/v1/chat/providers", headers=auth_headers)
+    assert res.status_code == 200
+    providers = res.json()
+    assert isinstance(providers, list)
+    assert len(providers) >= 20
+
+    provider_map = {p["id"]: p for p in providers}
+    required_ids = [
+        "gemini",
+        "openai",
+        "anthropic",
+        "deepseek",
+        "groq",
+        "mistral",
+        "ollama",
+        "openrouter",
+        "perplexity",
+        "together_ai",
+        "cohere",
+        "xai",
+        "azure",
+        "bedrock",
+        "vertex_ai",
+        "cloudflare",
+        "fireworks_ai",
+        "anyscale",
+        "replicate",
+        "custom",
+    ]
+    for rid in required_ids:
+        assert rid in provider_map, f"Provider {rid} missing from GET /v1/chat/providers"
+        p = provider_map[rid]
+        assert "name" in p
+        assert "default_base_url" in p
+        assert "env_key_name" in p
+        assert "default_model" in p
+        assert "popular_models" in p
+        assert isinstance(p["popular_models"], list)
+        assert len(p["popular_models"]) > 0
+        assert "env_api_key_set" in p
+        assert "requires_key" in p
+
+    # Verify specific default configurations
+    assert provider_map["gemini"]["default_model"] == "gemini-2.0-flash"
+    assert provider_map["gemini"]["env_key_name"] == "GEMINI_API_KEY"
+    assert "generativelanguage.googleapis.com" in provider_map["gemini"]["default_base_url"]
+
+    assert provider_map["openai"]["default_model"] == "gpt-4o"
+    assert provider_map["openai"]["env_key_name"] == "OPENAI_API_KEY"
+
+    assert provider_map["anthropic"]["default_model"] == "claude-3-7-sonnet-20250219"
+    assert provider_map["anthropic"]["env_key_name"] == "ANTHROPIC_API_KEY"
+
+    assert provider_map["deepseek"]["default_model"] == "deepseek-chat"
+    assert "deepseek-reasoner" in provider_map["deepseek"]["popular_models"]
+
+    assert provider_map["ollama"]["requires_key"] is False
+    assert provider_map["ollama"]["default_base_url"] == "http://localhost:11434"
+    assert "llama3.2:latest" in provider_map["ollama"]["popular_models"]
+
+
+def test_chat_providers_environment_keys_detection(exec_client, auth_headers, monkeypatch):
+    """GET /v1/chat/providers accurately detects when environment API keys are set."""
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-ds-test-key-999")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_key_111")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    res = exec_client.get("/v1/chat/providers", headers=auth_headers)
+    assert res.status_code == 200
+    providers = {p["id"]: p for p in res.json()}
+
+    assert providers["deepseek"]["env_api_key_set"] is True
+    assert providers["deepseek"]["env_key_present"] is True
+    assert providers["groq"]["env_api_key_set"] is True
+    assert providers["openrouter"]["env_api_key_set"] is False
+
+
+def test_chat_models_fetch_catalog_fallback(exec_client, auth_headers):
+    """POST /v1/chat/models/fetch gracefully returns catalog models with context windows."""
+    payload = {"provider": "gemini"}
+    res = exec_client.post("/v1/chat/models/fetch", json=payload, headers=auth_headers)
+    assert res.status_code == 200
+    models = res.json()
+    assert isinstance(models, list)
+    assert len(models) >= 4
+
+    model_ids = {m["id"] for m in models}
+    assert "gemini-2.0-flash" in model_ids
+    assert "gemini-2.5-flash" in model_ids
+
+    # Check structure
+    for m in models:
+        assert "id" in m
+        assert "name" in m
+        assert "context_window" in m
+        assert m["provider"] == "gemini"
+        assert isinstance(m["context_window"], int)
+        assert m["context_window"] >= 128000
+
+
+def test_chat_models_fetch_dynamic_ollama(exec_client, auth_headers, monkeypatch):
+    """POST /v1/chat/models/fetch dynamically queries Ollama /api/tags when reachable."""
+    monkeypatch.setenv("MOCK_AI", "0")
+
+    class MockOllamaResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "models": [
+                    {"name": "llama3.2:3b", "model": "llama3.2:3b"},
+                    {"name": "deepseek-r1:14b", "model": "deepseek-r1:14b"},
+                    {"name": "qwen2.5-coder:7b", "model": "qwen2.5-coder:7b"},
+                ]
+            }
+
+    def mock_get(url, **kwargs):
+        if "/api/tags" in url:
+            return MockOllamaResponse()
+        raise ConnectionError("Unreachable")
+
+    import httpx
+    monkeypatch.setattr(httpx.Client, "get", lambda self, url, **kw: mock_get(url, **kw))
+
+    payload = {"provider": "ollama", "base_url": "http://localhost:11434"}
+    res = exec_client.post("/v1/chat/models/fetch", json=payload, headers=auth_headers)
+    assert res.status_code == 200
+    models = res.json()
+    assert isinstance(models, list)
+    assert len(models) == 3
+    names = [m["name"] for m in models]
+    assert "llama3.2:3b" in names
+    assert "deepseek-r1:14b" in names
+    assert "qwen2.5-coder:7b" in names
+    assert all(m["provider"] == "ollama" for m in models)
+
+
+def test_chat_models_fetch_dynamic_openai_compatible(exec_client, auth_headers, monkeypatch):
+    """POST /v1/chat/models/fetch dynamically queries OpenAI-compatible GET /models."""
+    monkeypatch.setenv("MOCK_AI", "0")
+
+    class MockOpenAIResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "data": [
+                    {"id": "deepseek-chat", "context_window": 64000},
+                    {"id": "deepseek-reasoner", "context_window": 64000},
+                    {"id": "deepseek-coder", "context_window": 128000},
+                ]
+            }
+
+    import httpx
+    monkeypatch.setattr(httpx.Client, "get", lambda self, url, **kw: MockOpenAIResponse())
+
+    payload = {
+        "provider": "deepseek",
+        "api_key": "sk-ds-fake-key",
+        "base_url": "https://api.deepseek.com",
+    }
+    res = exec_client.post("/v1/chat/models/fetch", json=payload, headers=auth_headers)
+    assert res.status_code == 200
+    models = res.json()
+    assert isinstance(models, list)
+    assert len(models) == 3
+    ids = [m["id"] for m in models]
+    assert "deepseek-chat" in ids
+    assert "deepseek-reasoner" in ids
+    assert "deepseek-coder" in ids
+
+
+def test_chat_models_fetch_graceful_fallback_on_network_error(exec_client, auth_headers, monkeypatch):
+    """When remote server times out or fails, fetch_models gracefully falls back to catalog."""
+    monkeypatch.setenv("MOCK_AI", "0")
+
+    def mock_get_fail(*args, **kwargs):
+        raise httpx.ConnectTimeout("Network timed out")
+
+    import httpx
+    monkeypatch.setattr(httpx.Client, "get", lambda self, url, **kw: mock_get_fail())
+
+    payload = {
+        "provider": "anthropic",
+        "base_url": "https://api.anthropic.com",
+        "api_key": "sk-ant-test",
+    }
+    res = exec_client.post("/v1/chat/models/fetch", json=payload, headers=auth_headers)
+    assert res.status_code == 200
+    models = res.json()
+    assert isinstance(models, list)
+    # Should fallback gracefully to anthropic catalog models
+    assert len(models) >= 3
+    assert any("claude" in m["id"] for m in models)
+
+
+def test_chat_assistant_strictly_zero_emojis(exec_client, auth_headers):
+    """Assistant responses and system prompt must have strictly ZERO emojis."""
+    import re
+    # Unicode emoji pattern matching emoji symbols and pictographs
+    emoji_pattern = re.compile(
+        r"[\U0001F000-\U0001FAFF]|[\u2600-\u27BF]|[⚡⚙📊🔌📄📋✓✕👁🤖✨🐋🦙🌊]"
+    )
+
+    # 1. Test greeting / contextual query
+    res1 = exec_client.post(
+        "/v1/chat/message",
+        json={"message": "Hello, provide a system overview"},
+        headers=auth_headers,
+    )
+    assert res1.status_code == 200
+    content1 = res1.json()["content"]
+    assert not emoji_pattern.search(content1), f"Emoji found in general response: {content1}"
+
+    # 2. Test dashboard mutation
+    res2 = exec_client.post(
+        "/v1/chat/message",
+        json={"message": "Change production target to 1,500"},
+        headers=auth_headers,
+    )
+    assert res2.status_code == 200
+    content2 = res2.json()["content"]
+    assert not emoji_pattern.search(content2), f"Emoji found in mutation response: {content2}"
+
+    # 3. Test dashboard reset
+    res3 = exec_client.post(
+        "/v1/chat/message",
+        json={"message": "Reset dashboard overrides"},
+        headers=auth_headers,
+    )
+    assert res3.status_code == 200
+    content3 = res3.json()["content"]
+    assert not emoji_pattern.search(content3), f"Emoji found in reset response: {content3}"
+
+    # 4. Test tool execution query (SAP S/4HANA)
+    res4 = exec_client.post(
+        "/v1/chat/message",
+        json={"message": "Check SAP stock for Part 100"},
+        headers=auth_headers,
+    )
+    assert res4.status_code == 200
+    content4 = res4.json()["content"]
+    assert not emoji_pattern.search(content4), f"Emoji found in tool response: {content4}"
+
+
+
