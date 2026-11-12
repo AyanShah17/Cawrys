@@ -23,7 +23,7 @@ export default async function Licenses() {
     <div className="space-y-6">
       <PageHeader title="Open source licences" subtitle="This product is built on the following open source software" />
       <Card>
-        <ul className="divide-y divide-white/5 text-sm">
+        <ul className="divide-y divide-neutral-100 text-sm">
           {ITEMS.map(([n, l, d]) => (
             <li key={n} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
               <span>

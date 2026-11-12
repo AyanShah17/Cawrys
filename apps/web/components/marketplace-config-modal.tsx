@@ -120,29 +120,29 @@ export function MarketplaceConfigModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/40 backdrop-blur-md duration-200"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl rounded-2xl border border-white/15 bg-[#0a0c12] p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col overflow-y-auto"
+        className="relative w-full max-w-xl rounded-3xl border border-neutral-200/80 bg-white p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col overflow-y-auto text-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-gradient-to-br from-brand/20 to-white/5 text-white font-bold text-sm shadow-md">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-950 text-white font-bold text-sm shadow-md">
               {app.name.slice(0, 2).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold tracking-tight text-white">{app.name}</h3>
+                <h3 className="text-lg font-semibold tracking-tight text-neutral-900">{app.name}</h3>
                 {isFastMcp ? (
                   <Badge variant="warning">FastMCP Protocol</Badge>
                 ) : (
-                  <Badge variant="default">Composio Connect</Badge>
+                  <Badge variant="secondary">Composio Connect</Badge>
                 )}
               </div>
-              <p className="text-xs text-neutral-400 mt-0.5">
+              <p className="text-xs text-neutral-500 mt-0.5">
                 {app.category} · {app.tools?.length || 0} tools available
               </p>
             </div>
@@ -150,7 +150,7 @@ export function MarketplaceConfigModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 transition"
+            className="rounded-full p-1.5 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition"
             aria-label="Close dialog"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,8 +160,8 @@ export function MarketplaceConfigModal({
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-200 flex items-center gap-2">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3.5 w-3.5 text-red-400 shrink-0" aria-hidden="true">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3.5 w-3.5 text-rose-600 shrink-0" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -172,7 +172,7 @@ export function MarketplaceConfigModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Entity ID / User Scope */}
           <div className="space-y-1.5">
-            <label htmlFor="entityId" className="block text-xs font-medium text-neutral-200">
+            <label htmlFor="entityId" className="block text-xs font-semibold text-neutral-700">
               Entity ID / Workgroup Scope
             </label>
             <Input
@@ -183,7 +183,7 @@ export function MarketplaceConfigModal({
               onChange={(e) => setEntityId(e.target.value)}
               required
             />
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-500">
               Scopes credentials per user, team, or department. Defaults to &quot;default&quot;.
             </p>
           </div>
@@ -191,13 +191,13 @@ export function MarketplaceConfigModal({
           {/* API Key / Token (if applicable) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <label htmlFor="apiKey" className="font-medium text-neutral-200">
+              <label htmlFor="apiKey" className="font-semibold text-neutral-700">
                 {isFastMcp ? "FastMCP / System Gateway API Key" : "Direct API Key / Secret Token"}
               </label>
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="text-[11px] text-neutral-400 hover:text-white transition"
+                className="text-[11px] text-neutral-500 hover:text-neutral-900 transition font-medium"
               >
                 {showApiKey ? "Hide" : "Reveal"}
               </button>
@@ -214,7 +214,7 @@ export function MarketplaceConfigModal({
               onChange={(e) => setApiKey(e.target.value)}
               className="font-mono text-xs"
             />
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-500">
               {isFastMcp
                 ? "Secret token for the Industrial FastMCP server interface."
                 : "If provided, bypasses interactive browser OAuth and connects directly."}
@@ -224,7 +224,7 @@ export function MarketplaceConfigModal({
           {/* Base URL (Optional for On-Prem / Enterprise Instances) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <label htmlFor="baseUrl" className="font-medium text-neutral-200">
+              <label htmlFor="baseUrl" className="font-semibold text-neutral-700">
                 Custom Endpoint / Base URL
               </label>
               <span className="text-[11px] text-neutral-400">Optional</span>
@@ -240,20 +240,20 @@ export function MarketplaceConfigModal({
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
             />
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-500">
               Required for dedicated single-tenant or on-premise industrial instances.
             </p>
           </div>
 
           {/* Custom OAuth Credentials Collapsible */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-3">
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5 space-y-3">
             <button
               type="button"
               onClick={() => setShowCustomOAuth(!showCustomOAuth)}
-              className="flex w-full items-center justify-between text-xs font-semibold text-neutral-200 hover:text-white"
+              className="flex w-full items-center justify-between text-xs font-semibold text-neutral-800 hover:text-neutral-950"
             >
               <div className="flex items-center gap-2">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-brand" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-900" aria-hidden="true">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
                 <span>Custom OAuth Credentials (White-Label)</span>
@@ -264,9 +264,9 @@ export function MarketplaceConfigModal({
             </button>
 
             {showCustomOAuth && (
-              <div className="space-y-3 pt-2 border-t border-white/5">
+              <div className="space-y-3 pt-2 border-t border-neutral-200">
                 <div className="space-y-1">
-                  <label htmlFor="clientId" className="block text-[11px] text-neutral-300">
+                  <label htmlFor="clientId" className="block text-[11px] font-medium text-neutral-700">
                     Custom Client ID
                   </label>
                   <Input
@@ -279,7 +279,7 @@ export function MarketplaceConfigModal({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="clientSecret" className="block text-[11px] text-neutral-300">
+                  <label htmlFor="clientSecret" className="block text-[11px] font-medium text-neutral-700">
                     Custom Client Secret
                   </label>
                   <Input
@@ -301,7 +301,7 @@ export function MarketplaceConfigModal({
           {/* Additional Parameters */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
-              <label htmlFor="extraParams" className="font-medium text-neutral-200">
+              <label htmlFor="extraParams" className="font-semibold text-neutral-700">
                 Additional Parameters (JSON or Key-Value)
               </label>
               <span className="text-[11px] text-neutral-400">Optional</span>
@@ -312,15 +312,15 @@ export function MarketplaceConfigModal({
               placeholder='e.g. { "default_channel": "#ops-alerts", "environment": "production" }'
               value={additionalParams}
               onChange={(e) => setAdditionalParams(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-neutral-100 placeholder:text-neutral-500 shadow-sm transition-all focus:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 font-mono"
+              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-900 placeholder:text-neutral-400 shadow-xs transition-all focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 font-mono"
             />
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-500">
               Extra context parameters passed to Composio toolkits or FastMCP server invocations.
             </p>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-4">
+          <div className="flex items-center justify-end gap-3 border-t border-neutral-100 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -334,7 +334,7 @@ export function MarketplaceConfigModal({
               type="submit"
               size="sm"
               disabled={isSubmitting}
-              className="shadow-md"
+              className="shadow-sm bg-neutral-950 text-white hover:bg-neutral-800"
             >
               {isSubmitting ? (
                 <>

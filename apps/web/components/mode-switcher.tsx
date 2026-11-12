@@ -21,7 +21,7 @@ export function ModeSwitcher({ className, size = "default" }: ModeSwitcherProps)
       role="group"
       aria-label="Application Mode Switcher"
       className={cn(
-        "relative inline-flex items-center rounded-full border border-white/10 bg-neutral-950/80 p-1 shadow-lg backdrop-blur-xl transition-all",
+        "relative inline-flex items-center rounded-full border border-neutral-800 bg-neutral-950 p-1 shadow-lg backdrop-blur-xl transition-all",
         isFull && "flex w-full",
         className
       )}
@@ -37,8 +37,8 @@ export function ModeSwitcher({ className, size = "default" }: ModeSwitcherProps)
           isSm ? "px-3 py-1 text-xs" : "px-3.5 py-1.5 text-xs",
           isFull && "flex-1",
           mode === "ai"
-            ? "bg-brand text-white shadow-md ring-1 ring-brand/50 font-semibold"
-            : "text-neutral-400 hover:text-neutral-100 hover:bg-white/[0.05]"
+            ? "bg-white text-neutral-950 font-semibold shadow-sm"
+            : "text-neutral-400 hover:text-white"
         )}
       >
         <svg
@@ -55,7 +55,7 @@ export function ModeSwitcher({ className, size = "default" }: ModeSwitcherProps)
         </svg>
         <span>AI Mode</span>
         {mode === "ai" && (
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         )}
       </button>
 
@@ -70,8 +70,8 @@ export function ModeSwitcher({ className, size = "default" }: ModeSwitcherProps)
           isSm ? "px-3 py-1 text-xs" : "px-3.5 py-1.5 text-xs",
           isFull && "flex-1",
           mode === "dashboard"
-            ? "bg-white/15 text-white shadow-md ring-1 ring-white/20 font-semibold"
-            : "text-neutral-400 hover:text-neutral-100 hover:bg-white/[0.05]"
+            ? "bg-white text-neutral-950 font-semibold shadow-sm"
+            : "text-neutral-400 hover:text-white"
         )}
       >
         <svg
@@ -89,9 +89,9 @@ export function ModeSwitcher({ className, size = "default" }: ModeSwitcherProps)
           <rect x="14" y="12" width="7" height="9" />
           <rect x="3" y="16" width="7" height="5" />
         </svg>
-        <span>Dashboard Mode</span>
+        <span>Dashboard</span>
         {mode === "dashboard" && (
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
         )}
       </button>
     </div>

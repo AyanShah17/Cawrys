@@ -1,4 +1,6 @@
+import React from "react";
 import { serverGet } from "@/lib/server";
+import { Card, PageHeader, Pill } from "@/components/ui/kit";
 
 export const dynamic = "force-dynamic";
 
@@ -14,31 +16,65 @@ export default async function Playbooks() {
       serverGet<Playbook[]>("execution", "/v1/playbooks"),
       serverGet<Exec[]>("execution", "/v1/executions"),
     ]);
-  } catch (e: any) { err = e.message; }
+  } catch (e: any) {
+    err = e.message;
+  }
   return (
-    <main className="mx-auto grid max-w-5xl gap-8 px-6 py-10 md:grid-cols-2">
-      {err && <p className="text-sm text-red-400 md:col-span-2">Execution service unreachable: {err}</p>}
-      <section>
-        <h2 className="mb-3 text-xl font-semibold">Playbooks</h2>
-        <ul className="space-y-2 text-sm">
-          {pbs.map((p) => (
-            <li key={p.name} className="rounded-lg border border-white/10 p-3">
-              {p.name} <span className="text-neutral-500">v{p.version}</span>
-              <div className="text-xs text-neutral-400">{p.steps.map((s) => s.tool).join(" → ")}</div>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
-        <h2 className="mb-3 text-xl font-semibold">Executions</h2>
-        <ul className="space-y-2 text-sm">
-          {ex.map((e) => (
-            <li key={e.id} className="rounded-lg border border-white/10 p-3">
-              <span className="font-mono text-xs">{e.id.slice(0, 8)}</span> {e.status}
-            </li>
-          ))}
-        </ul>
-      </section>
-    </main>
+    <div className="space-y-6">
+      <PageHeader
+        title="Execution & Playbooks"
+        subtitle="Industrial workflows, FastMCP tool pipelines, and execution history"
+      />
+      {err && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800">
+          Execution service unreachable: {err}
+        </div>
+      )}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card title="Available Playbooks">
+          {pbs.length === 0 ? (
+            <p className="text-xs text-neutral-400 py-4 text-center">No playbooks registered yet.</p>
+          ) : (
+            <ul className="space-y-2.5 text-sm">
+              {pbs.map((p) => (
+                <li key={p.name} className="rounded-2xl border border-neutral-200/80 bg-neutral-50/50 p-4 hover:border-neutral-300 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-neutral-900">{p.name}</span>
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-mono text-neutral-600 border border-neutral-200">
+                      v{p.version}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500 font-mono">
+                    {p.steps.map((s, idx) => (
+                      <React.Fragment key={idx}>
+                        <span className="rounded bg-white px-2 py-0.5 border border-neutral-200 text-neutral-800">
+                          {s.tool}
+                        </span>
+                        {idx < p.steps.length - 1 && <span className="text-neutral-400">&rarr;</span>}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card title="Recent Executions">
+          {ex.length === 0 ? (
+            <p className="text-xs text-neutral-400 py-4 text-center">No execution runs recorded yet.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {ex.slice(0, 10).map((e) => (
+                <li key={e.id} className="flex items-center justify-between rounded-xl border border-neutral-200/60 bg-neutral-50/50 p-3 hover:border-neutral-300 transition-colors">
+                  <span className="font-mono text-xs text-neutral-700">{e.id.slice(0, 8)}</span>
+                  <Pill value={e.status} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 }

@@ -102,15 +102,15 @@ export function LiteLLMSettingsCard({ role }: { role?: string }) {
             Groq, and self-hosted Ollama.
           </p>
 
-          <div className="rounded-xl border border-white/10 bg-black/40 p-3.5 space-y-2.5">
+          <div className="rounded-2xl border border-neutral-200/80 bg-neutral-50 p-4 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-brand">
-                  <ProviderBrandIcon provider={config.provider} className="h-4 w-4 text-brand" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-900 shadow-xs">
+                  <ProviderBrandIcon provider={config.provider} className="h-4 w-4 text-neutral-900" />
                 </div>
                 <div>
-                  <div className="font-semibold text-white">{providerInfo.name}</div>
-                  <div className="text-[11px] text-neutral-400 font-mono">{config.model}</div>
+                  <div className="font-semibold text-neutral-900">{providerInfo.name}</div>
+                  <div className="text-[11px] text-neutral-500 font-mono">{config.model}</div>
                 </div>
               </div>
               {isEngineer ? (
@@ -124,10 +124,10 @@ export function LiteLLMSettingsCard({ role }: { role?: string }) {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 border-t border-neutral-200/70 pt-2 text-xs">
               <div>
                 <span className="text-neutral-500">API Key: </span>
-                <span className="text-neutral-300 font-mono">
+                <span className="text-neutral-800 font-mono">
                   {isEngineer
                     ? "Configured by Administrator"
                     : hasCustomKey
@@ -137,7 +137,7 @@ export function LiteLLMSettingsCard({ role }: { role?: string }) {
               </div>
               <div>
                 <span className="text-neutral-500">Base URL: </span>
-                <span className="text-neutral-300 font-mono truncate">
+                <span className="text-neutral-800 font-mono truncate">
                   {isEngineer
                     ? "Managed Endpoint"
                     : config.baseUrl || "Standard Endpoint"}

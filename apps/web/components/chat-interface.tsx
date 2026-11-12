@@ -384,21 +384,21 @@ export function ChatInterface({
   const isChatEmpty = messages.length === 0;
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] rounded-2xl border border-white/10 bg-[#07080d] shadow-2xl overflow-hidden">
+    <div className="flex h-[calc(100vh-10rem)] rounded-3xl border border-neutral-200/80 bg-white shadow-sm overflow-hidden">
       {/* 1. LEFT COLLAPSIBLE SESSION & DOCUMENT DRAWER */}
       <aside
-        className={`shrink-0 border-r border-white/10 bg-neutral-950/70 backdrop-blur-xl flex flex-col transition-all duration-300 ease-in-out ${
+        className={`shrink-0 border-r border-neutral-200/70 bg-neutral-50/70 backdrop-blur-md flex flex-col transition-all duration-300 ease-in-out ${
           isDrawerOpen ? "w-72 md:w-80" : "w-0 -translate-x-full opacity-0 pointer-events-none border-r-0"
         }`}
       >
-        <div className="p-3.5 border-b border-white/10 flex items-center justify-between gap-2">
+        <div className="p-3.5 border-b border-neutral-200/70 flex items-center justify-between gap-2">
           {/* + New Chat Button */}
           <button
             type="button"
             onClick={handleNewChat}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] py-2 px-3 text-xs font-semibold text-white shadow-sm hover:border-white/30 hover:bg-white/[0.08] active:scale-95 transition-all"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-neutral-950 text-white py-2 px-3 text-xs font-semibold shadow-sm hover:bg-neutral-800 active:scale-95 transition-all"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4 text-brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -409,7 +409,7 @@ export function ChatInterface({
           <button
             type="button"
             onClick={() => setIsDrawerOpen(false)}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/10 hover:text-white transition"
+            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-900 transition"
             title="Collapse drawer"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
@@ -425,25 +425,25 @@ export function ChatInterface({
           {/* SECTION: Stored Files */}
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                <IconFile className="h-3.5 w-3.5 text-brand" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                <IconFile className="h-3.5 w-3.5 text-neutral-700" />
                 <span>Stored Files</span>
               </span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.2 text-[10px] font-mono text-neutral-300">
+              <span className="rounded-full bg-neutral-200 px-1.5 py-0.2 text-[10px] font-mono text-neutral-700">
                 {storedDocs.length}
               </span>
             </div>
-            <p className="px-1 text-[11px] text-neutral-500 leading-tight">
+            <p className="px-1 text-[11px] text-neutral-400 leading-tight">
               Click a file to attach to active agent context
             </p>
 
-            <div className="space-y-1 pt-1 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-1.5 pt-1 max-h-56 overflow-y-auto pr-1">
               {loadingDocs ? (
-                <div className="p-3 text-center text-xs text-neutral-500">Loading files...</div>
+                <div className="p-3 text-center text-xs text-neutral-400">Loading files...</div>
               ) : storedDocs.length === 0 ? (
-                <div className="p-3 text-center text-xs text-neutral-500 border border-white/5 rounded-lg bg-black/20">
+                <div className="p-3 text-center text-xs text-neutral-400 border border-neutral-200 rounded-xl bg-white">
                   <span>No stored files.</span>{" "}
-                  <Link href="/documents" className="text-brand underline">
+                  <Link href="/documents" className="text-neutral-900 font-semibold underline">
                     Upload CAD / PDF &rarr;
                   </Link>
                 </div>
@@ -455,10 +455,10 @@ export function ChatInterface({
                       key={doc.id}
                       type="button"
                       onClick={() => toggleAttachDocument(doc)}
-                      className={`w-full group flex items-center justify-between rounded-lg p-2 text-left text-xs transition-all ${
+                      className={`w-full group flex items-center justify-between rounded-xl p-2.5 text-left text-xs transition-all ${
                         isAttached
-                          ? "bg-brand/20 border border-brand/40 text-white shadow-sm ring-1 ring-brand/30"
-                          : "border border-white/5 bg-white/[0.02] text-neutral-300 hover:border-white/15 hover:bg-white/[0.05]"
+                          ? "bg-neutral-950 text-white shadow-sm"
+                          : "border border-neutral-200/80 bg-white text-neutral-800 hover:border-neutral-400 hover:shadow-sm"
                       }`}
                       title={doc.filename}
                     >
@@ -468,27 +468,29 @@ export function ChatInterface({
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="1.8"
-                          className={`h-3.5 w-3.5 shrink-0 ${isAttached ? "text-brand" : "text-neutral-500 group-hover:text-neutral-300"}`}
+                          className={`h-3.5 w-3.5 shrink-0 ${isAttached ? "text-white" : "text-neutral-400 group-hover:text-neutral-700"}`}
                         >
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
                         <div className="min-w-0">
-                          <div className="truncate font-mono text-[11px] text-neutral-200">
+                          <div className={`truncate font-mono text-[11px] ${isAttached ? "text-white font-medium" : "text-neutral-800 font-normal"}`}>
                             {doc.filename}
                           </div>
                           {doc.doc_type && (
-                            <div className="text-[10px] text-neutral-500 uppercase">{doc.doc_type}</div>
+                            <div className={`text-[10px] uppercase ${isAttached ? "text-neutral-300" : "text-neutral-400"}`}>
+                              {doc.doc_type}
+                            </div>
                           )}
                         </div>
                       </div>
                       <div className="shrink-0 ml-1.5">
                         {isAttached ? (
-                          <span className="rounded bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-white shadow-sm">
+                          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-semibold text-white">
                             Attached
                           </span>
                         ) : (
-                          <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] text-neutral-400 group-hover:text-white">
+                          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] text-neutral-600 group-hover:bg-neutral-200">
                             + Attach
                           </span>
                         )}
@@ -501,13 +503,13 @@ export function ChatInterface({
           </div>
 
           {/* SECTION: Pre-configured Connectors Badge List */}
-          <div className="space-y-2 border-t border-white/10 pt-3">
+          <div className="space-y-2 border-t border-neutral-200/70 pt-3">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                <IconPlug className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                <IconPlug className="h-3.5 w-3.5 text-emerald-600" />
                 <span>Active Connectors</span>
               </span>
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
             </div>
 
             <div className="space-y-1.5 pt-1">
@@ -515,43 +517,43 @@ export function ChatInterface({
                 connections.map((c) => (
                   <div
                     key={c.app_key}
-                    className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-xs text-neutral-300"
+                    className="flex items-center justify-between rounded-xl border border-neutral-200/70 bg-white px-3 py-2 text-xs text-neutral-800 shadow-xs"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
-                      <span className="truncate font-medium text-white">{c.app_name}</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="truncate font-semibold text-neutral-900">{c.app_name}</span>
                     </div>
-                    <Badge variant="success" className="text-[9px] py-0 px-1.5">
+                    <Badge variant="success" className="text-[9px] py-0 px-2">
                       Ready
                     </Badge>
                   </div>
                 ))
               ) : (
                 <>
-                  <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-xs text-neutral-300">
+                  <div className="flex items-center justify-between rounded-xl border border-neutral-200/70 bg-white px-3 py-2 text-xs text-neutral-800 shadow-xs">
                     <div className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      <span className="font-medium text-white">SAP S/4HANA</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="font-semibold text-neutral-900">SAP S/4HANA</span>
                     </div>
-                    <Badge variant="outline" className="text-[9px] py-0 px-1.5 text-neutral-400">
+                    <Badge variant="secondary" className="text-[9px] py-0 px-2 text-neutral-600">
                       FastMCP
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-xs text-neutral-300">
+                  <div className="flex items-center justify-between rounded-xl border border-neutral-200/70 bg-white px-3 py-2 text-xs text-neutral-800 shadow-xs">
                     <div className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      <span className="font-medium text-white">Siemens PLM</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="font-semibold text-neutral-900">Siemens PLM</span>
                     </div>
-                    <Badge variant="outline" className="text-[9px] py-0 px-1.5 text-neutral-400">
+                    <Badge variant="secondary" className="text-[9px] py-0 px-2 text-neutral-600">
                       FastMCP
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-xs text-neutral-300">
+                  <div className="flex items-center justify-between rounded-xl border border-neutral-200/70 bg-white px-3 py-2 text-xs text-neutral-800 shadow-xs">
                     <div className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      <span className="font-medium text-white">Rockwell Automation</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="font-semibold text-neutral-900">Rockwell Automation</span>
                     </div>
-                    <Badge variant="outline" className="text-[9px] py-0 px-1.5 text-neutral-400">
+                    <Badge variant="secondary" className="text-[9px] py-0 px-2 text-neutral-600">
                       FastMCP
                     </Badge>
                   </div>
@@ -561,7 +563,7 @@ export function ChatInterface({
             <div className="pt-1">
               <Link
                 href="/connectors"
-                className="text-[11px] text-neutral-400 hover:text-white flex items-center justify-between px-1"
+                className="text-[11px] text-neutral-500 hover:text-neutral-900 font-medium flex items-center justify-between px-1"
               >
                 <span>View all connectors</span>
                 <span>&rarr;</span>
@@ -572,15 +574,15 @@ export function ChatInterface({
       </aside>
 
       {/* 2. MAIN CONVERSATION PANE */}
-      <div className="flex-1 flex flex-col min-w-0 h-full relative bg-[#07080d]">
-        {/* Top Floating Header Bar */}
-        <header className="border-b border-white/10 bg-black/60 px-4 py-2.5 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full relative bg-[#f4f5f8]">
+        {/* Top Header Bar */}
+        <header className="border-b border-neutral-200/60 bg-white/80 px-4 py-2.5 backdrop-blur-md flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
             {!isDrawerOpen && (
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(true)}
-                className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-neutral-300 hover:bg-white/10 hover:text-white transition shadow-sm"
+                className="rounded-xl border border-neutral-200 bg-white p-2 text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition shadow-sm"
                 title="Expand sessions & documents drawer"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
@@ -600,20 +602,20 @@ export function ChatInterface({
             {hasOverrides ? (
               <Link
                 href="/"
-                className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-emerald-300 hover:bg-emerald-500/20 transition shadow-sm font-medium"
+                className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-100 transition shadow-sm font-medium"
               >
-                <IconBolt className="h-3 w-3 text-emerald-400" />
+                <IconBolt className="h-3 w-3 text-emerald-600" />
                 <span>Dashboard Synced:</span>
-                <span className="font-bold text-white">
+                <span className="font-bold text-neutral-900">
                   {overrides.production_target || overrides.oee || "Active"}
                 </span>
               </Link>
             ) : (
               <Link
                 href="/"
-                className="hidden sm:flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-neutral-300 hover:bg-white/[0.08] transition shadow-sm"
+                className="hidden sm:flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 hover:bg-neutral-50 transition shadow-sm"
               >
-                <IconChart className="h-3 w-3 text-neutral-400" />
+                <IconChart className="h-3 w-3 text-neutral-500" />
                 <span>Live Dashboard</span>
               </Link>
             )}
@@ -628,37 +630,37 @@ export function ChatInterface({
               <div className="pt-8 pb-4 space-y-8 animate-fadeIn">
                 {/* Hero Header */}
                 <div className="text-center space-y-3">
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-tr from-brand/30 to-white/10 text-brand shadow-lg">
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-950 text-white shadow-md">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
                       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-white">
+                  <h2 className="text-2xl font-bold tracking-tight text-neutral-900">
                     Cawrys Industrial Intelligence
                   </h2>
-                  <p className="text-sm text-neutral-400 max-w-lg mx-auto leading-relaxed">
+                  <p className="text-sm text-neutral-500 max-w-lg mx-auto leading-relaxed">
                     Autonomous plant orchestration, CAD engineering analysis, and live telemetry execution powered by unified foundation models.
                   </p>
                 </div>
 
                 {/* Quick Action Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
                   {QUICK_ACTION_CARDS.map((card) => (
                     <button
                       key={card.title}
                       type="button"
                       onClick={() => handleSend(card.prompt)}
-                      className="group rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left transition-all duration-200 hover:border-brand/40 hover:bg-brand/[0.06] hover:shadow-lg active:scale-[0.98]"
+                      className="group rounded-2xl border border-neutral-200/80 bg-white p-4 text-left transition-all duration-200 hover:border-neutral-400 hover:shadow-md hover:bg-neutral-50 active:scale-[0.98]"
                     >
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="text-sm font-semibold text-white group-hover:text-brand transition-colors">
+                        <span className="text-sm font-semibold text-neutral-900 group-hover:text-black transition-colors">
                           {card.title}
                         </span>
-                        <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] font-medium text-neutral-400 group-hover:text-neutral-200">
+                        <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200">
                           {card.tag}
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-400 leading-relaxed group-hover:text-neutral-300">
+                      <p className="text-xs text-neutral-500 leading-relaxed group-hover:text-neutral-700">
                         {card.subtitle}
                       </p>
                     </button>
@@ -678,7 +680,7 @@ export function ChatInterface({
                     className={`flex gap-3.5 ${isUser ? "justify-end" : "justify-start"}`}
                   >
                     {!isUser && (
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand/20 border border-brand/30 text-brand shadow-sm mt-0.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm mt-0.5">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
                           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                         </svg>
@@ -686,19 +688,19 @@ export function ChatInterface({
                     )}
 
                     <div
-                      className={`max-w-[85%] rounded-2xl p-4 text-sm leading-relaxed ${
+                      className={`max-w-[85%] rounded-2xl p-5 text-sm leading-relaxed ${
                         isUser
-                          ? "bg-brand text-white rounded-tr-none shadow-md"
-                          : "border border-white/10 bg-neutral-900/60 backdrop-blur-md text-neutral-200 rounded-tl-none shadow-lg"
+                          ? "bg-neutral-950 text-white rounded-tr-none shadow-sm"
+                          : "bg-white rounded-2xl p-5 border border-neutral-200/60 shadow-sm text-neutral-900 rounded-tl-none"
                       }`}
                     >
                       {/* Attached files chip list on user message */}
                       {isUser && userAttached && userAttached.length > 0 && (
-                        <div className="mb-2 flex flex-wrap gap-1.5 pb-2 border-b border-white/20">
+                        <div className="mb-2 flex flex-wrap gap-1.5 pb-2 border-b border-neutral-700">
                           {userAttached.map((f) => (
                             <span
                               key={f.id}
-                              className="inline-flex items-center gap-1 rounded-md bg-white/20 px-2 py-0.5 text-[11px] font-mono text-white"
+                              className="inline-flex items-center gap-1 rounded-md bg-neutral-800 px-2 py-0.5 text-[11px] font-mono text-neutral-200"
                             >
                               <IconFile className="h-3 w-3" />
                               <span>{f.filename}</span>
@@ -713,52 +715,52 @@ export function ChatInterface({
                       {/* Assistant message content */}
                       {!isUser && (
                         <div className="space-y-3">
-                          <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap leading-relaxed">
+                          <div className="prose prose-sm max-w-none whitespace-pre-wrap leading-relaxed text-neutral-900">
                             {m.content}
                           </div>
 
                           {/* Dashboard Mutation Highlight Box */}
                           {m.dashboard_mutated && (
-                            <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-200">
+                            <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400 text-black">
+                                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
                                     <IconCheck className="h-3 w-3 stroke-[3]" />
                                   </span>
-                                  <span className="font-semibold text-emerald-300">
+                                  <span className="font-semibold text-emerald-950">
                                     Live Dashboard Overrides Applied
                                   </span>
                                 </div>
                                 <Link
                                   href="/"
-                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2.5 py-1 font-medium text-emerald-200 hover:bg-emerald-500/30 transition"
+                                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 hover:bg-emerald-200 px-3 py-1 font-semibold text-emerald-900 transition"
                                 >
                                   Open Dashboard &rarr;
                                 </Link>
                               </div>
                               {m.overrides && (
-                                <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-emerald-500/20 pt-2 text-[11px] text-emerald-300">
+                                <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-emerald-200 pt-2 text-[11px] text-emerald-800">
                                   {m.overrides.production_target && (
                                     <div>
-                                      <span className="text-emerald-400/80">Target: </span>
+                                      <span className="text-emerald-700">Target: </span>
                                       <b>{m.overrides.production_target}</b>
                                     </div>
                                   )}
                                   {m.overrides.risk_level && (
                                     <div>
-                                      <span className="text-emerald-400/80">Risk Level: </span>
+                                      <span className="text-emerald-700">Risk Level: </span>
                                       <b>{m.overrides.risk_level}</b>
                                     </div>
                                   )}
                                   {m.overrides.oee && (
                                     <div>
-                                      <span className="text-emerald-400/80">OEE: </span>
+                                      <span className="text-emerald-700">OEE: </span>
                                       <b>{m.overrides.oee}</b>
                                     </div>
                                   )}
                                   {m.overrides.operational_status && (
                                     <div>
-                                      <span className="text-emerald-400/80">Status: </span>
+                                      <span className="text-emerald-700">Status: </span>
                                       <b>{m.overrides.operational_status}</b>
                                     </div>
                                   )}
@@ -769,27 +771,27 @@ export function ChatInterface({
 
                           {/* Connected Tool Execution Card */}
                           {toolCall && (
-                            <div className="mt-3 rounded-lg border border-white/10 bg-black/40 p-3 text-xs">
+                            <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 text-xs text-neutral-900">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="rounded bg-brand/20 px-1.5 py-0.5 font-mono text-[11px] text-brand">
+                                  <span className="rounded bg-neutral-200 px-1.5 py-0.5 font-mono text-[11px] text-neutral-800 font-bold">
                                     {toolCall.connector.toUpperCase()}
                                   </span>
-                                  <span className="font-semibold text-neutral-300">
+                                  <span className="font-semibold text-neutral-900">
                                     {toolCall.app} &middot; {toolCall.tool}
                                   </span>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => toggleToolDetails(m.id)}
-                                  className="text-[11px] text-neutral-400 hover:text-white underline"
+                                  className="text-[11px] text-neutral-600 hover:text-neutral-900 underline font-medium"
                                 >
                                   {showToolDetails[m.id] ? "Hide payload" : "Inspect payload"}
                                 </button>
                               </div>
 
                               {showToolDetails[m.id] && (
-                                <pre className="mt-2 overflow-x-auto rounded bg-black/70 p-2 font-mono text-[11px] text-neutral-400">
+                                <pre className="mt-2 overflow-x-auto rounded-xl bg-neutral-900 p-2.5 font-mono text-[11px] text-neutral-200">
                                   {JSON.stringify(
                                     {
                                       params: toolCall.params,
@@ -807,37 +809,37 @@ export function ChatInterface({
 
                       {/* Timestamp & Routing Badges */}
                       {isUser ? (
-                        <div className="mt-1.5 text-[10px] text-white/70 text-right">
+                        <div className="mt-1.5 text-[10px] text-neutral-400 text-right">
                           {new Date(m.timestamp).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
                         </div>
                       ) : (
-                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1.5 text-[10px] text-neutral-400">
+                        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-1.5 text-[10px] text-neutral-500">
                           <div className="flex flex-wrap items-center gap-1.5 font-mono">
-                            <span className="flex items-center gap-1 text-brand font-medium">
-                              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+                            <span className="flex items-center gap-1 text-neutral-800 font-medium">
+                              <span className="h-1.5 w-1.5 rounded-full bg-neutral-950" />
                               via {m.metadata?.model || modelConfig.model}
                             </span>
                             {m.metadata?.live_ai ? (
-                              <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-300 border border-emerald-500/30">
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 border border-emerald-200">
                                 Live AI
                               </span>
                             ) : (
-                              <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[9px] text-neutral-400 border border-white/5">
+                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] text-neutral-600 border border-neutral-200">
                                 Context Engine
                               </span>
                             )}
                             {m.metadata?.latency_ms !== undefined && (
                               <>
-                                <span className="text-neutral-600">·</span>
+                                <span className="text-neutral-400">&middot;</span>
                                 <span>{m.metadata.latency_ms}ms</span>
                               </>
                             )}
                             {m.metadata?.provider && (
                               <>
-                                <span className="text-neutral-600">·</span>
+                                <span className="text-neutral-400">&middot;</span>
                                 <span className="capitalize">{m.metadata.provider}</span>
                               </>
                             )}
@@ -853,7 +855,7 @@ export function ChatInterface({
                     </div>
 
                     {isUser && (
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/10 text-neutral-200 font-semibold text-xs capitalize border border-white/15 shadow-sm mt-0.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-900 font-bold text-xs uppercase shadow-sm mt-0.5">
                         {role[0]}
                       </div>
                     )}
@@ -865,13 +867,13 @@ export function ChatInterface({
             {/* Loading Indicator */}
             {loading && (
               <div className="flex gap-3 justify-start items-center">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand/20 border border-brand/30 text-brand">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 animate-spin">
                     <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="10" />
                   </svg>
                 </div>
-                <div className="rounded-2xl rounded-tl-none border border-white/10 bg-neutral-900/60 p-3 text-xs text-neutral-300 flex items-center gap-2 shadow-sm">
-                  <span className="h-2 w-2 rounded-full bg-brand animate-ping" />
+                <div className="rounded-2xl rounded-tl-none border border-neutral-200/80 bg-white p-3 text-xs text-neutral-700 flex items-center gap-2 shadow-sm">
+                  <span className="h-2 w-2 rounded-full bg-neutral-950 animate-ping" />
                   Synthesizing agent response &amp; evaluating operational tools...
                 </div>
               </div>
@@ -879,26 +881,26 @@ export function ChatInterface({
           </div>
         </div>
 
-        {/* 3. FLOATING BOTTOM DOCK (Grok / ChatGPT style) */}
+        {/* 3. FLOATING BOTTOM DOCK (Clean White Rounded-2xl Prompt Container) */}
         <div className="relative z-20 pb-4 px-4 max-w-3xl mx-auto w-full">
-          <div className="rounded-2xl border border-white/15 bg-neutral-900/90 backdrop-blur-xl shadow-2xl p-3 space-y-2.5 transition-all focus-within:border-white/30 focus-within:ring-1 focus-within:ring-brand/30">
+          <div className="rounded-2xl border border-neutral-200/80 bg-white shadow-lg p-3 space-y-2.5 transition-all focus-within:border-neutral-400 focus-within:ring-2 focus-within:ring-neutral-900/5">
             {/* Attached Document Context Chips Row */}
             {attachedFiles.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-white/10">
-                <span className="text-[11px] text-neutral-400 font-medium mr-1 flex items-center gap-1">
-                  <IconFile className="h-3 w-3 text-brand" />
+              <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-neutral-100">
+                <span className="text-[11px] text-neutral-500 font-medium mr-1 flex items-center gap-1">
+                  <IconFile className="h-3 w-3 text-neutral-700" />
                   <span>Attached:</span>
                 </span>
                 {attachedFiles.map((f) => (
                   <span
                     key={f.id}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand/40 bg-brand/15 px-2.5 py-1 text-xs font-mono text-white shadow-sm"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-neutral-100 px-2.5 py-1 text-xs font-mono text-neutral-800 shadow-xs"
                   >
                     <span className="max-w-[180px] truncate">{f.filename}</span>
                     <button
                       type="button"
                       onClick={() => removeAttachedFile(f.id)}
-                      className="text-neutral-400 hover:text-white transition rounded p-0.5"
+                      className="text-neutral-400 hover:text-neutral-900 transition rounded p-0.5"
                       title="Remove attachment"
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3">
@@ -920,29 +922,29 @@ export function ChatInterface({
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Message Cawrys Industrial Intelligence or run operational commands..."
-                className="w-full resize-none bg-transparent text-sm text-white placeholder-neutral-500 focus:outline-none transition-all leading-relaxed max-h-48"
+                className="w-full resize-none bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none transition-all leading-relaxed max-h-48"
               />
             </div>
 
             {/* Bottom Dock Toolbar */}
-            <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-2">
+            <div className="flex items-center justify-between gap-3 border-t border-neutral-100 pt-2">
               <div className="flex items-center gap-2">
                 {/* Model Selector Chip: Read-only for engineer, Clickable for admin */}
                 {isEngineer ? (
                   <div
-                    className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-neutral-300 select-none cursor-default"
+                    className="flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-700 select-none cursor-default"
                     title="Configured by Administrator. Contact system admin to change model."
                   >
-                    <ProviderBrandIcon provider={modelConfig.provider} className="h-3.5 w-3.5 text-brand" />
-                    <span className="font-semibold text-white">
+                    <ProviderBrandIcon provider={modelConfig.provider} className="h-3.5 w-3.5 text-neutral-800" />
+                    <span className="font-semibold text-neutral-900">
                       {LITELLM_PROVIDERS[modelConfig.provider]?.name || modelConfig.provider}
                     </span>
-                    <span className="text-neutral-600">·</span>
-                    <span className="font-mono text-neutral-400 text-[11px] max-w-[140px] truncate">
+                    <span className="text-neutral-400">&middot;</span>
+                    <span className="font-mono text-neutral-600 text-[11px] max-w-[140px] truncate">
                       {modelConfig.model.split("/").pop() || modelConfig.model}
                     </span>
-                    <span className="ml-1 rounded bg-white/10 px-1.5 py-0.2 text-[9px] font-medium text-neutral-400 border border-white/5 flex items-center gap-1">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-2.5 w-2.5 text-neutral-400">
+                    <span className="ml-1 rounded-full bg-neutral-200 px-1.5 py-0.2 text-[9px] font-medium text-neutral-600 border border-neutral-300 flex items-center gap-1">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-2.5 w-2.5 text-neutral-600">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
@@ -953,20 +955,20 @@ export function ChatInterface({
                   <button
                     type="button"
                     onClick={() => setIsLiteLLMModalOpen(true)}
-                    className="group flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand/10 px-3 py-1 text-xs font-medium text-white shadow-sm transition-all hover:border-brand hover:bg-brand/20 active:scale-95"
+                    className="group flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-800 shadow-xs transition-all active:scale-95"
                     title="Click to configure AI Provider, Model, and API Key"
                   >
-                    <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <ProviderBrandIcon provider={modelConfig.provider} className="h-3.5 w-3.5 text-brand" />
-                    <span className="font-semibold text-brand">LiteLLM:</span>
-                    <span className="text-neutral-200">
+                    <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <ProviderBrandIcon provider={modelConfig.provider} className="h-3.5 w-3.5 text-neutral-800" />
+                    <span className="font-semibold text-neutral-900">LiteLLM:</span>
+                    <span className="text-neutral-700">
                       {LITELLM_PROVIDERS[modelConfig.provider]?.name || modelConfig.provider}
                     </span>
-                    <span className="text-neutral-600">·</span>
-                    <span className="font-mono text-neutral-300 text-[11px] max-w-[140px] truncate">
+                    <span className="text-neutral-400">&middot;</span>
+                    <span className="font-mono text-neutral-600 text-[11px] max-w-[140px] truncate">
                       {modelConfig.model.split("/").pop() || modelConfig.model}
                     </span>
-                    <IconTune className="h-3.5 w-3.5 text-neutral-400 group-hover:text-white transition-colors" />
+                    <IconTune className="h-3.5 w-3.5 text-neutral-400 group-hover:text-neutral-700 transition-colors" />
                   </button>
                 )}
 
@@ -975,7 +977,7 @@ export function ChatInterface({
                   <button
                     type="button"
                     onClick={() => setIsDrawerOpen(true)}
-                    className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-neutral-400 hover:bg-white/[0.08] hover:text-white transition"
+                    className="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition"
                     title="Attach Stored File"
                   >
                     <IconFile className="h-3 w-3" />
@@ -984,28 +986,25 @@ export function ChatInterface({
                 )}
               </div>
 
-              {/* Send Button */}
-              <Button
+              {/* Black Circular Send Button */}
+              <button
                 type="button"
                 onClick={() => handleSend()}
                 disabled={(!input.trim() && attachedFiles.length === 0) || loading}
-                size="sm"
-                className="h-8 px-3.5 rounded-xl shadow-lg shrink-0 gap-1.5"
+                className="h-9 w-9 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white flex items-center justify-center shadow-md active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                aria-label="Send message"
               >
                 {loading ? (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <circle cx="12" cy="12" r="10" strokeWidth="3" strokeDasharray="30" strokeDashoffset="10" />
                   </svg>
                 ) : (
-                  <>
-                    <span>Send</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-3.5 w-3.5">
-                      <line x1="22" y1="2" x2="11" y2="13" />
-                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                    </svg>
-                  </>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
                 )}
-              </Button>
+              </button>
             </div>
           </div>
         </div>

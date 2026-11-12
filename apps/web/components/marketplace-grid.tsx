@@ -803,22 +803,22 @@ export function MarketplaceGrid({
   return (
     <div className="space-y-6">
       {/* Top Navigation Tabs: Switch between All Toolkits and Connected Connectors */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200/60 pb-4">
         <Link
           href="/marketplace"
-          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-black shadow-md transition"
+          className="flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
         >
           <span>All Toolkits</span>
-          <span className="rounded-full bg-black/15 px-2 py-0.5 text-[10px] font-bold text-black">
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white">
             {counts.total.toLocaleString()}
           </span>
         </Link>
         <Link
           href="/connectors"
-          className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition"
+          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition"
         >
           <span>Connected Connectors</span>
-          <span className="rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
+          <span className="rounded-full bg-emerald-500/20 text-emerald-800 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
             {counts.connected}
           </span>
         </Link>
@@ -831,7 +831,7 @@ export function MarketplaceGrid({
       )}
 
       {/* Top Architecture Status Card */}
-      <Card className="relative overflow-hidden border-white/10 bg-gradient-to-r from-white/[0.04] via-white/[0.02] to-transparent">
+      <Card className="relative overflow-hidden border-neutral-200/70 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {isProWhitelabel ? (
@@ -937,7 +937,7 @@ export function MarketplaceGrid({
       )}
 
       {/* Unified Filter Controls Panel */}
-      <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+      <div className="space-y-4 rounded-3xl border border-neutral-200/70 bg-white p-5 shadow-sm">
         {/* Row 1: Provider Tabs & Status Filter */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Connector provider tabs">
@@ -949,18 +949,18 @@ export function MarketplaceGrid({
                 setProviderFilter("all");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 providerFilter === "all"
-                  ? "bg-white text-black shadow-md font-bold"
-                  : "border border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white/10 hover:text-white"
+                  ? "bg-neutral-950 text-white shadow-sm font-bold"
+                  : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
               }`}
             >
               <span>All Connectors</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] ${
                   providerFilter === "all"
-                    ? "bg-black/15 text-black font-bold"
-                    : "bg-white/10 text-neutral-300"
+                    ? "bg-white/20 text-white font-bold"
+                    : "bg-neutral-200 text-neutral-700"
                 }`}
               >
                 {counts.total.toLocaleString()}
@@ -975,10 +975,10 @@ export function MarketplaceGrid({
                 setProviderFilter("composio");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 providerFilter === "composio"
-                  ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/50"
-                  : "border border-indigo-400/20 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20"
+                  ? "bg-neutral-950 text-white shadow-sm font-bold"
+                  : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
               }`}
             >
               <span>Composio.dev</span>
@@ -986,7 +986,7 @@ export function MarketplaceGrid({
                 className={`rounded-full px-2 py-0.5 text-[10px] ${
                   providerFilter === "composio"
                     ? "bg-white/20 text-white font-bold"
-                    : "bg-indigo-400/20 text-indigo-200"
+                    : "bg-neutral-200 text-neutral-700"
                 }`}
               >
                 {counts.composio.toLocaleString()}
@@ -1001,10 +1001,10 @@ export function MarketplaceGrid({
                 setProviderFilter("fastmcp");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
                 providerFilter === "fastmcp"
-                  ? "bg-amber-600 text-white shadow-md ring-2 ring-amber-400/50"
-                  : "border border-amber-400/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                  ? "bg-neutral-950 text-white shadow-sm font-bold"
+                  : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
               }`}
             >
               <span>Industrial FastMCP</span>
@@ -1012,7 +1012,7 @@ export function MarketplaceGrid({
                 className={`rounded-full px-2 py-0.5 text-[10px] ${
                   providerFilter === "fastmcp"
                     ? "bg-white/20 text-white font-bold"
-                    : "bg-amber-400/20 text-amber-200"
+                    : "bg-neutral-200 text-neutral-700"
                 }`}
               >
                 {counts.fastmcp}
@@ -1021,17 +1021,17 @@ export function MarketplaceGrid({
           </div>
 
           {/* Status Filter Toggle */}
-          <div className="flex items-center rounded-lg border border-white/10 bg-black/40 p-1 text-xs">
+          <div className="flex items-center rounded-full border border-neutral-200 bg-neutral-100 p-1 text-xs">
             <button
               type="button"
               onClick={() => {
                 setStatusFilter("all");
                 setCurrentPage(1);
               }}
-              className={`rounded-md px-3 py-1 font-medium transition ${
+              className={`rounded-full px-3 py-1 font-medium transition ${
                 statusFilter === "all"
-                  ? "bg-white/20 text-white font-semibold"
-                  : "text-neutral-400 hover:text-white"
+                  ? "bg-white text-neutral-950 font-semibold shadow-xs"
+                  : "text-neutral-500 hover:text-neutral-900"
               }`}
             >
               All ({statusCounts.all})
@@ -1042,13 +1042,13 @@ export function MarketplaceGrid({
                 setStatusFilter("connected");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition ${
                 statusFilter === "connected"
-                  ? "bg-emerald-500/20 text-emerald-300 font-semibold ring-1 ring-emerald-500/30"
-                  : "text-neutral-400 hover:text-white"
+                  ? "bg-white text-neutral-950 font-semibold shadow-xs"
+                  : "text-neutral-500 hover:text-neutral-900"
               }`}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Connected Only ({statusCounts.connected})
             </button>
             <button
@@ -1057,10 +1057,10 @@ export function MarketplaceGrid({
                 setStatusFilter("available");
                 setCurrentPage(1);
               }}
-              className={`rounded-md px-3 py-1 font-medium transition ${
+              className={`rounded-full px-3 py-1 font-medium transition ${
                 statusFilter === "available"
-                  ? "bg-white/20 text-white font-semibold"
-                  : "text-neutral-400 hover:text-white"
+                  ? "bg-white text-neutral-950 font-semibold shadow-xs"
+                  : "text-neutral-500 hover:text-neutral-900"
               }`}
             >
               Available ({statusCounts.available})
@@ -1069,9 +1069,9 @@ export function MarketplaceGrid({
         </div>
 
         {/* Row 2: Search Input & Sort Dropdown & Pagination Size */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-100">
           <div className="relative flex-1 min-w-[280px] max-w-lg">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-400">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -1096,7 +1096,7 @@ export function MarketplaceGrid({
                   setCurrentPage(1);
                   searchInputRef.current?.focus();
                 }}
-                className="absolute right-3 top-2.5 text-xs text-neutral-400 hover:text-white"
+                className="absolute right-3 top-2.5 text-xs text-neutral-400 hover:text-neutral-900"
                 title="Clear search"
                 aria-label="Clear search"
               >
@@ -1107,7 +1107,7 @@ export function MarketplaceGrid({
               </button>
             ) : (
               <div className="pointer-events-none absolute right-3 top-2.5 hidden sm:flex items-center gap-1">
-                <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-mono text-neutral-400">
+                <kbd className="rounded border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 text-[10px] font-mono text-neutral-500">
                   Ctrl+K
                 </kbd>
               </div>
@@ -1124,10 +1124,12 @@ export function MarketplaceGrid({
                 aria-expanded={isCategoryOpen}
                 aria-haspopup="true"
                 onClick={() => setIsCategoryOpen((prev) => !prev)}
-                className="flex items-center gap-2 rounded-lg border border-white/15 bg-black/60 px-3 py-1.5 text-xs text-white hover:bg-white/10 hover:border-white/30 transition focus:outline-none focus:ring-1 focus:ring-brand"
+                className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-800 hover:bg-neutral-50 hover:border-neutral-300 transition focus:outline-none focus:ring-1 focus:ring-neutral-900"
               >
                 <span>{categoryButtonLabel}</span>
-                <span className="text-[10px] text-neutral-400" aria-hidden="true">▾</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+                </svg>
               </button>
 
               {isCategoryOpen && (
@@ -1135,7 +1137,7 @@ export function MarketplaceGrid({
                   role="menu"
                   aria-orientation="vertical"
                   aria-labelledby="category-dropdown-button"
-                  className="absolute right-0 top-full mt-1.5 z-30 max-h-80 w-72 overflow-y-auto rounded-lg border border-white/15 bg-neutral-950 p-2 shadow-2xl space-y-1"
+                  className="absolute right-0 top-full mt-1.5 z-30 max-h-80 w-72 overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-2 shadow-2xl space-y-1 text-neutral-900"
                 >
                   {/* Header bar with Select All and Clear */}
                   <div className="flex items-center justify-between px-2 py-1 text-xs">
@@ -1360,7 +1362,7 @@ export function MarketplaceGrid({
             return (
               <div
                 key={app.key}
-                className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 transition-all duration-200 hover:border-white/20 hover:shadow-xl hover:shadow-black/30"
+                className="group relative flex flex-col justify-between rounded-3xl border border-neutral-200/70 bg-white p-6 transition-all duration-200 hover:border-neutral-300 hover:shadow-md"
               >
                 <div className="space-y-3.5">
                   {/* Card Header with Avatar, Title, Provider badge, and Status Pill */}
@@ -1368,14 +1370,14 @@ export function MarketplaceGrid({
                     <div className="flex items-start gap-3">
                       {/* Avatar / Brand Initial Badge */}
                       <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-gradient-to-br font-bold shadow-md text-xs tracking-tight ${avatarStyle.bg}`}
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-gradient-to-br font-bold shadow-xs text-xs tracking-tight ${avatarStyle.bg}`}
                       >
                         {initials}
                       </div>
 
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-semibold text-white tracking-tight group-hover:text-white transition">
+                          <h3 className="text-base font-semibold text-neutral-900 tracking-tight transition">
                             {app.name}
                           </h3>
                           <Badge variant="secondary" className="text-[11px] font-normal py-0">
@@ -1404,11 +1406,11 @@ export function MarketplaceGrid({
                     <div className="shrink-0">
                       {app.connected ? (
                         <Badge variant="success" className="px-2.5 py-1 text-xs">
-                          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden />
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
                           Connected
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="px-2.5 py-1 text-xs text-neutral-400">
+                        <Badge variant="outline" className="px-2.5 py-1 text-xs text-neutral-500">
                           Available
                         </Badge>
                       )}
@@ -1416,13 +1418,13 @@ export function MarketplaceGrid({
                   </div>
 
                   {/* Description ONLY - minimal and clean */}
-                  <p className="text-sm text-neutral-400 leading-relaxed">{app.description}</p>
+                  <p className="text-sm text-neutral-500 leading-relaxed">{app.description}</p>
                 </div>
 
                 {/* Card Actions Footer:
                     - Disconnected card: EXACTLY ONE CONNECT BUTTON (opens Configuration Modal)
                     - Connected card: Reconfigure, Test Action, Disconnect */}
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-4">
                   <div className="flex items-center gap-2 text-[11px] text-neutral-500">
                     <span>Auth: {(app.auth_schemes || []).join(" / ")}</span>
                     {app.docs_url && (

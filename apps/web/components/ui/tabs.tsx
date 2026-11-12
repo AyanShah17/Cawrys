@@ -48,7 +48,7 @@ export function TabsList({ className, children, ...props }: React.HTMLAttributes
     <div
       role="tablist"
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-lg bg-black/40 p-1 text-neutral-400 border border-white/10",
+        "inline-flex h-10 items-center justify-center rounded-full bg-neutral-100 p-1 text-neutral-500 border border-neutral-200",
         className
       )}
       {...props}
@@ -81,10 +81,10 @@ export function TabsTrigger({
       disabled={disabled}
       onClick={() => ctx?.onValueChange(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
         isSelected
-          ? "bg-white/10 text-white shadow-sm font-semibold"
-          : "text-neutral-400 hover:text-neutral-200 hover:bg-white/5",
+          ? "bg-white text-neutral-900 shadow-sm font-semibold"
+          : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/50",
         className
       )}
       {...props}
@@ -110,8 +110,7 @@ export function TabsContent({
   return (
     <div
       role="tabpanel"
-      tabIndex={0}
-      className={cn("mt-2 ring-offset-background focus-visible:outline-none", className)}
+      className={cn("mt-4 focus-visible:outline-none", className)}
       {...props}
     >
       {children}

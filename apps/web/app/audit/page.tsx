@@ -1,4 +1,6 @@
+import React from "react";
 import { serverGet } from "@/lib/server";
+import { Card, PageHeader, tableCls, tdCls, thCls } from "@/components/ui/kit";
 
 export const dynamic = "force-dynamic";
 
@@ -7,22 +9,53 @@ type Row = { id: number; actor: string; service: string; event: string; created_
 export default async function Audit() {
   let rows: Row[] = [];
   let err: string | null = null;
-  try { rows = await serverGet<Row[]>("intelligence", "/v1/audit"); } catch (e: any) { err = e.message; }
+  try {
+    rows = await serverGet<Row[]>("intelligence", "/v1/audit");
+  } catch (e: any) {
+    err = e.message;
+  }
+
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <h2 className="mb-4 text-xl font-semibold">Audit trail</h2>
-      {err && <p className="text-sm text-red-400">{err}</p>}
-      <table className="w-full text-left text-xs">
-        <thead className="text-neutral-500"><tr><th>Time</th><th>Service</th><th>Event</th><th>Actor</th></tr></thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} className="border-t border-white/5">
-              <td className="py-1.5">{new Date(r.created_at).toLocaleString()}</td>
-              <td>{r.service}</td><td>{r.event}</td><td>{r.actor}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+    <div className="space-y-6">
+      <PageHeader
+        title="Audit Trail"
+        subtitle="Chronological, tamper-evident security and operational compliance log"
+      />
+      {err && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800">
+          {err}
+        </div>
+      )}
+      <Card>
+        {rows.length === 0 ? (
+          <p className="py-6 text-center text-xs text-neutral-400">No audit events recorded yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className={tableCls}>
+              <thead>
+                <tr>
+                  <th className={thCls}>Time</th>
+                  <th className={thCls}>Service</th>
+                  <th className={thCls}>Event</th>
+                  <th className={thCls}>Actor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-neutral-50 transition-colors">
+                    <td className={`${tdCls} font-mono text-xs text-neutral-500`}>
+                      {new Date(r.created_at).toLocaleString()}
+                    </td>
+                    <td className={`${tdCls} font-semibold text-neutral-900`}>{r.service}</td>
+                    <td className={`${tdCls} text-neutral-800`}>{r.event}</td>
+                    <td className={`${tdCls} font-mono text-xs text-neutral-600`}>{r.actor}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }

@@ -35,7 +35,7 @@ export function TeamManager({ users, selfEmail }: { users: UserRow[]; selfEmail:
   return (
     <div className="space-y-6">
       {msg && (
-        <p role={msg.ok ? "status" : "alert"} className={`text-sm ${msg.ok ? "text-emerald-300" : "text-red-400"}`}>
+        <p role={msg.ok ? "status" : "alert"} className={`text-sm ${msg.ok ? "text-emerald-700 font-semibold" : "text-rose-700 font-semibold"}`}>
           {msg.text}
         </p>
       )}
@@ -122,7 +122,7 @@ export function TeamManager({ users, selfEmail }: { users: UserRow[]; selfEmail:
           }, "Person added.");
         }}
       >
-        <label className="text-xs text-neutral-400">
+        <label className="text-xs font-semibold text-neutral-700">
           Email
           <input
             required
@@ -132,7 +132,7 @@ export function TeamManager({ users, selfEmail }: { users: UserRow[]; selfEmail:
             className={`${inputCls} mt-1`}
           />
         </label>
-        <label className="text-xs text-neutral-400">
+        <label className="text-xs font-semibold text-neutral-700">
           Temporary password
           <input
             required
@@ -144,7 +144,7 @@ export function TeamManager({ users, selfEmail }: { users: UserRow[]; selfEmail:
             className={`${inputCls} mt-1`}
           />
         </label>
-        <label className="text-xs text-neutral-400">
+        <label className="text-xs font-semibold text-neutral-700">
           Role
           <select
             value={f.role}

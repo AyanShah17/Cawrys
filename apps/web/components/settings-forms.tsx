@@ -32,11 +32,11 @@ export function PasswordForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       {msg && (
-        <p role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-300" : "text-red-400"}`}>
+        <p role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-700 font-medium" : "text-rose-700 font-medium"}`}>
           {msg.text}
         </p>
       )}
-      <label className="block text-xs text-neutral-400">
+      <label className="block text-xs font-semibold text-neutral-700">
         Current password
         <input
           required
@@ -47,7 +47,7 @@ export function PasswordForm() {
           className={`${inputCls} mt-1`}
         />
       </label>
-      <label className="block text-xs text-neutral-400">
+      <label className="block text-xs font-semibold text-neutral-700">
         New password
         <input
           required
@@ -89,7 +89,7 @@ export function AiTest() {
         {busy ? "Testing connection..." : "Test AI connection"}
       </button>
       {res && (
-        <div className={`text-xs ${res.ok ? "text-emerald-300" : "text-red-400"}`}>
+        <div className={`text-xs ${res.ok ? "text-emerald-700 font-medium" : "text-rose-700 font-medium"}`}>
           {res.ok ? (
             <span>
               Connected ({res.latency_ms} ms, {res.tokens} tokens)

@@ -57,12 +57,12 @@ export default async function Settings() {
                 <Notice tone="warn">Demo mode: results come from a simple built-in stand-in, not a real AI model.</Notice>
               )}
               {admin && st.config && (
-                <div className="border-t border-white/10 pt-3">
-                  <p className="mb-2 text-xs font-medium text-neutral-400">AI roles</p>
-                  <ul className="mb-3 space-y-1 text-xs text-neutral-400">
+                <div className="border-t border-neutral-100 pt-3">
+                  <p className="mb-2 text-xs font-semibold text-neutral-700">AI roles</p>
+                  <ul className="mb-3 space-y-1 text-xs text-neutral-600">
                     {Object.entries(st.config.ai_roles).map(([k, v]) => (
                       <li key={k}>
-                        <span className="inline-block w-24 text-neutral-500">{label(k)}</span>
+                        <span className="inline-block w-24 text-neutral-400">{label(k)}</span>
                         <code>{v}</code>
                       </li>
                     ))}
@@ -84,7 +84,7 @@ export default async function Settings() {
             <div className="font-medium">{brand.name}</div>
             <div className="text-xs text-neutral-500">{brand.tagline}</div>
           </div>
-          <code className="rounded bg-white/10 px-2 py-1 text-xs">{brand.primary}</code>
+          <code className="rounded-lg border border-neutral-200 bg-neutral-100 px-2.5 py-1 text-xs font-mono text-neutral-800">{brand.primary}</code>
         </div>
         <p className="mt-3 text-xs text-neutral-500">
           Name, tagline, colour, logo and support address are set with the BRAND_* settings of the deployment and apply after a restart. See DEPLOYMENT.md.

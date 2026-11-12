@@ -40,7 +40,7 @@ export function DialogContent({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity"
         onClick={() => ctx.onOpenChange(false)}
       />
       {/* Modal Dialog Content */}
@@ -48,13 +48,13 @@ export function DialogContent({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-50 w-full max-w-lg rounded-xl border border-white/15 bg-[#0a0c12] p-6 text-neutral-100 shadow-2xl duration-200",
+          "relative z-50 w-full max-w-lg rounded-3xl border border-neutral-200/80 bg-white p-6 text-neutral-900 shadow-2xl duration-200",
           className
         )}
       >
         <button
           onClick={() => ctx.onOpenChange(false)}
-          className="absolute right-4 top-4 rounded-md p-1.5 text-neutral-400 opacity-70 transition-opacity hover:opacity-100 hover:bg-white/10 focus:outline-none"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-neutral-400 opacity-70 transition-opacity hover:opacity-100 hover:bg-neutral-100 hover:text-neutral-900 focus:outline-none"
           aria-label="Close"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,13 +72,13 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
 }
 
 export function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn("text-lg font-semibold leading-none tracking-tight text-white", className)} {...props} />;
+  return <h2 className={cn("text-lg font-semibold leading-none tracking-tight text-neutral-900", className)} {...props} />;
 }
 
 export function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-xs text-neutral-400 leading-relaxed", className)} {...props} />;
+  return <p className={cn("text-xs text-neutral-500 leading-relaxed", className)} {...props} />;
 }
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mt-6 flex items-center justify-end gap-2 border-t border-white/10 pt-4", className)} {...props} />;
+  return <div className={cn("mt-6 flex items-center justify-end gap-2 border-t border-neutral-100 pt-4", className)} {...props} />;
 }

@@ -752,36 +752,36 @@ export function LiteLLMModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/40 backdrop-blur-md"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl rounded-2xl border border-white/15 bg-[#0a0c12] p-6 shadow-2xl space-y-5 max-h-[92vh] flex flex-col overflow-y-auto"
+        className="relative w-full max-w-xl rounded-3xl border border-neutral-200/80 bg-white p-6 shadow-2xl space-y-5 max-h-[92vh] flex flex-col overflow-y-auto text-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] text-brand shadow-md">
-              <ProviderBrandIcon provider={provider} className="h-6 w-6 text-brand" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-50 text-neutral-900 shadow-sm">
+              <ProviderBrandIcon provider={provider} className="h-6 w-6 text-neutral-900" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold tracking-tight text-white">
+                <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
                   LiteLLM AI Provider &amp; Model
                 </h3>
-                <Badge variant="default" className="text-[10px]">
+                <Badge variant="secondary" className="text-[10px]">
                   Universal Gateway
                 </Badge>
               </div>
-              <p className="text-xs text-neutral-400 mt-0.5">
+              <p className="text-xs text-neutral-500 mt-0.5">
                 Route agent reasoning, tool execution, and context to your choice of foundation model.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/10 hover:text-white transition"
+            className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition"
             aria-label="Close modal"
           >
             <IconClose className="h-4 w-4" />
@@ -790,14 +790,14 @@ export function LiteLLMModal({
 
         {/* Feedback Alert */}
         {isEngineer && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200 flex items-start gap-2.5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-amber-400 shrink-0 mt-0.5">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-amber-600 shrink-0 mt-0.5">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
             <div>
-              <span className="font-semibold text-amber-300">Configured by Administrator</span>
-              <p className="mt-0.5 text-neutral-300 leading-relaxed">
+              <span className="font-semibold text-amber-950">Configured by Administrator</span>
+              <p className="mt-0.5 text-neutral-700 leading-relaxed">
                 On-site engineers have view-only access to AI model configuration. AI provider, model selection, API key, and base URL are managed by your administrator.
               </p>
             </div>
@@ -806,16 +806,16 @@ export function LiteLLMModal({
 
         {statusMessage && (
           <div
-            className={`rounded-lg px-3.5 py-2.5 text-xs flex items-center gap-2 ${
+            className={`rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-2 ${
               statusMessage.type === "success"
-                ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
-                : "bg-red-500/15 border border-red-500/30 text-red-300"
+                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border border-rose-200 text-rose-800"
             }`}
           >
             {statusMessage.type === "success" ? (
-              <IconCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+              <IconCheck className="h-4 w-4 text-emerald-600 shrink-0" />
             ) : (
-              <IconAlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+              <IconAlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
             )}
             <span>{statusMessage.text}</span>
           </div>
@@ -824,7 +824,7 @@ export function LiteLLMModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Searchable Provider Selector */}
           <div className="space-y-1.5" ref={providerDropdownRef}>
-            <label className="text-xs font-semibold text-neutral-300 flex items-center justify-between">
+            <label className="text-xs font-semibold text-neutral-700 flex items-center justify-between">
               <span>AI Provider</span>
               <span className="text-[11px] font-normal text-neutral-400">
                 {currentProviderInfo.badge}
@@ -837,14 +837,14 @@ export function LiteLLMModal({
                 type="button"
                 disabled={isEngineer}
                 onClick={() => !isEngineer && setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-                className={`w-full flex items-center justify-between rounded-lg border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-neutral-100 shadow-sm transition ${
-                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-white/30 focus:border-white/40 focus:outline-none"
+                className={`w-full flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-900 shadow-xs transition ${
+                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-neutral-300 focus:border-neutral-900 focus:outline-none"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <ProviderBrandIcon provider={currentProviderInfo.id} className="h-4 w-4 text-brand shrink-0" />
-                  <span className="font-medium text-white truncate">{currentProviderInfo.name}</span>
-                  <span className="text-neutral-500 text-xs font-mono">({currentProviderInfo.id})</span>
+                  <ProviderBrandIcon provider={currentProviderInfo.id} className="h-4 w-4 text-neutral-900 shrink-0" />
+                  <span className="font-semibold text-neutral-900 truncate">{currentProviderInfo.name}</span>
+                  <span className="text-neutral-400 text-xs font-mono">({currentProviderInfo.id})</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {currentProviderInfo.env_api_key_set && (
@@ -858,7 +858,7 @@ export function LiteLLMModal({
 
               {/* Provider Dropdown Panel */}
               {isProviderDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-xl border border-white/15 bg-[#0e1017] p-2 shadow-2xl space-y-2 backdrop-blur-xl max-h-72 flex flex-col">
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl border border-neutral-200 bg-white p-2 shadow-2xl space-y-2 max-h-72 flex flex-col text-neutral-900">
                   {/* Search Input */}
                   <div className="relative">
                     <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-neutral-400" />
@@ -867,7 +867,7 @@ export function LiteLLMModal({
                       placeholder="Search providers (e.g. Gemini, OpenAI, Groq, Ollama)..."
                       value={providerSearch}
                       onChange={(e) => setProviderSearch(e.target.value)}
-                      className="pl-8 text-xs h-8 bg-black/60 border-white/10"
+                      className="pl-8 text-xs h-8 bg-neutral-50 border-neutral-200"
                       autoFocus
                     />
                   </div>
@@ -886,33 +886,33 @@ export function LiteLLMModal({
                             key={p.id}
                             type="button"
                             onClick={() => handleSelectProvider(p.id)}
-                            className={`w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition ${
+                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs transition ${
                               isSelected
-                                ? "bg-brand/20 text-white font-medium border border-brand/30"
-                                : "text-neutral-300 hover:bg-white/[0.06] hover:text-white"
+                                ? "bg-neutral-950 text-white font-medium"
+                                : "text-neutral-800 hover:bg-neutral-100"
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <ProviderBrandIcon provider={p.id} className="h-4 w-4 text-brand shrink-0" />
+                              <ProviderBrandIcon provider={p.id} className={`h-4 w-4 shrink-0 ${isSelected ? "text-white" : "text-neutral-900"}`} />
                               <div className="min-w-0">
-                                <div className="font-medium text-neutral-100 truncate flex items-center gap-1.5">
+                                <div className="font-semibold truncate flex items-center gap-1.5">
                                   <span>{p.name}</span>
-                                  {isSelected && <IconCheck className="h-3 w-3 text-brand shrink-0" />}
+                                  {isSelected && <IconCheck className="h-3 w-3 text-white shrink-0" />}
                                 </div>
-                                <div className="text-[10px] text-neutral-400 truncate">{p.description}</div>
+                                <div className={`text-[10px] truncate ${isSelected ? "text-neutral-300" : "text-neutral-500"}`}>{p.description}</div>
                               </div>
                             </div>
                             <div className="shrink-0 ml-2 text-right">
                               {p.env_api_key_set ? (
-                                <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-medium text-emerald-300">
+                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 border border-emerald-200">
                                   Configured
                                 </span>
                               ) : p.requires_key === false ? (
-                                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] text-neutral-300">
+                                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] text-neutral-600">
                                   No Key
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-neutral-500 font-mono">
+                                <span className="text-[10px] text-neutral-400 font-mono">
                                   {p.id}
                                 </span>
                               )}
@@ -925,25 +925,25 @@ export function LiteLLMModal({
                 </div>
               )}
             </div>
-            <p className="text-[11px] text-neutral-400">{currentProviderInfo.description}</p>
+            <p className="text-[11px] text-neutral-500">{currentProviderInfo.description}</p>
           </div>
 
           {/* Searchable Model Selector */}
           <div className="space-y-1.5" ref={modelDropdownRef}>
             <div className="flex items-center justify-between text-xs">
-              <label className="font-semibold text-neutral-300">
+              <label className="font-semibold text-neutral-700">
                 Model Selector
               </label>
-              <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+              <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
                 {isFetchingModels ? (
-                  <span className="flex items-center gap-1 text-brand">
+                  <span className="flex items-center gap-1 text-neutral-900">
                     <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <circle cx="12" cy="12" r="10" strokeDasharray="30" strokeDashoffset="10" />
                     </svg>
                     <span>Fetching models...</span>
                   </span>
                 ) : (
-                  <span className="font-mono text-neutral-500">
+                  <span className="font-mono text-neutral-400">
                     {availableModels.length} models available
                   </span>
                 )}
@@ -956,12 +956,12 @@ export function LiteLLMModal({
                 type="button"
                 disabled={isEngineer}
                 onClick={() => !isEngineer && setIsModelDropdownOpen(!isModelDropdownOpen)}
-                className={`w-full flex items-center justify-between rounded-lg border border-white/15 bg-black/50 px-3 py-2.5 text-sm text-neutral-100 shadow-sm transition ${
-                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-white/30 focus:border-white/40 focus:outline-none"
+                className={`w-full flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-900 shadow-xs transition ${
+                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-neutral-300 focus:border-neutral-900 focus:outline-none"
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono text-xs text-brand truncate">
+                  <span className="font-mono text-xs font-semibold text-neutral-900 truncate">
                     {isCustomModel ? (customModel || "Custom model string") : model}
                   </span>
                 </div>
@@ -970,7 +970,7 @@ export function LiteLLMModal({
 
               {/* Model Dropdown Panel */}
               {!isEngineer && isModelDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-xl border border-white/15 bg-[#0e1017] p-2 shadow-2xl space-y-2 backdrop-blur-xl max-h-72 flex flex-col">
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl border border-neutral-200 bg-white p-2 shadow-2xl space-y-2 max-h-72 flex flex-col text-neutral-900">
                   {/* Search Input */}
                   <div className="relative">
                     <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-neutral-400" />
@@ -979,7 +979,7 @@ export function LiteLLMModal({
                       placeholder="Search models (e.g. gpt-4o, claude-3-5, gemini-2.5, llama)..."
                       value={modelSearch}
                       onChange={(e) => setModelSearch(e.target.value)}
-                      className="pl-8 text-xs h-8 bg-black/60 border-white/10"
+                      className="pl-8 text-xs h-8 bg-neutral-50 border-neutral-200"
                       autoFocus
                     />
                   </div>
@@ -999,18 +999,18 @@ export function LiteLLMModal({
                             key={m}
                             type="button"
                             onClick={() => handleSelectModel(m)}
-                            className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition ${
+                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs transition ${
                               isSelected
-                                ? "bg-brand/20 text-white font-medium border border-brand/30"
-                                : "text-neutral-300 hover:bg-white/[0.06] hover:text-white"
+                                ? "bg-neutral-950 text-white font-medium"
+                                : "text-neutral-800 hover:bg-neutral-100"
                             }`}
                           >
                             <span className="font-mono text-xs truncate flex items-center gap-1.5">
                               <span>{m}</span>
-                              {isSelected && <IconCheck className="h-3 w-3 text-brand shrink-0" />}
+                              {isSelected && <IconCheck className="h-3 w-3 text-white shrink-0" />}
                             </span>
                             {isDefault && (
-                              <span className="rounded bg-brand/20 px-1.5 py-0.5 text-[9px] font-semibold text-brand shrink-0">
+                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] font-semibold text-neutral-700 border border-neutral-200 shrink-0">
                                 Default
                               </span>
                             )}
@@ -1020,14 +1020,14 @@ export function LiteLLMModal({
                     )}
 
                     {/* Custom Model Option */}
-                    <div className="border-t border-white/10 pt-1 mt-1">
+                    <div className="border-t border-neutral-100 pt-1 mt-1">
                       <button
                         type="button"
                         onClick={() => handleSelectModel("__custom__")}
-                        className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition ${
+                        className={`w-full flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition ${
                           isCustomModel
-                            ? "bg-brand/20 text-brand font-medium border border-brand/30"
-                            : "text-brand hover:bg-white/[0.06]"
+                            ? "bg-neutral-950 text-white font-medium"
+                            : "text-neutral-900 hover:bg-neutral-100"
                         }`}
                       >
                         <IconTune className="h-3.5 w-3.5 shrink-0" />
@@ -1050,7 +1050,7 @@ export function LiteLLMModal({
                   onChange={(e) => setCustomModel(e.target.value)}
                   className="font-mono text-xs"
                 />
-                <p className="text-[10px] text-neutral-500 mt-1">
+                <p className="text-[10px] text-neutral-400 mt-1">
                   Type any valid LiteLLM model identifier supported by your endpoint.
                 </p>
               </div>
@@ -1061,7 +1061,7 @@ export function LiteLLMModal({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <label className="text-xs font-semibold text-neutral-300">
+                <label className="text-xs font-semibold text-neutral-700">
                   {currentProviderInfo.name} API Key
                 </label>
                 {currentProviderInfo.env_api_key_set && (
@@ -1079,7 +1079,7 @@ export function LiteLLMModal({
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
-                  className="text-[11px] text-neutral-400 hover:text-white flex items-center gap-1 transition"
+                  className="text-[11px] text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition"
                 >
                   {showApiKey ? (
                     <>
@@ -1108,13 +1108,13 @@ export function LiteLLMModal({
                 }
                 value={isEngineer ? "••••••••••••••••" : apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className={`font-mono text-xs pr-10 ${isEngineer ? "cursor-not-allowed opacity-70 bg-black/60" : ""}`}
+                className={`font-mono text-xs pr-10 ${isEngineer ? "cursor-not-allowed opacity-70 bg-neutral-100" : ""}`}
               />
               {!isEngineer && (
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-2.5 top-2.5 text-neutral-500 hover:text-neutral-300"
+                  className="absolute right-2.5 top-2.5 text-neutral-400 hover:text-neutral-700"
                   tabIndex={-1}
                   aria-label={showApiKey ? "Hide API key" : "Show API key"}
                 >
@@ -1126,7 +1126,7 @@ export function LiteLLMModal({
                 </button>
               )}
             </div>
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-500">
               {isEngineer
                 ? "Credential secured and managed centrally by system administrator."
                 : "Stored securely per tenant session for direct LiteLLM model routing."}
@@ -1136,14 +1136,14 @@ export function LiteLLMModal({
           {/* Custom Base URL (Optional) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-neutral-300">
-                Custom Base URL <span className="font-normal text-neutral-500">(Optional)</span>
+              <label className="text-xs font-semibold text-neutral-700">
+                Custom Base URL <span className="font-normal text-neutral-400">(Optional)</span>
               </label>
               {!isEngineer && currentProviderInfo.defaultBaseUrl && (
                 <button
                   type="button"
                   onClick={() => setBaseUrl(currentProviderInfo.defaultBaseUrl || "")}
-                  className="text-[10px] text-brand hover:underline font-mono"
+                  className="text-[10px] text-neutral-900 hover:underline font-mono"
                 >
                   Set default: {currentProviderInfo.defaultBaseUrl}
                 </button>
@@ -1159,15 +1159,15 @@ export function LiteLLMModal({
               }
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              className={`font-mono text-xs ${isEngineer ? "cursor-not-allowed opacity-70 bg-black/60" : ""}`}
+              className={`font-mono text-xs ${isEngineer ? "cursor-not-allowed opacity-70 bg-neutral-100" : ""}`}
             />
-            <p className="text-[11px] text-neutral-400">
+            <p className="text-[11px] text-neutral-500">
               Useful for self-hosted Ollama, vLLM, Azure endpoints, or corporate LiteLLM proxy gateways.
             </p>
           </div>
 
           {/* Modal Actions */}
-          <div className="flex items-center justify-end gap-2.5 border-t border-white/10 pt-4">
+          <div className="flex items-center justify-end gap-2.5 border-t border-neutral-100 pt-4">
             {isEngineer ? (
               <Button
                 type="button"
@@ -1194,7 +1194,7 @@ export function LiteLLMModal({
                   variant="default"
                   size="sm"
                   disabled={isSubmitting}
-                  className="gap-1.5"
+                  className="gap-1.5 bg-neutral-950 hover:bg-neutral-800 text-white"
                 >
                   {isSubmitting ? (
                     <>

@@ -269,22 +269,22 @@ export function ConnectorsView({
   return (
     <div className="space-y-6">
       {/* Top Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200/60 pb-4">
         <Link
           href="/marketplace"
-          className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-white transition"
+          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition"
         >
           <span>All Toolkits</span>
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-neutral-400">
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500 border border-neutral-200">
             {counts.total.toLocaleString()}
           </span>
         </Link>
         <Link
           href="/connectors"
-          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold text-black shadow-md transition"
+          className="flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
         >
           <span>Connected Connectors</span>
-          <span className="rounded-full bg-emerald-500/20 text-emerald-800 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
+          <span className="rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
             {counts.connected}
           </span>
         </Link>
@@ -387,21 +387,21 @@ export function ConnectorsView({
             return (
               <div
                 key={app.key}
-                className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 transition-all duration-200 hover:border-white/20 hover:shadow-xl hover:shadow-black/30"
+                className="group relative flex flex-col justify-between rounded-3xl border border-neutral-200/70 bg-white p-6 transition-all duration-200 hover:border-neutral-300 hover:shadow-md"
               >
                 <div className="space-y-4">
                   {/* Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-gradient-to-br font-bold shadow-md text-xs tracking-tight ${avatarStyle.bg}`}
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-gradient-to-br font-bold shadow-xs text-xs tracking-tight ${avatarStyle.bg}`}
                       >
                         {initials}
                       </div>
 
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-semibold text-white tracking-tight">
+                          <h3 className="text-base font-semibold text-neutral-900 tracking-tight">
                             {app.name}
                           </h3>
                           <Badge variant="secondary" className="text-[11px] font-normal py-0">
@@ -427,17 +427,17 @@ export function ConnectorsView({
 
                     {/* Connected Pill */}
                     <Badge variant="success" className="px-2.5 py-1 text-xs">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                       Connected
                     </Badge>
                   </div>
 
                   {/* Description */}
-                  <p className="text-sm text-neutral-400 leading-relaxed">{app.description}</p>
+                  <p className="text-sm text-neutral-500 leading-relaxed">{app.description}</p>
 
                   {/* Configured Parameters Summary */}
-                  <div className="rounded-lg border border-white/10 bg-black/40 p-3 space-y-2 text-xs">
-                    <div className="font-semibold text-neutral-300 uppercase tracking-wider text-[11px]">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 space-y-2 text-xs">
+                    <div className="font-semibold text-neutral-700 uppercase tracking-wider text-[11px]">
                       Configuration Settings
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
