@@ -117,6 +117,12 @@ def login(body: LoginIn, request: Request):
 
         # 4. Lookup user and verify password with constant-time dummy hash verification
         user = c.execute("select * from users where email=%s", (email,)).fetchone()
+        if not user and SEED_DEMO:
+            total_users = c.execute("select count(*)::int as n from users").fetchone()
+            if not total_users or total_users["n"] == 0:
+                seed_demo_users()
+                user = c.execute("select * from users where email=%s", (email,)).fetchone()
+
         ok = verify_password(body.password, user["password_hash"] if user else DUMMY_HASH)
 
         # 5. Check if user is inactive / disabled

@@ -10,14 +10,31 @@ export async function POST(req: NextRequest) {
 
   // Behind the Cloudflare tunnel or reverse proxy the real client address arrives in CF-Connecting-IP / X-Forwarded-For.
   const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
-  let r: Response;
-  try {
-    r = await fetch(TARGETS.intelligence + "/v1/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-IP": ip },
-      body: JSON.stringify({ email: body.email, password: body.password }),
-    });
-  } catch {
+  let r: Response | null = null;
+
+  // Try primary target, then fallback to IPv4 loopback variants to prevent ECONNREFUSED from IPv6 localhost resolution
+  const candidateTargets = Array.from(new Set([
+    TARGETS.intelligence,
+    "http://127.0.0.1:8001",
+    "http://localhost:8001",
+  ])).filter(Boolean);
+
+  let lastErr: any = null;
+  for (const target of candidateTargets) {
+    try {
+      r = await fetch(target + "/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Client-IP": ip },
+        body: JSON.stringify({ email: body.email, password: body.password }),
+      });
+      if (r) break;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  if (!r) {
+    console.error("Sign-in service connection failed across targets:", candidateTargets, lastErr);
     return NextResponse.json({ detail: "the sign-in service is unreachable" }, { status: 502 });
   }
 

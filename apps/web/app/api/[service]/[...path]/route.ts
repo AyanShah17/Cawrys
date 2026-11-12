@@ -36,10 +36,25 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ service: string
     init.duplex = "half";
   }
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${base}/${path.join("/")}${req.nextUrl.search}`, init);
-  } catch {
+  let upstream: Response | null = null;
+  const candidateBases = Array.from(new Set([
+    base,
+    service === "intelligence" ? "http://127.0.0.1:8001" : "http://127.0.0.1:8002",
+    service === "intelligence" ? "http://localhost:8001" : "http://localhost:8002",
+  ])).filter(Boolean);
+
+  let lastErr: any = null;
+  for (const b of candidateBases) {
+    try {
+      upstream = await fetch(`${b}/${path.join("/")}${req.nextUrl.search}`, init);
+      if (upstream) break;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  if (!upstream) {
+    console.error(`${service} service connection failed across targets:`, candidateBases, lastErr);
     return NextResponse.json({ detail: `${service} service unreachable` }, { status: 502 });
   }
   return new NextResponse(upstream.body, {

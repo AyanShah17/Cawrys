@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const TARGETS: Record<string, string> = {
-  intelligence: process.env.INTERNAL_INTELLIGENCE_URL ?? process.env.INTELLIGENCE_URL ?? "http://localhost:8001",
-  execution: process.env.INTERNAL_EXECUTION_URL ?? process.env.EXECUTION_URL ?? "http://localhost:8002",
+  intelligence: process.env.INTERNAL_INTELLIGENCE_URL ?? process.env.INTELLIGENCE_URL ?? "http://127.0.0.1:8001",
+  execution: process.env.INTERNAL_EXECUTION_URL ?? process.env.EXECUTION_URL ?? "http://127.0.0.1:8002",
 };
 export const COOKIE = "cawrys_token";
 
