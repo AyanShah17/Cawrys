@@ -328,12 +328,14 @@ export function MarketplaceGrid({
   // Filters & Search
   const [providerFilter, setProviderFilter] = useState<"all" | "composio" | "fastmcp">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "connected" | "available">("all");
-  const [category, setCategory] = useState<string>("All Categories");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [isCategoryOpen, setIsCategoryOpen] = useState<boolean>(false);
   const [sortOption, setSortOption] = useState<"featured" | "alpha" | "tools">("featured");
   const [search, setSearch] = useState<string>("");
   const deferredSearch = useDeferredValue(search);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -376,6 +378,40 @@ export function MarketplaceGrid({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // Close category dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsCategoryOpen(false);
+      }
+    }
+
+    if (isCategoryOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isCategoryOpen]);
+
+  // Close category dropdown on Escape key
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && isCategoryOpen) {
+        setIsCategoryOpen(false);
+      }
+    }
+    if (isCategoryOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isCategoryOpen]);
 
   // Refresh catalog from execution service with limit=0 to get full 1646+ catalog
   const refresh = useCallback(async () => {
@@ -438,21 +474,46 @@ export function MarketplaceGrid({
     };
   }, [catalog.apps, providerFilter]);
 
-  // Reset category if not in available list
+  // Clean up selected categories if not in the active category list (e.g. after provider switch)
   useEffect(() => {
-    if (category !== "All Categories" && category !== "All") {
-      const exists = categoryCounts.categories.some((c) => c.name === category);
-      if (!exists && categoryCounts.categories.length > 0) {
-        setCategory("All Categories");
+    if (selectedCategories.length > 0) {
+      const validNames = new Set(categoryCounts.categories.map((c) => c.name));
+      const validSelected = selectedCategories.filter((c) => validNames.has(c));
+      if (validSelected.length !== selectedCategories.length) {
+        setSelectedCategories(validSelected);
         setCurrentPage(1);
       }
     }
-  }, [category, categoryCounts]);
+  }, [categoryCounts.categories, selectedCategories]);
+
+  const isAllCategories =
+    selectedCategories.length === 0 ||
+    selectedCategories.length === categoryCounts.categories.length;
+
+  const categoryButtonLabel = isAllCategories
+    ? `Categories: All (${categoryCounts.categories.length})`
+    : `Categories (${selectedCategories.length} selected)`;
+
+  function handleToggleCategory(catName: string) {
+    setSelectedCategories((prev) => {
+      let next: string[];
+      if (prev.length === 0) {
+        next = [catName];
+      } else if (prev.length === categoryCounts.categories.length) {
+        next = prev.filter((c) => c !== catName);
+      } else if (prev.includes(catName)) {
+        next = prev.filter((c) => c !== catName);
+      } else {
+        next = [...prev, catName];
+      }
+      return next;
+    });
+    setCurrentPage(1);
+  }
 
   // Filtered & Sorted Apps
   const filteredApps = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
-    const isAllCats = category === "All Categories" || category === "All";
 
     const filtered = (catalog.apps || []).filter((app) => {
       // Provider filter
@@ -471,9 +532,12 @@ export function MarketplaceGrid({
         return false;
       }
 
-      // Category filter
-      if (!isAllCats && app.category !== category) {
-        return false;
+      // Category filter (multi-select)
+      if (!isAllCategories) {
+        const appCat = app.category?.trim() || "Other";
+        if (!selectedCategories.includes(appCat) && !selectedCategories.includes(app.category)) {
+          return false;
+        }
       }
 
       // Search query
@@ -506,14 +570,21 @@ export function MarketplaceGrid({
 
       return a.name.localeCompare(b.name);
     });
-  }, [catalog.apps, providerFilter, statusFilter, category, deferredSearch, sortOption]);
+  }, [catalog.apps, providerFilter, statusFilter, isAllCategories, selectedCategories, deferredSearch, sortOption]);
 
   // Status Filter Counts scoped to current provider & category
   const statusCounts = useMemo(() => {
+    const isAll =
+      selectedCategories.length === 0 ||
+      selectedCategories.length === categoryCounts.categories.length;
+
     const baseList = (catalog.apps || []).filter((app) => {
       if (providerFilter === "composio" && (app.provider ?? "composio") !== "composio") return false;
       if (providerFilter === "fastmcp" && app.provider !== "fastmcp") return false;
-      if (category !== "All Categories" && category !== "All" && app.category !== category) return false;
+      if (!isAll) {
+        const appCat = app.category?.trim() || "Other";
+        if (!selectedCategories.includes(appCat) && !selectedCategories.includes(app.category)) return false;
+      }
       return true;
     });
 
@@ -523,7 +594,7 @@ export function MarketplaceGrid({
       connected,
       available: baseList.length - connected,
     };
-  }, [catalog.apps, providerFilter, category]);
+  }, [catalog.apps, providerFilter, selectedCategories, categoryCounts.categories.length]);
 
   // Pagination slice
   const totalFiltered = filteredApps.length;
@@ -1033,6 +1104,92 @@ export function MarketplaceGrid({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400">
+            {/* Category Checkbox Dropdown */}
+            <div className="relative" ref={categoryDropdownRef}>
+              <button
+                type="button"
+                id="category-dropdown-button"
+                aria-label="Filter by categories"
+                aria-expanded={isCategoryOpen}
+                aria-haspopup="true"
+                onClick={() => setIsCategoryOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-lg border border-white/15 bg-black/60 px-3 py-1.5 text-xs text-white hover:bg-white/10 hover:border-white/30 transition focus:outline-none focus:ring-1 focus:ring-brand"
+              >
+                <span>{categoryButtonLabel}</span>
+                <span className="text-[10px] text-neutral-400" aria-hidden="true">▾</span>
+              </button>
+
+              {isCategoryOpen && (
+                <div
+                  role="menu"
+                  aria-orientation="vertical"
+                  aria-labelledby="category-dropdown-button"
+                  className="absolute right-0 top-full mt-1.5 z-30 max-h-80 w-72 overflow-y-auto rounded-lg border border-white/15 bg-neutral-950 p-2 shadow-2xl space-y-1"
+                >
+                  {/* Header bar with Select All and Clear */}
+                  <div className="flex items-center justify-between px-2 py-1 text-xs">
+                    <span className="font-semibold text-neutral-300">
+                      {selectedCategories.length === 0
+                        ? `Categories (${categoryCounts.categories.length})`
+                        : `${selectedCategories.length} Selected`}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategories(categoryCounts.categories.map((c) => c.name));
+                          setCurrentPage(1);
+                        }}
+                        className="text-xs text-indigo-400 hover:text-indigo-300 transition font-medium"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-neutral-600">|</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategories([]);
+                          setCurrentPage(1);
+                        }}
+                        className="text-xs text-neutral-400 hover:text-white transition"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-b border-white/10 my-1" />
+
+                  {/* Scrollable list of category items with checkboxes */}
+                  <div className="space-y-0.5">
+                    {categoryCounts.categories.map((cat) => {
+                      const isChecked = selectedCategories.length === 0
+                        ? false
+                        : selectedCategories.includes(cat.name);
+
+                      return (
+                        <label
+                          key={cat.name}
+                          className="hover:bg-white/5 rounded px-2 py-1.5 flex items-center gap-2 cursor-pointer transition select-none"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleCategory(cat.name)}
+                            className="rounded border-white/20 bg-black/60 text-brand focus:ring-brand h-3.5 w-3.5 cursor-pointer"
+                          />
+                          <span className="flex-1 text-xs text-neutral-200 truncate">{cat.name}</span>
+                          <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">
+                            {cat.count}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-1.5">
               <span>Sort:</span>
               <select
@@ -1073,66 +1230,42 @@ export function MarketplaceGrid({
           </div>
         </div>
 
-        {/* Row 3: Category Pills */}
-        <div className="space-y-1.5 pt-2 border-t border-white/5">
-          <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Integration categories">
+        {/* Row 3: Active Category Filter Badges (Shown only when filtering by specific categories) */}
+        {!isAllCategories && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5 text-xs">
+            <span className="text-neutral-400">Active filter:</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand-light">
+              <span>
+                Filtered by {selectedCategories.length}{" "}
+                {selectedCategories.length === 1
+                  ? `category (${selectedCategories[0]})`
+                  : `${selectedCategories.length} categories`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategories([]);
+                  setCurrentPage(1);
+                }}
+                className="ml-1 rounded-full p-0.5 text-neutral-400 hover:bg-white/20 hover:text-white transition"
+                title="Clear category filter"
+                aria-label="Clear category filter"
+              >
+                ✕
+              </button>
+            </span>
             <button
               type="button"
-              role="tab"
-              aria-selected={category === "All Categories" || category === "All"}
               onClick={() => {
-                setCategory("All Categories");
+                setSelectedCategories([]);
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                category === "All Categories" || category === "All"
-                  ? "bg-brand text-white shadow-md font-semibold ring-1 ring-white/20"
-                  : "border border-white/10 bg-white/[0.03] text-neutral-400 hover:bg-white/5 hover:text-white"
-              }`}
+              className="text-[11px] text-neutral-400 hover:text-white underline underline-offset-2 ml-1"
             >
-              <span>All Categories</span>
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                  category === "All Categories" || category === "All"
-                    ? "bg-white/20 text-white"
-                    : "bg-white/10 text-neutral-400"
-                }`}
-              >
-                {categoryCounts.total.toLocaleString()}
-              </span>
+              Clear
             </button>
-
-            {categoryCounts.categories.map((cat) => {
-              const active = category === cat.name;
-              return (
-                <button
-                  key={cat.name}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => {
-                    setCategory(cat.name);
-                    setCurrentPage(1);
-                  }}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                    active
-                      ? "bg-brand text-white shadow-md font-semibold ring-1 ring-white/20"
-                      : "border border-white/10 bg-white/[0.03] text-neutral-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <span>{cat.name}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                      active ? "bg-white/20 text-white" : "bg-white/10 text-neutral-400"
-                    }`}
-                  >
-                    {cat.count.toLocaleString()}
-                  </span>
-                </button>
-              );
-            })}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Results Header / Pagination Top */}
@@ -1143,7 +1276,16 @@ export function MarketplaceGrid({
             {totalFiltered === 0 ? 0 : (safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, totalFiltered)}
           </strong>{" "}
           of <strong className="text-white">{totalFiltered.toLocaleString()}</strong> connectors
-          {category !== "All Categories" && <span> in <strong className="text-neutral-200">{category}</strong></span>}
+          {!isAllCategories && (
+            <span>
+              {" "}in{" "}
+              <strong className="text-neutral-200">
+                {selectedCategories.length === 1
+                  ? selectedCategories[0]
+                  : `${selectedCategories.length} categories`}
+              </strong>
+            </span>
+          )}
         </div>
 
         {totalPages > 1 && (
@@ -1181,7 +1323,7 @@ export function MarketplaceGrid({
                 type="button"
                 onClick={() => {
                   setSearch("");
-                  setCategory("All Categories");
+                  setSelectedCategories([]);
                   setProviderFilter("all");
                   setStatusFilter("all");
                   setCurrentPage(1);
