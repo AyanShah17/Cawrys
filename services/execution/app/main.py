@@ -10,7 +10,17 @@ from pydantic import BaseModel
 
 from . import connectors, policy
 from .auth import Ctx, current, require
+from .chat_routes import (
+    DashboardMutateIn,
+    apply_dashboard_overrides,
+    router as chat_router,
+)
+from .composio_marketplace import router as marketplace_router
 from .harness.routes import router as harness_router
+try:
+    from .industrial_mcp import router as industrial_mcp_router
+except Exception:
+    industrial_mcp_router = None
 from .sqlite_adapter import get_connection, is_sqlite
 
 DATABASE_URL = os.environ.get("NEON_DATABASE_URL") or os.environ.get("DATABASE_URL") or ""
@@ -72,6 +82,38 @@ def ensure_seeded(c, tenant_id: str):
 app = FastAPI(title="Cawrys Execution Service", version="0.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [], allow_methods=["*"], allow_headers=["*"])
 app.include_router(harness_router, prefix="/v1/agent", tags=["agent"])
+app.include_router(marketplace_router, prefix="/v1/marketplace", tags=["marketplace"])
+app.include_router(chat_router, prefix="/v1/chat", tags=["chat"])
+if industrial_mcp_router:
+    app.include_router(industrial_mcp_router)
+
+
+@app.post("/v1/dashboard/override")
+def execution_dashboard_override(req: DashboardMutateIn, ctx: Ctx = Depends(current)):
+    tid = ctx.tenant_id
+    updates = dict(req.metrics)
+    if req.production_target is not None:
+        updates["production_target"] = req.production_target
+    if req.risk_level is not None:
+        updates["risk_level"] = req.risk_level
+    if req.oee is not None:
+        updates["oee"] = req.oee
+    if req.operational_status is not None:
+        updates["operational_status"] = req.operational_status
+    if req.system_health is not None:
+        updates["system_health"] = req.system_health
+    if req.active_work_orders is not None:
+        updates["active_work_orders"] = req.active_work_orders
+    if req.active_documents is not None:
+        updates["active_documents"] = req.active_documents
+
+    new_metrics = apply_dashboard_overrides(tid, updates, clear=req.clear, actor=ctx.email)
+    return {
+        "ok": True,
+        "overrides": new_metrics,
+        "message": f"Dashboard overrides updated ({len(updates)} metric(s) modified)",
+    }
+
 
 
 class ToolIn(BaseModel):

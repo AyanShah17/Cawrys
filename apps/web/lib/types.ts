@@ -57,6 +57,13 @@ export type DocSummary = {
   avg_confidence: number | null;
   recent_documents: RecentDoc[];
   recent_audit: RecentAudit[];
+  overrides?: Record<string, any>;
+  production_target?: string | number;
+  system_health?: string;
+  operational_status?: string;
+  oee?: string | number;
+  risk_level?: string;
+  active_work_orders?: number;
 };
 
 export type ExecPerDay = {

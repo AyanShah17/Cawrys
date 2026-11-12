@@ -121,6 +121,20 @@ CREATE TABLE IF NOT EXISTS agent_events (
   UNIQUE (session_id, seq)
 );
 
+CREATE TABLE IF NOT EXISTS marketplace_connections (
+  id TEXT PRIMARY KEY DEFAULT (gen_random_uuid()),
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  app_key TEXT NOT NULL,
+  app_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'connected',
+  auth_mode TEXT NOT NULL DEFAULT 'free_managed',
+  entity_id TEXT NOT NULL DEFAULT 'default',
+  connected_by TEXT,
+  config TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, app_key)
+);
+
 CREATE INDEX IF NOT EXISTS idx_docs_tenant ON documents(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_log(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email, created_at DESC);
@@ -130,5 +144,6 @@ CREATE INDEX IF NOT EXISTS idx_extractions_tenant ON extractions(tenant_id, crea
 CREATE INDEX IF NOT EXISTS idx_executions_tenant ON executions(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_sessions_tenant ON agent_sessions(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_events_session_seq ON agent_events(session_id, seq ASC);
+CREATE INDEX IF NOT EXISTS idx_marketplace_connections_tenant ON marketplace_connections(tenant_id, created_at DESC);
 
 INSERT OR IGNORE INTO tenants (id, name) VALUES ('00000000-0000-0000-0000-000000000001','Demo Tenant');

@@ -126,13 +126,29 @@ CREATE TABLE IF NOT EXISTS agent_events (
 CREATE INDEX IF NOT EXISTS idx_agent_sessions_tenant ON agent_sessions(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_events_session_seq ON agent_events(session_id, seq ASC);
 
+CREATE TABLE IF NOT EXISTS marketplace_connections (
+  id TEXT PRIMARY KEY DEFAULT (gen_random_uuid()),
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  app_key TEXT NOT NULL,
+  app_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'connected',
+  auth_mode TEXT NOT NULL DEFAULT 'free_managed',
+  entity_id TEXT NOT NULL DEFAULT 'default',
+  connected_by TEXT,
+  config TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, app_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_connections_tenant ON marketplace_connections(tenant_id, created_at DESC);
+
 INSERT OR IGNORE INTO tenants (id, name) VALUES ('00000000-0000-0000-0000-000000000001','Demo Tenant');
 """
 
 JSON_COLUMNS = {
     "fields", "validation", "decision", "model_trace",
     "input_schema", "steps", "result", "detail", "inputs", "tools",
-    "payload", "context"
+    "payload", "context", "config"
 }
 
 
@@ -274,6 +290,28 @@ CREATE TABLE IF NOT EXISTS agent_events (
 
 CREATE INDEX IF NOT EXISTS idx_agent_sessions_tenant ON agent_sessions(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_events_session_seq ON agent_events(session_id, seq ASC);
+""")
+            self._conn.commit()
+
+        # Idempotently ensure marketplace_connections table exists even if DB was already initialized
+        cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='marketplace_connections'")
+        if not cur.fetchone():
+            self._conn.executescript("""
+CREATE TABLE IF NOT EXISTS marketplace_connections (
+  id TEXT PRIMARY KEY DEFAULT (gen_random_uuid()),
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  app_key TEXT NOT NULL,
+  app_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'connected',
+  auth_mode TEXT NOT NULL DEFAULT 'free_managed',
+  entity_id TEXT NOT NULL DEFAULT 'default',
+  connected_by TEXT,
+  config TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (tenant_id, app_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_connections_tenant ON marketplace_connections(tenant_id, created_at DESC);
 """)
             self._conn.commit()
 

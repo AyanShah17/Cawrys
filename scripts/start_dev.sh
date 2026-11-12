@@ -16,15 +16,26 @@ export DEMO_PASSWORD="${DEMO_PASSWORD:-cawrys-demo}"
 export SQLITE_PATH="${SQLITE_PATH:-$REPO_ROOT/data/cawrys.db}"
 export INTELLIGENCE_URL="${INTELLIGENCE_URL:-http://127.0.0.1:8001}"
 export EXECUTION_URL="${EXECUTION_URL:-http://127.0.0.1:8002}"
+export EDGE_URL="${EDGE_URL:-http://127.0.0.1:8080}"
+export EDGE_INGEST_URL="${EDGE_INGEST_URL:-http://127.0.0.1:8080}"
 
 mkdir -p "$REPO_ROOT/data"
+mkdir -p "$REPO_ROOT/bin"
 
 PYTHON="$REPO_ROOT/.venv/bin/python3"
 
 cleanup() {
-  kill "${P_INTEL:-}" "${P_EXEC:-}" "${P_WEB:-}" 2>/dev/null || true
+  kill "${P_INTEL:-}" "${P_EXEC:-}" "${P_WEB:-}" "${P_EDGE:-}" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+if [ ! -f "$REPO_ROOT/bin/edge-ingest" ]; then
+  (cd "$REPO_ROOT" && go build -o bin/edge-ingest services/edge-ingest/main.go)
+fi
+
+echo "Starting Edge ingest service on http://127.0.0.1:8080 ..."
+PORT=8080 "$REPO_ROOT/bin/edge-ingest" &
+P_EDGE=$!
 
 echo "Starting Intelligence service on http://127.0.0.1:8001 ..."
 "$PYTHON" -m uvicorn services.intelligence.app.main:app --host 127.0.0.1 --port 8001 &

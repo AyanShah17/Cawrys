@@ -121,6 +121,20 @@ create table if not exists agent_events (
   unique (session_id, seq)
 );
 
+create table if not exists marketplace_connections (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants(id),
+  app_key text not null,
+  app_name text not null,
+  status text not null default 'connected',
+  auth_mode text not null default 'free_managed',
+  entity_id text not null default 'default',
+  connected_by text,
+  config jsonb not null default '{}',
+  created_at timestamptz not null default now(),
+  unique (tenant_id, app_key)
+);
+
 create index if not exists idx_docs_tenant on documents(tenant_id, created_at desc);
 create index if not exists idx_audit_tenant on audit_log(tenant_id, created_at desc);
 create index if not exists idx_login_attempts_email on login_attempts(email, created_at desc);
@@ -130,6 +144,7 @@ create index if not exists idx_extractions_tenant on extractions(tenant_id, crea
 create index if not exists idx_executions_tenant on executions(tenant_id, created_at desc);
 create index if not exists idx_agent_sessions_tenant on agent_sessions(tenant_id, created_at desc);
 create index if not exists idx_agent_events_session_seq on agent_events(session_id, seq asc);
+create index if not exists idx_marketplace_connections_tenant on marketplace_connections(tenant_id, created_at desc);
 
 insert into tenants (id, name) values ('00000000-0000-0000-0000-000000000001','Demo Tenant')
 on conflict do nothing;

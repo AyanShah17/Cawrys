@@ -2,7 +2,20 @@
 import React from "react";
 import Link from "next/link";
 import { Distribution, StackedBars } from "@/components/charts";
-import { Card, Empty, Notice, PageHeader, Pill, Stat, tableCls, tdCls, thCls } from "@/components/ui/kit";
+import {
+  Badge,
+  Card,
+  Empty,
+  Notice,
+  PageHeader,
+  Pill,
+  Stat,
+  btnCls,
+  btnGhostCls,
+  tableCls,
+  tdCls,
+  thCls,
+} from "@/components/ui/kit";
 import { ago, compact, label, num, pct } from "@/lib/format";
 import { aiRole } from "@/lib/labels";
 import { requireMe, safe, serverGet } from "@/lib/server";
@@ -28,14 +41,34 @@ export default async function Dashboard() {
   const down = status?.services.filter((s) => !s.ok) ?? [];
   const rate = runs?.executions.success_rate ?? null;
 
+  const hasOverrides = Boolean(docs?.overrides && Object.keys(docs.overrides).length > 0);
+  const prodTarget = docs?.overrides?.production_target ?? docs?.production_target ?? "1,000 units";
+  const riskLevel = docs?.overrides?.risk_level ?? docs?.risk_level ?? "LOW";
+  const oeeVal = docs?.overrides?.oee ?? docs?.oee ?? "92.4%";
+  const opStatus = docs?.overrides?.operational_status ?? docs?.overrides?.system_health ?? docs?.operational_status ?? "Optimal";
+  const workOrders = docs?.overrides?.active_work_orders ?? docs?.active_work_orders ?? 34;
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" subtitle={`Activity over the last ${DAYS} days`}>
-        {canUpload && (
-          <Link href="/documents" className="rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:opacity-90">
-            Upload a document
+      <PageHeader title="Dashboard" subtitle={`Operational overview and metrics over the last ${DAYS} days`}>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/chat"
+            className={btnGhostCls}
+          >
+            <span className="flex items-center gap-1.5">
+              <span>Agent Chat</span>
+              <span className="rounded-full bg-brand/20 px-1.5 py-0.2 text-[10px] font-semibold text-brand">
+                AI
+              </span>
+            </span>
           </Link>
-        )}
+          {canUpload && (
+            <Link href="/documents" className={btnCls}>
+              Upload a document
+            </Link>
+          )}
+        </div>
       </PageHeader>
 
       <div className="space-y-2">
@@ -48,22 +81,84 @@ export default async function Dashboard() {
         {status?.demo_mode && (
           <Notice tone="info">Demo mode: AI extraction is simulated. Connect an AI provider in the deployment settings for real results.</Notice>
         )}
+        {hasOverrides && (
+          <Notice tone="info">
+            Active Chat Overrides: Telemetry targets have been modified via Agent Chat.{" "}
+            <Link className="underline font-medium text-brand hover:text-brand/80 ml-1" href="/chat">
+              Manage in Agent Chat &rarr;
+            </Link>
+          </Notice>
+        )}
         {needsReview > 0 && (
-          <Notice>
+          <Notice tone="warn">
             {needsReview} document{needsReview === 1 ? "" : "s"} need review.{" "}
-            <Link className="underline" href="/documents?status=needs_review">Review now</Link>
+            <Link className="underline font-medium ml-1" href="/documents?status=needs_review">Review now &rarr;</Link>
           </Notice>
         )}
         {awaiting > 0 && (
-          <Notice>
+          <Notice tone="warn">
             {awaiting} run{awaiting === 1 ? " is" : "s are"} waiting for approval.{" "}
             {canDecide ? (
-              <Link className="underline" href="/approvals">Decide now</Link>
+              <Link className="underline font-medium ml-1" href="/approvals">Decide now &rarr;</Link>
             ) : (
               "An approver or admin needs to decide."
             )}
           </Notice>
         )}
+      </div>
+
+      {/* Live Operational Targets & Dynamic Telemetry */}
+      <div className="rounded-xl border border-white/10 bg-gradient-to-r from-white/[0.03] via-white/[0.015] to-transparent p-5 backdrop-blur-sm shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300">
+              Operational Telemetry &amp; Live Targets
+            </span>
+            {hasOverrides && (
+              <Badge variant="default" className="text-[11px] py-0 px-2 font-semibold">
+                ⚡ Modified via Agent Chat
+              </Badge>
+            )}
+          </div>
+          <Link href="/chat" className="text-xs font-medium text-brand hover:underline flex items-center gap-1">
+            <span>Adjust via Agent Chat</span>
+            <span>&rarr;</span>
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <Stat
+            label="Production Target"
+            value={String(prodTarget)}
+            hint={hasOverrides && docs?.overrides?.production_target ? "custom target" : "shift quota"}
+          />
+          <Stat
+            label="Operational Risk"
+            value={String(riskLevel)}
+            tone={riskLevel === "LOW" ? "good" : riskLevel === "HIGH" || riskLevel === "CRITICAL" ? "bad" : "warn"}
+            hint="safety & compliance"
+          />
+          <Stat
+            label="OEE Efficiency"
+            value={String(oeeVal)}
+            tone={parseFloat(String(oeeVal)) >= 90 ? "good" : undefined}
+            hint="equipment effectiveness"
+          />
+          <Stat
+            label="Machine Telemetry"
+            value={String(opStatus)}
+            tone={opStatus.toLowerCase() === "optimal" ? "good" : opStatus.toLowerCase() === "degraded" ? "bad" : "warn"}
+            hint="shop floor status"
+          />
+          <Stat
+            label="Active Work Orders"
+            value={num(workOrders)}
+            hint="in execution"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -80,7 +175,7 @@ export default async function Dashboard() {
         <Stat label="AI tokens" value={compact(docs?.ai.total_tokens)} hint={`${num(docs?.ai.total_calls)} calls`} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Documents per day">
           {docs ? (
             <StackedBars
@@ -123,8 +218,8 @@ export default async function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="AI usage" className="lg:col-span-2" action={<span className="text-xs text-neutral-500">last {DAYS} days</span>}>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Card title="AI usage" className="lg:col-span-2" action={<span className="text-xs text-neutral-400 font-medium">last {DAYS} days</span>}>
           {docs && docs.ai.by_model.length > 0 ? (
             <div className="overflow-x-auto">
               <table className={tableCls}>
@@ -138,16 +233,18 @@ export default async function Dashboard() {
                 </thead>
                 <tbody>
                   {docs.ai.by_model.map((m) => (
-                    <tr key={m.model}>
-                      <td className={tdCls}>{aiRole(m.model)}</td>
-                      <td className={`${tdCls} tabular-nums`}>{num(m.calls)}</td>
-                      <td className={`${tdCls} tabular-nums`}>
+                    <tr key={m.model} className="hover:bg-white/[0.02] transition-colors">
+                      <td className={tdCls}>
+                        <span className="font-medium text-white">{aiRole(m.model)}</span>
+                      </td>
+                      <td className={`${tdCls} tabular-nums text-neutral-300`}>{num(m.calls)}</td>
+                      <td className={`${tdCls} tabular-nums text-neutral-300`}>
                         {compact(m.tokens)}{" "}
                         <span className="text-xs text-neutral-500">
                           ({compact(m.prompt_tokens)} in / {compact(m.completion_tokens)} out)
                         </span>
                       </td>
-                      <td className={`${tdCls} tabular-nums`}>
+                      <td className={`${tdCls} tabular-nums text-neutral-300`}>
                         {m.avg_latency_ms ? `${(m.avg_latency_ms / 1000).toFixed(1)}s` : "–"}
                       </td>
                     </tr>
@@ -159,7 +256,7 @@ export default async function Dashboard() {
             <Empty>No AI calls in this period yet.</Empty>
           )}
           {docs?.avg_confidence != null && (
-            <p className="mt-3 text-xs text-neutral-500">Average extraction confidence: {pct(docs.avg_confidence)}</p>
+            <p className="mt-3 text-xs text-neutral-400">Average extraction confidence: <strong className="text-white">{pct(docs.avg_confidence)}</strong></p>
           )}
         </Card>
 
@@ -167,24 +264,24 @@ export default async function Dashboard() {
           title="System status"
           action={
             status && (
-              <span className={`text-xs ${status.ok ? "text-emerald-300" : "text-red-300"}`}>
+              <span className={`text-xs font-medium ${status.ok ? "text-emerald-300" : "text-red-300"}`}>
                 {status.ok ? "All systems normal" : "Attention needed"}
               </span>
             )
           }
         >
           {status ? (
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-2.5 text-sm">
               {status.services.map((s) => (
-                <li key={s.name} className="flex items-center justify-between">
+                <li key={s.name} className="flex items-center justify-between rounded-lg p-1.5 hover:bg-white/[0.02] transition-colors">
                   <span className="flex items-center gap-2">
                     <span
                       className={`inline-block h-2 w-2 rounded-full ${s.ok ? "bg-emerald-400" : "bg-red-400"}`}
                       aria-hidden
                     />
-                    {s.name}
+                    <span className="text-neutral-200 font-medium text-xs">{s.name}</span>
                   </span>
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-xs text-neutral-400 tabular-nums">
                     {s.ok ? s.detail || (s.latency_ms ? `${s.latency_ms} ms` : "ok") : s.detail || "down"}
                   </span>
                 </li>
@@ -196,7 +293,7 @@ export default async function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         <Card title="Documents by status">
           {docs && docs.documents.total > 0 ? (
             <Distribution
@@ -217,13 +314,13 @@ export default async function Dashboard() {
           )}
         </Card>
 
-        <Card title="Top playbooks" action={<Link href="/playbooks" className="text-xs text-neutral-400 underline">Manage</Link>}>
+        <Card title="Top playbooks" action={<Link href="/playbooks" className="text-xs text-neutral-400 hover:text-white underline">Manage</Link>}>
           {runs && runs.top_playbooks.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-2.5 text-sm">
               {runs.top_playbooks.map((p) => (
-                <li key={p.name ?? "unknown"} className="flex justify-between">
-                  <span className="truncate">{p.name ?? "unknown"}</span>
-                  <span className="tabular-nums text-neutral-400">{p.runs} runs · {p.succeeded} ok</span>
+                <li key={p.name ?? "unknown"} className="flex justify-between items-center rounded-lg p-1 hover:bg-white/[0.02]">
+                  <span className="truncate text-neutral-200 text-xs font-medium">{p.name ?? "unknown"}</span>
+                  <span className="tabular-nums text-xs text-neutral-400">{p.runs} runs · <span className="text-emerald-400">{p.succeeded} ok</span></span>
                 </li>
               ))}
             </ul>
@@ -241,19 +338,19 @@ export default async function Dashboard() {
           title="Waiting for approval"
           action={
             awaiting > 0 && canDecide ? (
-              <Link href="/approvals" className="text-xs text-neutral-400 underline">Open</Link>
+              <Link href="/approvals" className="text-xs text-neutral-400 hover:text-white underline">Open</Link>
             ) : undefined
           }
         >
           {runs && runs.pending_approvals.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-2.5 text-sm">
               {runs.pending_approvals.map((p) => (
-                <li key={p.id}>
-                  <div className="flex justify-between">
-                    <span>{p.playbook}</span>
-                    <span className="text-xs text-neutral-500">{ago(p.created_at)}</span>
+                <li key={p.id} className="rounded-lg p-1.5 hover:bg-white/[0.02]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-neutral-200 font-medium text-xs">{p.playbook}</span>
+                    <span className="text-[11px] text-neutral-500">{ago(p.created_at)}</span>
                   </div>
-                  <div className="text-xs text-neutral-500">{p.reason}</div>
+                  <div className="text-xs text-neutral-400 mt-0.5">{p.reason}</div>
                 </li>
               ))}
             </ul>
@@ -263,17 +360,19 @@ export default async function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Recent documents" action={<Link href="/documents" className="text-xs text-neutral-400 underline">All documents</Link>}>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Recent documents" action={<Link href="/documents" className="text-xs text-neutral-400 hover:text-white underline">All documents</Link>}>
           {docs && docs.recent_documents.length > 0 ? (
             <table className={tableCls}>
               <tbody>
                 {docs.recent_documents.map((d) => (
-                  <tr key={d.id}>
+                  <tr key={d.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className={`${tdCls} max-w-[12rem] truncate`}>
-                      <Link className="hover:underline" href={`/documents/${d.id}`}>{d.filename}</Link>
+                      <Link className="font-medium text-white hover:underline hover:text-brand transition-colors" href={`/documents/${d.id}`}>
+                        {d.filename}
+                      </Link>
                     </td>
-                    <td className={`${tdCls} text-xs text-neutral-500`}>{d.doc_type ? label(d.doc_type) : "–"}</td>
+                    <td className={`${tdCls} text-xs text-neutral-400`}>{d.doc_type ? label(d.doc_type) : "–"}</td>
                     <td className={tdCls}><Pill value={d.status} /></td>
                   </tr>
                 ))}
@@ -284,15 +383,15 @@ export default async function Dashboard() {
           )}
         </Card>
 
-        <Card title="Recent activity" action={<Link href="/audit" className="text-xs text-neutral-400 underline">Audit log</Link>}>
+        <Card title="Recent activity" action={<Link href="/audit" className="text-xs text-neutral-400 hover:text-white underline">Audit log</Link>}>
           {docs && docs.recent_audit.length > 0 ? (
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-2.5 text-sm">
               {docs.recent_audit.map((a) => (
-                <li key={a.id} className="flex items-start justify-between gap-3">
-                  <span>
-                    <span className="text-neutral-200">{label(a.event)}</span>{" "}
+                <li key={a.id} className="flex items-start justify-between gap-3 rounded-lg p-1 hover:bg-white/[0.02]">
+                  <div>
+                    <span className="text-xs font-medium text-neutral-200">{label(a.event)}</span>{" "}
                     <span className="text-xs text-neutral-500">by {a.actor}</span>
-                  </span>
+                  </div>
                   <span className="shrink-0 text-xs text-neutral-500">{ago(a.created_at)}</span>
                 </li>
               ))}
