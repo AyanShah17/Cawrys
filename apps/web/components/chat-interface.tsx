@@ -604,6 +604,15 @@ export function ChatInterface({
                         <span className="h-1.5 w-1.5 rounded-full bg-brand" />
                         via {m.metadata?.model || modelConfig.model}
                       </span>
+                      {m.metadata?.live_ai ? (
+                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-300 border border-emerald-500/30">
+                          Live AI
+                        </span>
+                      ) : (
+                        <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[9px] text-neutral-400 border border-white/5">
+                          Context Engine
+                        </span>
+                      )}
                       {m.metadata?.latency_ms !== undefined && (
                         <>
                           <span className="text-neutral-600">·</span>

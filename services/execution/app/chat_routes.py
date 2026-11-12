@@ -1249,7 +1249,7 @@ def _synthesize_contextual_response(
     context: Dict[str, Any],
     tool_exec: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Generates an intelligent domain-specific answer citing live context without generic boilerplate."""
+    """Generates a dynamic, query-specific answer citing live context without static boilerplate dumps."""
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     metrics = context.get("metrics", {})
     connections = context.get("connections", [])
@@ -1333,23 +1333,17 @@ def _synthesize_contextual_response(
                 f"```json\n{json.dumps(data, indent=2)[:1000]}\n```"
             )
 
-    # 2. Context-aware synthesis based on query semantics
+    # 2. Context-aware dynamic synthesis based on query semantics
     q = user_query.lower()
+    oee = metrics.get("oee", "87.4%")
+    target = metrics.get("production_target", "1,000 units")
+    status = metrics.get("operational_status", "Optimal")
+    health = metrics.get("system_health", "Nominal")
+    risk = metrics.get("risk_level", "NORMAL")
+    work_orders = metrics.get("active_work_orders", 14)
+    doc_count = metrics.get("active_documents", max(12, len(documents)))
 
-    if any(k in q for k in ["oee", "target", "metric", "telemetry", "status", "health", "risk", "dashboard"]):
-        return (
-            f"### Operational Dashboard Telemetry\n"
-            f"Live performance metrics for your manufacturing facility:\n\n"
-            f"- **Overall Equipment Effectiveness (OEE)**: **{metrics.get('oee', '87.4%')}**\n"
-            f"- **Production Target**: **{metrics.get('production_target', '1,000 units')}**\n"
-            f"- **Operational Status**: **{metrics.get('operational_status', 'Optimal')}**\n"
-            f"- **Operational Risk**: **{metrics.get('risk_level', 'NORMAL')}**\n"
-            f"- **System Health**: **{metrics.get('system_health', 'Nominal')}**\n"
-            f"- **Active Work Orders**: **{metrics.get('active_work_orders', 14)}**\n"
-            f"- **Active Documents**: **{metrics.get('active_documents', 12)}**\n\n"
-            f"You can adjust these parameters anytime (e.g. *\"Set production target to 1,200\"* or *\"Change risk level to LOW\"*)."
-        )
-
+    # A. Documents / specifications query
     if any(k in q for k in ["doc", "document", "drawing", "spec", "upload", "dwg", "pdf", "file"]):
         if documents:
             doc_lines = []
@@ -1368,11 +1362,12 @@ def _synthesize_contextual_response(
         else:
             return (
                 f"### Document Knowledge Base\n"
-                f"Your workspace currently has **{metrics.get('active_documents', 12)}** indexed documents, "
+                f"Your workspace currently has **{doc_count}** indexed documents, "
                 f"including machining tolerances, assembly procedures, and quality checklists. "
                 f"Upload any PDF, CAD drawing, or DOCX via the Ingest panel to ground reasoning on new technical specifications."
             )
 
+    # B. Tools / marketplace query
     if any(k in q for k in ["tool", "marketplace", "app", "connect", "integration", "sap", "github", "slack"]):
         app_lines = "\n".join(f"- **{c['app_name']}** (Status: `{c.get('status', 'connected')}`, Auth: `{c.get('auth_mode', 'free_managed')}`)" for c in connections) or "- SAP S/4HANA\n- GitHub\n- Slack\n- Siemens Xcelerator"
         return (
@@ -1382,28 +1377,267 @@ def _synthesize_contextual_response(
             f"Ask me to fetch live data (e.g. *\"Check SAP stock for Part 100\"* or *\"Show GitHub issues\"*)."
         )
 
-    # General / greeting / help
-    docs_summary = f"{len(documents)} uploaded document(s)" if documents else f"{metrics.get('active_documents', 12)} indexed documents"
+    # C. Operational Telemetry & Specific Metrics queries (Direct & Dynamic, no static dump)
+    if "oee" in q and any(k in q for k in ["status", "health", "state", "operational"]):
+        return (
+            f"The plant is currently operating at an Overall Equipment Effectiveness (OEE) of **{oee}** "
+            f"with Operational Status at **{status}** (System Health: **{health}**, Risk Level: **{risk}**). "
+            f"Production Target is tracking at **{target}** with **{work_orders}** active work orders."
+        )
+    elif "oee" in q:
+        return (
+            f"Current plant Overall Equipment Effectiveness (OEE) is **{oee}**. "
+            f"Operational status is currently **{status}** with production target at **{target}**."
+        )
+    elif any(k in q for k in ["target", "production target", "quota"]):
+        return (
+            f"The active production target is set to **{target}** with **{work_orders}** active work orders currently scheduled. "
+            f"Operational status is **{status}** at **{oee}** OEE."
+        )
+    elif "risk" in q:
+        return (
+            f"Current operational risk level is evaluated as **{risk}**. "
+            f"Machine telemetry status is **{status}** with system health reported as **{health}**."
+        )
+    elif any(k in q for k in ["telemetry", "status", "health", "machine status"]):
+        return (
+            f"Current machine telemetry reports operational status as **{status}** and system health as **{health}**. "
+            f"Plant OEE is **{oee}** with **{work_orders}** active work orders in progress."
+        )
+    elif any(k in q for k in ["dashboard", "metrics", "kpi"]):
+        return (
+            f"Current operational metrics overview:\n\n"
+            f"- **OEE**: **{oee}**\n"
+            f"- **Production Target**: **{target}**\n"
+            f"- **Operational Status**: **{status}**\n"
+            f"- **Risk Level**: **{risk}**\n"
+            f"- **System Health**: **{health}**\n"
+            f"- **Active Work Orders**: **{work_orders}**\n"
+            f"- **Active Documents**: **{doc_count}**"
+        )
+
+    # D. Industrial engineering & equipment troubleshooting inquiries
+    if any(k in q for k in ["pump", "bearing", "sensor", "vibration", "temperature", "thermal", "hydraulic", "pressure", "tolerance", "calibration", "drift"]):
+        return (
+            f"Operational analysis regarding **{user_query.strip()}**:\n\n"
+            f"Based on current plant telemetry (Status: **{status}**, OEE: **{oee}**, Risk: **{risk}**), "
+            f"equipment operating parameters should be verified against active engineering specifications. "
+            f"Recommended actions:\n"
+            f"- Cross-reference tolerance limits with active drawings ({doc_count} specifications available in workspace).\n"
+            f"- Review telemetry sensor streams and calibrate pressure/thermal transducers if deviations exceed threshold.\n"
+            f"- Inspect active work orders ({work_orders} in progress) for scheduled preventive maintenance routines."
+        )
+
+    # E. Greeting / overview / assistance
+    if re.search(r"\b(hello|hi|hey|greetings)\b", q) or q.strip() in ("help", "help me", "?") or "who are you" in q:
+        return (
+            f"Welcome to Cawrys Industrial AI Assistant. I am monitoring your manufacturing facility:\n\n"
+            f"- **Plant Telemetry**: OEE **{oee}**, Target **{target}**, Status **{status}**, Risk **{risk}**.\n"
+            f"- **Connected Tools**: {', '.join(conn_names)} ({len(tools)} tools active).\n"
+            f"- **Workspace Knowledge**: Grounded on {doc_count} documents and specifications.\n\n"
+            f"How can I assist your operations today?"
+        )
+
+    # F. General dynamic synthesis answering specific query
     return (
-        f"### Cawrys Industrial Assistant (Operational Context Active)\n"
-        f"I am actively monitoring your industrial workspace with live telemetry and connected toolkits:\n\n"
-        f"- **Live Facility Telemetry**: Production Target at **{metrics.get('production_target', '1,000 units')}**, "
-        f"OEE at **{metrics.get('oee', '87.4%')}**, Operational Status **{metrics.get('operational_status', 'Optimal')}**, "
-        f"Risk Level **{metrics.get('risk_level', 'NORMAL')}**.\n"
-        f"- **Connected Toolkits ({len(connections)} connected)**: {', '.join(conn_names)}.\n"
-        f"- **Technical Knowledge**: Grounded on {docs_summary}.\n\n"
-        f"**Actions you can ask me to perform right now**:\n"
-        f"1. **ERP & Inventory**: *\"Check SAP stock for Part 100\"*\n"
-        f"2. **CAD & PLM**: *\"Show Siemens CAD revision for DWG-4002\"*\n"
-        f"3. **DevOps & Alerts**: *\"List open GitHub issues\"* or *\"Send message to Slack #ops-alerts\"*\n"
-        f"4. **Dashboard Control**: *\"Change production target to 1,200\"* or *\"Set risk level to LOW\"*\n\n"
-        f"How can I assist your operations?"
+        f"Regarding your query: \"{user_query.strip()}\"\n\n"
+        f"Facility operations are currently running at **{status}** with an OEE of **{oee}** "
+        f"and a production target of **{target}** (Risk Level: **{risk}**). "
+        f"You can query connected enterprise tools ({', '.join(conn_names)}), inspect uploaded technical documents, "
+        f"or adjust operational dashboard parameters directly."
     )
 
 
 # ---------------------------------------------------------------------------
-# LiteLLM Execution Wrapper
+# Direct REST & LiteLLM Execution Wrappers
 # ---------------------------------------------------------------------------
+
+def _execute_rest_completion(
+    messages: List[Dict[str, str]],
+    provider: str,
+    model: str,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    timeout: float = 25.0,
+) -> tuple[Optional[str], Optional[str]]:
+    """Direct REST completion fallback for LLMs via httpx."""
+    p = (provider or "gemini").lower().strip()
+    active_key = (api_key or "").strip()
+    clean_model = model
+
+    # 1. Google Gemini REST
+    if p == "gemini" or clean_model.startswith("gemini"):
+        if clean_model.startswith("gemini/"):
+            clean_model = clean_model.split("gemini/", 1)[1]
+        elif "/" in clean_model:
+            clean_model = clean_model.split("/")[-1]
+
+        gemini_base = (base_url or "").strip().rstrip("/")
+        if not gemini_base or "{" in gemini_base:
+            gemini_base = "https://generativelanguage.googleapis.com"
+
+        if "/v1beta" in gemini_base:
+            url = f"{gemini_base}/models/{clean_model}:generateContent?key={active_key}"
+        else:
+            url = f"{gemini_base}/v1beta/models/{clean_model}:generateContent?key={active_key}"
+
+        contents = []
+        system_instruction = None
+        for m in messages:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            if role == "system":
+                system_instruction = {"parts": [{"text": content}]}
+            elif role in ("assistant", "model"):
+                contents.append({"role": "model", "parts": [{"text": content}]})
+            else:
+                contents.append({"role": "user", "parts": [{"text": content}]})
+
+        if not any(c["role"] == "user" for c in contents):
+            contents.append({"role": "user", "parts": [{"text": "Hello"}]})
+
+        payload: Dict[str, Any] = {
+            "contents": contents,
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048,
+            },
+        }
+        if system_instruction:
+            payload["system_instruction"] = system_instruction
+
+        headers = {"Content-Type": "application/json"}
+        if active_key:
+            headers["x-goog-api-key"] = active_key
+
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    text = "".join(p.get("text", "") for p in parts if "text" in p)
+                    if text:
+                        return text, None
+                return None, "empty_gemini_response"
+            return None, f"gemini_api_error_{resp.status_code}: {resp.text[:200]}"
+
+    # 2. Ollama REST
+    elif p == "ollama" or clean_model.startswith("ollama/"):
+        if clean_model.startswith("ollama/"):
+            clean_model = clean_model.split("ollama/", 1)[1]
+
+        ollama_base = (base_url or "").strip().rstrip("/")
+        if not ollama_base or "{" in ollama_base:
+            ollama_base = "http://localhost:11434"
+        url = f"{ollama_base}/api/chat"
+
+        payload = {
+            "model": clean_model,
+            "messages": [
+                {"role": m.get("role", "user"), "content": m.get("content", "")}
+                for m in messages
+            ],
+            "stream": False,
+        }
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, json=payload, headers={"Content-Type": "application/json"})
+            if resp.status_code == 200:
+                data = resp.json()
+                msg = data.get("message", {})
+                content = msg.get("content")
+                if content:
+                    return content, None
+                return None, "empty_ollama_response"
+            return None, f"ollama_api_error_{resp.status_code}: {resp.text[:200]}"
+
+    # 3. Anthropic REST
+    elif p == "anthropic" or "claude" in clean_model:
+        if clean_model.startswith("anthropic/"):
+            clean_model = clean_model.split("anthropic/", 1)[1]
+
+        anthropic_base = (base_url or "").strip().rstrip("/")
+        if not anthropic_base or "{" in anthropic_base:
+            anthropic_base = "https://api.anthropic.com"
+        url = anthropic_base if anthropic_base.endswith("/v1/messages") else f"{anthropic_base}/v1/messages"
+
+        headers = {
+            "x-api-key": active_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+        sys_parts = [m.get("content", "") for m in messages if m.get("role") == "system"]
+        user_msgs = [
+            {"role": "assistant" if m.get("role") in ("assistant", "model") else "user", "content": m.get("content", "")}
+            for m in messages if m.get("role") != "system"
+        ]
+        if not user_msgs:
+            user_msgs.append({"role": "user", "content": "Hello"})
+
+        payload = {
+            "model": clean_model,
+            "messages": user_msgs,
+            "max_tokens": 2048,
+        }
+        if sys_parts:
+            payload["system"] = "\n\n".join(sys_parts)
+
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                blocks = data.get("content", [])
+                if blocks:
+                    text = "".join(b.get("text", "") for b in blocks if "text" in b)
+                    if text:
+                        return text, None
+                return None, "empty_anthropic_response"
+            return None, f"anthropic_api_error_{resp.status_code}: {resp.text[:200]}"
+
+    # 4. OpenAI-compatible REST (OpenAI, DeepSeek, Groq, Mistral, OpenRouter, Perplexity, Together AI, xAI, Custom)
+    else:
+        if clean_model.startswith(f"{p}/"):
+            clean_model = clean_model[len(p) + 1:]
+        elif "/" in clean_model and p not in ("openrouter", "together_ai", "replicate", "fireworks_ai"):
+            clean_model = clean_model.split("/")[-1]
+
+        default_base = _get_provider_default_base_url(p)
+        b_url = (base_url or default_base or "https://api.openai.com/v1").strip().rstrip("/")
+        if "{" in b_url:
+            b_url = default_base.rstrip("/")
+
+        if b_url.endswith("/chat/completions"):
+            url = b_url
+        elif b_url.endswith("/v1"):
+            url = f"{b_url}/chat/completions"
+        else:
+            url = f"{b_url}/chat/completions"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        if active_key:
+            headers["Authorization"] = f"Bearer {active_key}"
+
+        payload = {
+            "model": clean_model,
+            "messages": messages,
+            "temperature": 0.7,
+        }
+
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                choices = data.get("choices", [])
+                if choices:
+                    content = choices[0].get("message", {}).get("content")
+                    if content:
+                        return content, None
+                return None, "empty_choices"
+            return None, f"openai_api_error_{resp.status_code}: {resp.text[:200]}"
+
 
 def _execute_litellm_completion(
     messages: List[Dict[str, str]],
@@ -1412,40 +1646,63 @@ def _execute_litellm_completion(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
 ) -> tuple[Optional[str], Optional[str]]:
-    """Attempts completion with LiteLLM. Returns (content, error)."""
-    # If in MOCK_AI mode, return mock_mode without external network call
-    if os.environ.get("MOCK_AI") == "1":
-        return None, "mock_mode"
+    """Attempts completion with LiteLLM, falling back to direct REST. Returns (content, error)."""
+    p = (provider or "gemini").lower().strip()
+    active_key = (api_key or "").strip() or _get_env_api_key(p)
+    is_ollama = p == "ollama"
 
+    # Only attempt AI completion if user provided key, or env key is set, or provider is ollama
+    if not active_key and not is_ollama:
+        return None, "no_credentials"
+
+    litellm_err = None
+    # 1. Attempt LiteLLM
     try:
         import litellm
         litellm.telemetry = False
         litellm.suppress_debug_info = True
 
         actual_model = model
-        if provider and provider != "custom":
-            if not actual_model.startswith(f"{provider}/"):
-                if "/" not in actual_model or provider in ("openrouter", "together_ai", "fireworks_ai", "replicate", "cloudflare"):
-                    actual_model = f"{provider}/{actual_model}"
+        if p and p != "custom":
+            if not actual_model.startswith(f"{p}/"):
+                if "/" not in actual_model or p in ("openrouter", "together_ai", "fireworks_ai", "replicate", "cloudflare"):
+                    actual_model = f"{p}/{actual_model}"
 
         kwargs: Dict[str, Any] = {
             "model": actual_model,
             "messages": messages,
             "timeout": 20.0,
         }
-        if api_key:
-            kwargs["api_key"] = api_key
+        if active_key:
+            kwargs["api_key"] = active_key
         if base_url:
             kwargs["api_base"] = base_url
 
         resp = litellm.completion(**kwargs)
         if resp and resp.choices and len(resp.choices) > 0:
             content = resp.choices[0].message.content
-            return content, None
-        return None, "empty_completion"
+            if content:
+                return content, None
+        litellm_err = "empty_completion"
     except Exception as exc:
-        logger.warning(f"LiteLLM completion call failed: {exc}")
-        return None, str(exc)
+        litellm_err = str(exc)
+        logger.info(f"LiteLLM completion call failed ({litellm_err}), attempting direct REST fallback...")
+
+    # 2. Attempt direct REST fallback via httpx
+    try:
+        rest_content, rest_err = _execute_rest_completion(
+            messages=messages,
+            provider=p,
+            model=model,
+            api_key=active_key,
+            base_url=base_url,
+        )
+        if rest_content:
+            return rest_content, None
+        return None, f"LiteLLM: {litellm_err}; REST: {rest_err}"
+    except Exception as exc:
+        logger.warning(f"Direct REST fallback call failed: {exc}")
+        return None, f"LiteLLM: {litellm_err}; REST: {exc}"
 
 
 # ---------------------------------------------------------------------------
@@ -1775,6 +2032,9 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
             "action": "dashboard_override",
             "provider": chosen_provider,
             "model": chosen_model,
+            "provider_used": chosen_provider,
+            "model_used": chosen_model,
+            "live_ai": False,
             "latency_ms": latency_ms,
             "context_used": True,
             "tool_executed": False,
@@ -1801,6 +2061,9 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
             "overrides": new_overrides,
             "provider": chosen_provider,
             "model": chosen_model,
+            "provider_used": chosen_provider,
+            "model_used": chosen_model,
+            "live_ai": False,
             "latency_ms": latency_ms,
             "metadata": meta,
             "timestamp": now_str,
@@ -1826,6 +2089,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         base_url=chosen_base_url,
     )
 
+    is_live_ai = bool(reply_text)
     if not reply_text:
         # Intelligent, context-grounded fallback (not generic boilerplate)
         reply_text = _synthesize_contextual_response(user_query, context, tool_exec)
@@ -1839,6 +2103,9 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         "action": "marketplace_query" if tool_exec else "general_assist",
         "provider": chosen_provider,
         "model": chosen_model,
+        "provider_used": chosen_provider,
+        "model_used": chosen_model,
+        "live_ai": is_live_ai,
         "latency_ms": latency_ms,
         "context_used": True,
         "tool_executed": bool(tool_exec),
@@ -1862,6 +2129,9 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         "content": reply_text,
         "provider": chosen_provider,
         "model": chosen_model,
+        "provider_used": chosen_provider,
+        "model_used": chosen_model,
+        "live_ai": is_live_ai,
         "latency_ms": latency_ms,
         "context_used": True,
         "tool_executed": bool(tool_exec),
