@@ -1413,6 +1413,8 @@ def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, 
     prompt_parts.extend([
         "",
         "### INSTRUCTIONS:",
+        "- Format all assistant responses using Markdown. Always structure responses with formatted GitHub Flavored Markdown (GFM).",
+        "- Use Markdown formatting elements: headings (##, ###), bold (**text**), italic (*text*), bullet and numbered lists, inline code (`code`), fenced code blocks (```lang), tables (| col | col |), task lists (- [ ] / - [x]), and links where relevant.",
         "- Answer clearly, professionally, and concisely in GitHub Flavored Markdown.",
         "- STRICT FORMATTING RULE: Strictly ZERO emojis in assistant responses or system prompts. Use clean industrial markdown formatting with bullet points and bold tags.",
         "- Reference real telemetry numbers, tool data, and document names from the context above.",

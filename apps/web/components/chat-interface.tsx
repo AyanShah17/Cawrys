@@ -21,6 +21,7 @@ import {
   IconFile,
   IconSearch,
 } from "@/components/ui/icons";
+import { MarkdownPreview } from "./markdown-preview";
 
 type ToolCall = {
   app: string;
@@ -155,166 +156,6 @@ function formatModelShortName(modelId: string): string {
 
 function cleanUserMessageContent(text: string): string {
   return (text || "").replace(/\n*\[Referencing Attached Documents:[^\]]*\]/g, "").trim();
-}
-
-function renderInlineMarkdown(text: string): React.ReactNode {
-  const tokens: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let k = 0;
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      tokens.push(text.slice(lastIndex, match.index));
-    }
-    const tok = match[0];
-    if (tok.startsWith("**") && tok.endsWith("**")) {
-      tokens.push(
-        <strong key={k++} className="font-semibold text-neutral-950">
-          {tok.slice(2, -2)}
-        </strong>
-      );
-    } else if (tok.startsWith("`") && tok.endsWith("`")) {
-      tokens.push(
-        <code
-          key={k++}
-          className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-[12px] text-neutral-900 border border-neutral-200/70"
-        >
-          {tok.slice(1, -1)}
-        </code>
-      );
-    } else if (tok.startsWith("*") && tok.endsWith("*")) {
-      tokens.push(
-        <em key={k++} className="italic text-neutral-800">
-          {tok.slice(1, -1)}
-        </em>
-      );
-    }
-    lastIndex = match.index + tok.length;
-  }
-  if (lastIndex < text.length) {
-    tokens.push(text.slice(lastIndex));
-  }
-  return tokens;
-}
-
-function renderChatMarkdown(content: string): React.ReactNode {
-  const lines = (content || "").split(/\r?\n/);
-  const nodes: React.ReactNode[] = [];
-  let i = 0;
-  let keyIdx = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Fenced code blocks
-    if (line.trim().startsWith("```")) {
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].trim().startsWith("```")) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      i++;
-      nodes.push(
-        <pre
-          key={keyIdx++}
-          className="my-2 overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-900 p-3 font-mono text-xs text-emerald-300"
-        >
-          {codeLines.join("\n")}
-        </pre>
-      );
-      continue;
-    }
-
-    if (!line.trim()) {
-      i++;
-      continue;
-    }
-
-    // Headings
-    const headingMatch = line.match(/^(#{1,4})\s+(.+)$/);
-    if (headingMatch) {
-      const level = headingMatch[1].length;
-      const cls =
-        level === 1
-          ? "text-base font-bold text-neutral-950 mt-3 mb-1"
-          : level === 2
-          ? "text-[15px] font-bold text-neutral-950 mt-2.5 mb-1"
-          : "text-sm font-semibold text-neutral-900 mt-2 mb-1";
-      nodes.push(
-        <div key={keyIdx++} className={cls}>
-          {renderInlineMarkdown(headingMatch[2])}
-        </div>
-      );
-      i++;
-      continue;
-    }
-
-    // Blockquotes (including indented document excerpts)
-    if (line.trim().startsWith("> ")) {
-      const quoteLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith("> ")) {
-        quoteLines.push(lines[i].trim().slice(2));
-        i++;
-      }
-      nodes.push(
-        <blockquote
-          key={keyIdx++}
-          className="my-1.5 border-l-2 border-neutral-300 pl-3 text-xs text-neutral-700 space-y-0.5"
-        >
-          {quoteLines.map((ql, qIdx) => (
-            <div key={qIdx}>{renderInlineMarkdown(ql)}</div>
-          ))}
-        </blockquote>
-      );
-      continue;
-    }
-
-    // Unordered list items
-    if (/^\s*[-*]\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
-        i++;
-      }
-      nodes.push(
-        <ul key={keyIdx++} className="my-1.5 list-disc pl-5 space-y-1 text-neutral-800">
-          {items.map((item, li) => (
-            <li key={li}>{renderInlineMarkdown(item)}</li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    // Ordered list items
-    if (/^\s*\d+\.\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
-        i++;
-      }
-      nodes.push(
-        <ol key={keyIdx++} className="my-1.5 list-decimal pl-5 space-y-1 text-neutral-800">
-          {items.map((item, li) => (
-            <li key={li}>{renderInlineMarkdown(item)}</li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    // Normal paragraph
-    nodes.push(
-      <p key={keyIdx++} className="my-1 leading-relaxed text-neutral-900">
-        {renderInlineMarkdown(line)}
-      </p>
-    );
-    i++;
-  }
-
-  return <div className="space-y-1">{nodes}</div>;
 }
 
 export function ChatInterface({
@@ -996,7 +837,7 @@ export function ChatInterface({
                     {!isUser && (
                       <div className="space-y-3">
                         <div className="prose prose-sm max-w-none leading-relaxed text-neutral-900">
-                          {renderChatMarkdown(m.content)}
+                          <MarkdownPreview content={m.content} />
                         </div>
 
                         {m.metadata?.playbook_mutated && (
