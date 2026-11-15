@@ -22,7 +22,7 @@ const ModeContext = createContext<ModeContextType>({
 });
 
 // Paths that strictly belong to AI Mode
-const AI_PATHS = ["/chat", "/connectors", "/marketplace"];
+const AI_PATHS = ["/chat", "/connectors", "/marketplace", "/settings"];
 // Paths that strictly belong to Dashboard Mode
 const DASHBOARD_PATHS = ["/", "/documents", "/playbooks", "/approvals", "/audit", "/team"];
 
@@ -93,8 +93,8 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
           router.push("/chat");
         }
       } else {
-        // If currently on an AI-specific page (e.g. /chat or /connectors), redirect to /
-        if (pathname === "/chat" || pathname.startsWith("/connectors")) {
+        // If currently on an AI-specific page, redirect to /
+        if (pathname && AI_PATHS.some((p) => pathname.startsWith(p))) {
           router.push("/");
         }
       }

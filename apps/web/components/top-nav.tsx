@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Brand } from "@/lib/brand";
-import { useAppMode, type AppMode } from "@/lib/mode-context";
+import { useAppMode } from "@/lib/mode-context";
 
 interface TopNavProps {
   brand: Brand;
@@ -15,7 +15,7 @@ interface TopNavProps {
 
 export function TopNav({ brand, email, role }: TopNavProps) {
   const pathname = usePathname();
-  const { mode, setMode } = useAppMode();
+  const { mode, toggleMode } = useAppMode();
   const [profileOpen, setProfileOpen] = useState(false);
   const [dateSelected, setDateSelected] = useState<string>("Today, Dec 7");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -86,40 +86,32 @@ export function TopNav({ brand, email, role }: TopNavProps) {
 
         {/* Center: Floating Top Black Navigation Pill Container */}
         <div className="bg-neutral-950 text-white rounded-full p-1.5 flex items-center gap-1 shadow-xl border border-neutral-800 overflow-x-auto no-scrollbar max-w-full">
-          {/* Mode Switcher Segment */}
+          {/* Single UI Mode Switch Button */}
           <button
             type="button"
-            onClick={() => setMode("ai")}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-200 flex items-center gap-1.5 shrink-0 select-none ${
-              mode === "ai"
-                ? "bg-white text-black font-semibold shadow-sm"
-                : "text-neutral-400 hover:text-white"
-            }`}
+            onClick={toggleMode}
+            title={mode === "ai" ? "Switch to Dashboard Mode" : "Switch to AI Mode"}
+            aria-label={mode === "ai" ? "Switch to Dashboard Mode" : "Switch to AI Mode"}
+            className="rounded-full px-3.5 py-1.5 text-xs font-semibold bg-neutral-800/90 hover:bg-neutral-700 text-white border border-neutral-700/80 transition-all flex items-center gap-1.5 shrink-0 select-none"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            {mode === "ai" ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0">
+                <rect x="3" y="3" width="7" height="9" />
+                <rect x="14" y="3" width="7" height="5" />
+                <rect x="14" y="12" width="7" height="9" />
+                <rect x="3" y="16" width="7" height="5" />
+              </svg>
+            )}
+            <span>{mode === "ai" ? "AI Mode" : "Dashboard"}</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 opacity-70 shrink-0" aria-hidden="true">
+              <path d="M7 16V4M7 4L3 8M7 4l4 4" />
+              <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
             </svg>
-            <span>AI Mode</span>
-            {mode === "ai" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setMode("dashboard")}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-200 flex items-center gap-1.5 shrink-0 select-none ${
-              mode === "dashboard"
-                ? "bg-white text-black font-semibold shadow-sm"
-                : "text-neutral-400 hover:text-white"
-            }`}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
-              <rect x="3" y="3" width="7" height="9" />
-              <rect x="14" y="3" width="7" height="5" />
-              <rect x="14" y="12" width="7" height="9" />
-              <rect x="3" y="16" width="7" height="5" />
-            </svg>
-            <span>Dashboard</span>
-            {mode === "dashboard" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />}
           </button>
 
           {/* Vertical Divider */}

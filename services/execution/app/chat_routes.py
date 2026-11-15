@@ -1955,6 +1955,7 @@ def get_chat_history(session_id: str = "default", limit: int = 50, ctx: Ctx = De
             "content": r["content"],
             "metadata": json.loads(meta) if isinstance(meta, str) else (meta or {}),
             "created_at": str(r["created_at"]),
+            "timestamp": str(r["created_at"]),
         })
 
     return {"ok": True, "messages": messages, "count": len(messages)}
