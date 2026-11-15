@@ -1,10 +1,11 @@
 import json
 import os
+import time
 import uuid
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import auth_routes, dashboard, ingest, models, storage, validate
@@ -20,6 +21,10 @@ async def lifespan(_app):
             auth_routes.seed_demo_users()
         except Exception as e:  # DB may still be starting; the API keeps serving
             print(f"demo user seed skipped: {e}")
+        try:
+            auth_routes.seed_demo_documents()
+        except Exception as e:
+            print(f"demo document seed skipped: {e}")
     try:
         auth_routes.bootstrap_admin()
     except Exception as e:
@@ -30,6 +35,22 @@ async def lifespan(_app):
 app = FastAPI(title="Cawrys Intelligence Service", version="0.3.0", lifespan=lifespan)
 # Browsers reach the services through the web app's server-side proxy, so cross-origin access is not needed.
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.middleware("http")
+async def security_and_observability_middleware(request: Request, call_next):
+    req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - start) * 1000.0
+    response.headers["X-Request-ID"] = req_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.2f}"
+    return response
+
+
 app.include_router(auth_routes.router)
 app.include_router(dashboard.router)
 
@@ -37,6 +58,13 @@ app.include_router(dashboard.router)
 @app.get("/health")
 def health():
     return {"ok": True, "service": "intelligence"}
+
+
+@app.get("/health/ready")
+def health_ready():
+    with conn() as c:
+        c.execute("select 1").fetchone()
+    return {"ok": True, "service": "intelligence", "database": "connected"}
 
 
 @app.post("/v1/documents")
@@ -116,17 +144,29 @@ async def process_document(file: UploadFile = File(...), ctx: Ctx = Depends(requ
 
 
 @app.get("/v1/documents")
-def list_documents(limit: int = 50, ctx: Ctx = Depends(current)):
+def list_documents(
+    status: str | None = None,
+    q: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+    ctx: Ctx = Depends(current),
+):
     tenant_id = ctx.tenant_id
+    offset = max(0, offset)
     limit = max(1, min(limit, 200))
     with conn() as c:
         rows = c.execute(
             "select d.id, d.filename, d.status, d.created_at, e.doc_type, e.confidence "
             "from documents d left join extractions e on e.document_id=d.id "
-            "where d.tenant_id=%s order by d.created_at desc limit %s",
-            (tenant_id, limit),
+            "where d.tenant_id=%s order by d.created_at desc",
+            (tenant_id,),
         ).fetchall()
-    return rows
+    if status:
+        rows = [r for r in rows if r.get("status") == status]
+    if q:
+        q_lower = q.lower()
+        rows = [r for r in rows if q_lower in (r.get("filename") or "").lower()]
+    return rows[offset : offset + limit]
 
 
 @app.get("/v1/documents/{doc_id}")

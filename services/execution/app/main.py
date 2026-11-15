@@ -1,10 +1,11 @@
 import datetime
 import json
 import os
+import time
 import uuid
 
 import jsonschema
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -57,6 +58,23 @@ DEMO_PLAYBOOK = {
         {"tool": "notify_team", "params": {"message": "Production order scheduled for $inputs.drawing_id"}},
     ],
 }
+ADDITIONAL_PLAYBOOKS = [
+    {
+        "name": "sap-inventory-reconciliation",
+        "steps": [
+            {"tool": "erp_lookup_inventory", "params": {"material": "$inputs.material"}},
+            {"tool": "notify_team", "params": {"message": "SAP inventory reconciled for $inputs.material"}},
+        ],
+    },
+    {
+        "name": "siemens-eco-release",
+        "steps": [
+            {"tool": "erp_lookup_inventory", "params": {"material": "$inputs.material"}},
+            {"tool": "schedule_production", "params": {"drawing_id": "$inputs.drawing_id", "quantity": "$inputs.quantity"}},
+            {"tool": "notify_team", "params": {"message": "Siemens ECO released for $inputs.drawing_id"}},
+        ],
+    },
+]
 
 
 def ensure_seeded(c, tenant_id: str):
@@ -70,17 +88,37 @@ def ensure_seeded(c, tenant_id: str):
             "insert into tools (tenant_id,name,description,input_schema,connector,risk) values (%s,%s,%s,%s,%s,%s)",
             (tenant_id, t["name"], t["description"], json.dumps(t["input_schema"]), t["connector"], t["risk"]),
         )
-    if not c.execute("select 1 from playbooks where tenant_id=%s limit 1", (tenant_id,)).fetchone():
+    if not c.execute("select 1 from playbooks where tenant_id=%s and name=%s", (tenant_id, DEMO_PLAYBOOK["name"])).fetchone():
         c.execute(
             "insert into playbooks (tenant_id,name,version,steps) values (%s,%s,1,%s)",
             (tenant_id, DEMO_PLAYBOOK["name"], json.dumps(DEMO_PLAYBOOK["steps"])),
         )
+    for pb in ADDITIONAL_PLAYBOOKS:
+        if not c.execute("select 1 from playbooks where tenant_id=%s and name=%s", (tenant_id, pb["name"])).fetchone():
+            c.execute(
+                "insert into playbooks (tenant_id,name,version,steps) values (%s,%s,1,%s)",
+                (tenant_id, pb["name"], json.dumps(pb["steps"])),
+            )
     audit(c, tenant_id, "demo.seeded")
     c.commit()
 
 
 app = FastAPI(title="Cawrys Execution Service", version="0.3.0")
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ORIGINS", "").split(",") if os.environ.get("CORS_ORIGINS") else [], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.middleware("http")
+async def security_and_observability_middleware(request: Request, call_next):
+    req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - start) * 1000.0
+    response.headers["X-Request-ID"] = req_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.2f}"
+    return response
 app.include_router(harness_router, prefix="/v1/agent", tags=["agent"])
 app.include_router(marketplace_router, prefix="/v1/marketplace", tags=["marketplace"])
 app.include_router(chat_router, prefix="/v1/chat", tags=["chat"])
@@ -464,3 +502,21 @@ def list_exec(limit: int = 50, ctx: Ctx = Depends(current)):
             "where tenant_id=%s order by created_at desc limit %s",
             (tenant_id, limit),
         ).fetchall()
+
+
+@app.get("/v1/executions/{exec_id}")
+def get_execution(exec_id: str, ctx: Ctx = Depends(current)):
+    try:
+        uuid.UUID(exec_id)
+    except ValueError:
+        raise HTTPException(404, "execution not found")
+    tenant_id = ctx.tenant_id
+    with conn() as c:
+        row = c.execute(
+            "select id, status, extraction_id, created_at, result from executions "
+            "where id=%s and tenant_id=%s",
+            (exec_id, tenant_id),
+        ).fetchone()
+    if not row:
+        raise HTTPException(404, "execution not found")
+    return row

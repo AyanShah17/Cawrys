@@ -4,6 +4,7 @@ Implements faithful HTTP simulation of Intelligence (8001), Execution (8002),
 Edge-Ingest (8080), and Web Proxy (3000) for zero-dependency offline verification.
 Can run standalone or be dynamically spawned by the test runner.
 """
+import http.client
 import http.server
 import io
 import json
@@ -12,7 +13,9 @@ import re
 import socketserver
 import threading
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 import uuid
 import jwt
 
@@ -712,15 +715,79 @@ class UnifiedDispatcher(http.server.BaseHTTPRequestHandler):
         except urllib.error.HTTPError as e:
             data = e.read()
             status = e.code
-        except Exception as e:
-            self._send_json(502, {"detail": f"{service} service unreachable"})
-            return
+        except Exception:
+            upstream_path = "/" + "/".join(subpath) + ("?" + urllib.parse.urlencode(qs, doseq=True) if qs else "")
+            status, _, data = dispatch_in_memory(
+                upstream_port,
+                method,
+                upstream_path,
+                req_headers,
+                body if method != "GET" else b"",
+            )
 
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+
+def dispatch_in_memory(
+    port: int,
+    method: str,
+    path_with_query: str,
+    headers: dict | None = None,
+    body: bytes = b"",
+) -> tuple[int, dict, bytes]:
+    """In-memory dispatcher simulating network requests to UnifiedDispatcher services."""
+    handler = UnifiedDispatcher.__new__(UnifiedDispatcher)
+    handler.server = type("FakeServer", (), {"server_address": ("127.0.0.1", port)})()
+    handler.path = path_with_query
+
+    msg = http.client.HTTPMessage()
+    if headers:
+        for k, v in headers.items():
+            msg[k] = str(v)
+    if body and msg.get("Content-Length") is None:
+        msg["Content-Length"] = str(len(body))
+    handler.headers = msg
+
+    handler.rfile = io.BytesIO(body or b"")
+    handler.wfile = io.BytesIO()
+    handler.close_connection = True
+    handler.command = method.upper()
+    handler.request_version = "HTTP/1.1"
+
+    _status = [500]
+    _resp_headers = {}
+
+    def send_response(code, message=None):
+        _status[0] = code
+
+    def send_header(k, v):
+        _resp_headers[k] = v
+
+    def end_headers():
+        pass
+
+    handler.send_response = send_response
+    handler.send_header = send_header
+    handler.end_headers = end_headers
+
+    m = method.upper()
+    if m == "GET":
+        handler.do_GET()
+    elif m == "POST":
+        handler.do_POST()
+    elif hasattr(handler, f"do_{m}"):
+        getattr(handler, f"do_{m}")()
+    else:
+        handler.send_response(405)
+        handler.send_header("Content-Type", "application/json")
+        handler.end_headers()
+        handler.wfile.write(b'{"detail": "Method not allowed"}')
+
+    return (_status[0], _resp_headers, handler.wfile.getvalue())
 
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):

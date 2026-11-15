@@ -809,7 +809,7 @@ export function MarketplaceGrid({
           className="flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
         >
           <span>All Toolkits</span>
-          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white">
+          <span className="rounded-full bg-neutral-800 text-white px-2 py-0.5 text-[10px] font-bold">
             {counts.total.toLocaleString()}
           </span>
         </Link>
@@ -835,24 +835,24 @@ export function MarketplaceGrid({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             {isProWhitelabel ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/15 px-3 py-1 text-xs font-medium text-emerald-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
                 Composio Pro · White-Label Active ({brandName})
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/30 bg-indigo-400/15 px-3 py-1 text-xs font-medium text-indigo-300">
-                <span className="h-2 w-2 rounded-full bg-indigo-400" aria-hidden />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-800">
+                <span className="h-2 w-2 rounded-full bg-indigo-500" aria-hidden />
                 composio.dev Ecosystem ({counts.composio.toLocaleString()} Toolkits)
               </span>
             )}
 
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/15 px-3 py-1 text-xs font-medium text-amber-300">
-              <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+              <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
               FastMCP Industrial Gateway ({counts.fastmcp} Enterprise Servers)
             </span>
 
-            <span className="text-sm text-neutral-300">
-              <strong className="font-semibold text-white">{counts.connected}</strong> / {counts.total.toLocaleString()} connectors active
+            <span className="text-sm text-neutral-600">
+              <strong className="font-semibold text-neutral-900">{counts.connected}</strong> / {counts.total.toLocaleString()} connectors active
             </span>
 
             <span className="text-xs text-neutral-500">
@@ -872,20 +872,20 @@ export function MarketplaceGrid({
         </div>
 
         {showRoadmap && (
-          <div className="mt-4 rounded-lg border border-white/10 bg-black/50 p-4 text-xs text-neutral-300 space-y-3">
-            <div className="font-semibold text-white">
+          <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-700 space-y-3">
+            <div className="font-semibold text-neutral-900">
               Integration Architecture: 1,640+ composio.dev Toolkits &amp; 6 Industrial FastMCP Servers
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1 rounded border border-indigo-400/20 bg-indigo-500/5 p-3">
-                <div className="font-semibold text-indigo-300">1. composio.dev Connector Network (1,640+ Toolkits)</div>
-                <p className="text-neutral-400 leading-relaxed">
+              <div className="space-y-1 rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
+                <div className="font-semibold text-indigo-900">1. composio.dev Connector Network (1,640+ Toolkits)</div>
+                <p className="text-neutral-600 leading-relaxed">
                   Universal broker for SaaS, CRM, DevOps, Finance, and AI tools (Slack, GitHub, Gmail, Sheets, Linear, Jira, Salesforce, HubSpot, Stripe, Notion, Postman, Cloudflare, Sentry, Vercel). Saves configuration and opens Composio Connect for authentication.
                 </p>
               </div>
-              <div className="space-y-1 rounded border border-amber-400/20 bg-amber-500/5 p-3">
-                <div className="font-semibold text-amber-300">2. FastMCP Industrial Protocol (6 Enterprise Servers)</div>
-                <p className="text-neutral-400 leading-relaxed">
+              <div className="space-y-1 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                <div className="font-semibold text-amber-900">2. FastMCP Industrial Protocol (6 Enterprise Servers)</div>
+                <p className="text-neutral-600 leading-relaxed">
                   Model Context Protocol servers for SAP S/4HANA (OData/BAPIs), Siemens Xcelerator (Teamcenter PLM/Opcenter MES/NX), Rockwell Automation (FactoryTalk/Studio 5000), Dassault 3DEXPERIENCE, PTC Windchill, and Oracle SCM.
                 </p>
               </div>
@@ -959,7 +959,7 @@ export function MarketplaceGrid({
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] ${
                   providerFilter === "all"
-                    ? "bg-white/20 text-white font-bold"
+                    ? "bg-neutral-800 text-white font-bold"
                     : "bg-neutral-200 text-neutral-700"
                 }`}
               >
@@ -985,7 +985,7 @@ export function MarketplaceGrid({
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] ${
                   providerFilter === "composio"
-                    ? "bg-white/20 text-white font-bold"
+                    ? "bg-neutral-800 text-white font-bold"
                     : "bg-neutral-200 text-neutral-700"
                 }`}
               >
@@ -1011,7 +1011,7 @@ export function MarketplaceGrid({
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] ${
                   providerFilter === "fastmcp"
-                    ? "bg-white/20 text-white font-bold"
+                    ? "bg-neutral-800 text-white font-bold"
                     : "bg-neutral-200 text-neutral-700"
                 }`}
               >
@@ -1141,7 +1141,7 @@ export function MarketplaceGrid({
                 >
                   {/* Header bar with Select All and Clear */}
                   <div className="flex items-center justify-between px-2 py-1 text-xs">
-                    <span className="font-semibold text-neutral-300">
+                    <span className="font-semibold text-neutral-900">
                       {selectedCategories.length === 0
                         ? `Categories (${categoryCounts.categories.length})`
                         : `${selectedCategories.length} Selected`}
@@ -1171,7 +1171,7 @@ export function MarketplaceGrid({
                     </div>
                   </div>
 
-                  <div className="border-b border-white/10 my-1" />
+                  <div className="border-b border-neutral-100 my-1" />
 
                   {/* Scrollable list of category items with checkboxes */}
                   <div className="space-y-0.5">
@@ -1183,16 +1183,16 @@ export function MarketplaceGrid({
                       return (
                         <label
                           key={cat.name}
-                          className="hover:bg-white/5 rounded px-2 py-1.5 flex items-center gap-2 cursor-pointer transition select-none"
+                          className="hover:bg-neutral-50 rounded-lg px-2 py-1.5 flex items-center gap-2 cursor-pointer transition select-none"
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleToggleCategory(cat.name)}
-                            className="rounded border-white/20 bg-black/60 text-brand focus:ring-brand h-3.5 w-3.5 cursor-pointer"
+                            className="rounded border-neutral-300 bg-white text-neutral-900 focus:ring-neutral-900 h-3.5 w-3.5 cursor-pointer"
                           />
-                          <span className="flex-1 text-xs text-neutral-200 truncate">{cat.name}</span>
-                          <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">
+                          <span className="flex-1 text-xs text-neutral-800 truncate">{cat.name}</span>
+                          <span className="rounded-full bg-neutral-100 border border-neutral-200/80 px-1.5 py-0.5 text-[10px] text-neutral-600 font-mono">
                             {cat.count}
                           </span>
                         </label>
@@ -1212,7 +1212,7 @@ export function MarketplaceGrid({
                   setSortOption(e.target.value as "featured" | "alpha" | "tools");
                   setCurrentPage(1);
                 }}
-                className="rounded-lg border border-white/15 bg-black/60 px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brand"
+                className="rounded-xl border border-neutral-200 bg-white px-2.5 py-1.5 text-xs text-neutral-800 hover:border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 shadow-sm"
               >
                 <option value="featured">Featured / Popular</option>
                 <option value="alpha">Alphabetical (A-Z)</option>
@@ -1220,7 +1220,7 @@ export function MarketplaceGrid({
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
+            <div className="flex items-center gap-1.5 border-l border-neutral-200 pl-3">
               <span>Per page:</span>
               {[24, 48, 96].map((size) => (
                 <button
@@ -1232,8 +1232,8 @@ export function MarketplaceGrid({
                   }}
                   className={`rounded px-2 py-0.5 text-xs font-medium transition ${
                     pageSize === size
-                      ? "bg-white text-black font-semibold"
-                      : "bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-white"
+                      ? "bg-neutral-950 text-white font-semibold shadow-sm"
+                      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/80 hover:text-neutral-900"
                   }`}
                 >
                   {size}
@@ -1245,7 +1245,7 @@ export function MarketplaceGrid({
 
         {/* Row 3: Active Category Filter Badges (Shown only when filtering by specific categories) */}
         {!isAllCategories && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5 text-xs">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-100 text-xs">
             <span className="text-neutral-400">Active filter:</span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand-light">
               <span>
@@ -1260,7 +1260,7 @@ export function MarketplaceGrid({
                   setSelectedCategories([]);
                   setCurrentPage(1);
                 }}
-                className="ml-1 rounded-full p-0.5 text-neutral-400 hover:bg-white/20 hover:text-white transition inline-flex items-center justify-center"
+                className="ml-1 rounded-full p-0.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-900 transition inline-flex items-center justify-center"
                 title="Clear category filter"
                 aria-label="Clear category filter"
               >
@@ -1310,20 +1310,20 @@ export function MarketplaceGrid({
               type="button"
               disabled={safePage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-neutral-300 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
             >
-              ← Prev
+              &larr; Prev
             </button>
-            <span className="text-neutral-400">
-              Page <strong className="text-white">{safePage}</strong> of {totalPages}
+            <span className="text-neutral-500">
+              Page <strong className="text-neutral-900 font-semibold">{safePage}</strong> of {totalPages}
             </span>
             <button
               type="button"
               disabled={safePage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-neutral-300 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
             >
-              Next →
+              Next &rarr;
             </button>
           </div>
         )}
@@ -1497,8 +1497,8 @@ export function MarketplaceGrid({
                       </Button>
                     )
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-neutral-400 font-medium">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-400" aria-hidden="true">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 font-medium">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-500" aria-hidden="true">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
@@ -1514,10 +1514,10 @@ export function MarketplaceGrid({
 
       {/* Bottom Full Pagination Controls */}
       {totalPages > 1 && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-4 text-xs">
-          <div className="text-neutral-400">
-            Showing Page <strong className="text-white">{safePage}</strong> of{" "}
-            <strong className="text-white">{totalPages}</strong> ({totalFiltered.toLocaleString()} matching connectors)
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200/60 pt-4 text-xs">
+          <div className="text-neutral-500">
+            Showing Page <strong className="text-neutral-900 font-semibold">{safePage}</strong> of{" "}
+            <strong className="text-neutral-900 font-semibold">{totalPages}</strong> ({totalFiltered.toLocaleString()} matching connectors)
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
@@ -1528,9 +1528,9 @@ export function MarketplaceGrid({
                 setCurrentPage(1);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-neutral-300 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
             >
-              « First
+              &laquo; First
             </button>
             <button
               type="button"
@@ -1539,9 +1539,9 @@ export function MarketplaceGrid({
                 setCurrentPage((p) => Math.max(1, p - 1));
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-neutral-300 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
             >
-              ‹ Prev
+              &lsaquo; Prev
             </button>
 
             {(() => {
@@ -1562,10 +1562,10 @@ export function MarketplaceGrid({
                     setCurrentPage(page);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className={`min-w-[28px] rounded px-2 py-1 text-center font-medium transition ${
+                  className={`min-w-[28px] rounded-full px-2.5 py-1 text-center font-medium transition ${
                     safePage === page
-                      ? "bg-brand text-white font-semibold shadow"
-                      : "border border-white/10 bg-white/5 text-neutral-300 hover:bg-white/10"
+                      ? "bg-neutral-950 text-white font-semibold shadow-sm"
+                      : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 shadow-sm"
                   }`}
                 >
                   {page}
@@ -1580,9 +1580,9 @@ export function MarketplaceGrid({
                 setCurrentPage((p) => Math.min(totalPages, p + 1));
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-neutral-300 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
             >
-              Next ›
+              Next &rsaquo;
             </button>
             <button
               type="button"
@@ -1591,9 +1591,9 @@ export function MarketplaceGrid({
                 setCurrentPage(totalPages);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-neutral-300 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
             >
-              Last ({totalPages}) »
+              Last ({totalPages}) &raquo;
             </button>
           </div>
         </div>
@@ -1612,31 +1612,31 @@ export function MarketplaceGrid({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm duration-200"
           onClick={() => setExecutionModal(null)}
         >
           <div
-            className="w-full max-w-2xl rounded-xl border border-white/20 bg-neutral-950 p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
+            className="w-full max-w-2xl rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <h3 className="text-lg font-semibold text-white">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
                     Action Execution Output
                   </h3>
                 </div>
-                <p className="mt-0.5 text-xs text-neutral-400">
-                  {executionModal.app.name} ·{" "}
-                  <code className="text-sky-300">{executionModal.tool.name}</code>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  {executionModal.app.name} &middot;{" "}
+                  <code className="text-sky-700 font-mono font-semibold">{executionModal.tool.name}</code>
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setExecutionModal(null)}
-                className="rounded p-1 text-neutral-400 hover:bg-white/10 hover:text-white transition"
+                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition"
                 aria-label="Close modal"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
@@ -1647,38 +1647,38 @@ export function MarketplaceGrid({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                {executionModal.statusCode === 200 ? "200 OK · Executed" : `${executionModal.statusCode} Error`}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {executionModal.statusCode === 200 ? "200 OK &middot; Executed" : `${executionModal.statusCode} Error`}
               </span>
 
-              <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/30 bg-sky-400/15 px-2.5 py-0.5 text-xs font-semibold text-sky-300">
+              <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">
                 Latency: {executionModal.latencyMs} ms
               </span>
 
-              <span className="rounded border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-neutral-300">
+              <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs text-neutral-600 font-medium">
                 Provider: {executionModal.app.provider === "fastmcp" ? "Industrial FastMCP" : "composio.dev"}
               </span>
 
-              <span className="ml-auto text-xs text-neutral-500">
+              <span className="ml-auto text-xs text-neutral-400">
                 {executionModal.timestamp}
               </span>
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span>Structured JSON Response:</span>
+              <div className="flex items-center justify-between text-xs text-neutral-500">
+                <span className="font-medium">Structured JSON Response:</span>
                 <button
                   type="button"
                   onClick={() => handleCopyJson(executionModal.result)}
-                  className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-neutral-300 hover:bg-white/10 hover:text-white transition flex items-center gap-1.5"
+                  className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition flex items-center gap-1.5 shadow-sm"
                 >
                   {copiedJson ? (
                     <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-400" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-600" aria-hidden="true">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
-                      <span className="text-emerald-300">Copied</span>
+                      <span className="text-emerald-700 font-medium">Copied</span>
                     </>
                   ) : (
                     <>
@@ -1692,12 +1692,12 @@ export function MarketplaceGrid({
                 </button>
               </div>
 
-              <pre className="flex-1 overflow-auto rounded-lg border border-white/10 bg-black/60 p-4 font-mono text-xs text-emerald-400/90 leading-relaxed">
+              <pre className="flex-1 overflow-auto rounded-2xl border border-neutral-800 bg-neutral-900 p-4 font-mono text-xs text-emerald-400 leading-relaxed shadow-inner">
                 {JSON.stringify(executionModal.result, null, 2)}
               </pre>
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/10 pt-4">
+            <div className="flex items-center justify-between border-t border-neutral-100 pt-4">
               <button
                 type="button"
                 onClick={() => handleRunIndividualTool(executionModal.app, executionModal.tool)}

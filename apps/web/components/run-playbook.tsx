@@ -1,5 +1,7 @@
+// apps/web/components/run-playbook.tsx
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
+import Link from "next/link";
 import { API, post } from "@/lib/api";
 
 export function RunPlaybook({ extractionId, playbooks }: { extractionId: string; playbooks: string[] }) {
@@ -9,29 +11,54 @@ export function RunPlaybook({ extractionId, playbooks }: { extractionId: string;
   const [busy, setBusy] = useState(false);
 
   async function run() {
-    setBusy(true); setErr(null); setOut(null);
+    setBusy(true);
+    setErr(null);
+    setOut(null);
     try {
       setOut(await post(`${API.execution}/v1/executions`, { playbook: name, extraction_id: extractionId }));
-    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (!playbooks.length) return <p className="text-xs text-neutral-500">No playbooks available.</p>;
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex gap-2">
-        <select value={name} onChange={(e) => setName(e.target.value)}
-          className="rounded border border-white/15 bg-black px-2 py-1">
-          {playbooks.map((p) => <option key={p}>{p}</option>)}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
+        >
+          {playbooks.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
         </select>
-        <button onClick={run} disabled={busy}
-          className="rounded bg-white px-3 py-1 font-medium text-black disabled:opacity-50">
-          {busy ? "Running…" : "Run playbook"}
+        <button
+          type="button"
+          onClick={run}
+          disabled={busy}
+          className="rounded-full bg-neutral-950 px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50"
+        >
+          {busy ? "Running..." : "Run playbook"}
         </button>
       </div>
-      {err && <p className="text-xs text-red-400">{err}</p>}
+      {err && <p className="text-xs font-medium text-rose-600">{err}</p>}
       {out && (
-        <p className="text-xs text-neutral-300">
-          {out.status}: {out.reason}. {out.status === "awaiting_approval" && <a className="underline" href="/approvals">Go to approvals</a>}
+        <p className="text-xs text-neutral-700">
+          <span className="font-semibold">{out.status}</span>: {out.reason || "Execution finished"}
+          {out.status === "awaiting_approval" && (
+            <>
+              {" "}
+              <Link href="/approvals" className="font-semibold text-neutral-900 underline hover:text-black">
+                Go to approvals
+              </Link>
+            </>
+          )}
         </p>
       )}
     </div>

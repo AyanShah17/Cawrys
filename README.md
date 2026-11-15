@@ -1,124 +1,91 @@
-# Cawrys: Customer-Owned AI Operations Platform
+# Cawrys: Customer-Owned Industrial AI Operations Platform
 
-Understand, decide, process, execute, learn. Cawrys runs in the customer's own environment (their keys, infrastructure, data, permissions). Two independent but connected services share one database, tenant model and audit trail.
+Understand, decide, process, execute, and learn. Cawrys runs inside the customer's own environment with customer-controlled keys, data, infrastructure, and permissions. Two cooperating FastAPI microservices, a Go edge-ingest daemon, and a Next.js 15 web application share a unified tenant-isolated database and tamper-evident audit trail.
 
-| Piece | Tech | Path |
+| Component | Technology | Path |
 |---|---|---|
-| Service 1: Intelligence & Data Processing | Python / FastAPI | `services/intelligence` |
-| Service 2: Integration & Action Execution (+ OpenHands Agent Harness) | Python / FastAPI | `services/execution` |
-| Edge ingest (files and events) | Go | `services/edge-ingest` |
-| AI gateway | LiteLLM proxy (`gemini-4-argon` + `gemini-3.8-flash`) | `infra/litellm` |
-| Database | Neon Postgres or offline SQLite WAL fallback | `db/schema.sql`, `db/schema_sqlite.sql` |
-| Storage / edge | Cloudflare R2, Worker, Tunnel | `infra/cloudflare` |
-| Web app | Next.js 15, React 19, Tailwind, SVG Telemetry | `apps/web` |
+| Service 1: Intelligence & Data Processing | Python / FastAPI | [services/intelligence](file:///Users/ayanshah/LionTix/services/intelligence) |
+| Service 2: Execution, Chat, MCP & Agent Harness | Python / FastAPI | [services/execution](file:///Users/ayanshah/LionTix/services/execution) |
+| Edge Ingest (files & machine telemetry events) | Go (`net/http` reverse proxy) | [services/edge-ingest](file:///Users/ayanshah/LionTix/services/edge-ingest) |
+| AI Gateway & LiteLLM Routing | LiteLLM + Native Provider REST Dispatch | [services/execution/app/chat_routes.py](file:///Users/ayanshah/LionTix/services/execution/app/chat_routes.py) |
+| Database | Neon PostgreSQL or offline SQLite WAL fallback | [db/schema.sql](file:///Users/ayanshah/LionTix/db/schema.sql), [db/schema_sqlite.sql](file:///Users/ayanshah/LionTix/db/schema_sqlite.sql) |
+| Edge Infrastructure | Cloudflare R2, Worker, Tunnel | [infra/cloudflare](file:///Users/ayanshah/LionTix/infra/cloudflare) |
+| Web Application | Next.js 15, React 19, Tailwind CSS, Light Soft-Glass UI | [apps/web](file:///Users/ayanshah/LionTix/apps/web) |
 
-## Run it (prototype mode, no keys needed)
+---
+
+## Quick Start (Local Development)
+
+Start all four services (Go Edge Ingest `:8080`, Intelligence `:8001`, Execution `:8002`, and Next.js Web UI `:3000`):
 
 ```bash
-./scripts/init-env.sh    # creates .env with freshly generated AUTH_SECRET and EDGE_API_KEY
+./scripts/init-env.sh
+bash scripts/start_dev.sh
+```
+
+Or via Docker Compose:
+
+```bash
+./scripts/init-env.sh
 docker compose up --build
 ```
 
-Sign in at http://localhost:3000 with one of the demo accounts (password `cawrys-demo`, set by `DEMO_PASSWORD`):
+Sign in at `http://localhost:3000/login` using the seeded demo accounts (default password `cawrys-demo`, controlled by `DEMO_PASSWORD`):
 
-| Account | Can do |
+| Account | Role & Access Scope |
 |---|---|
-| `admin@cawrys.local` | everything, including managing users |
-| `engineer@cawrys.local` | upload documents, run playbooks, register tools and playbooks |
-| `approver@cawrys.local` | approve or reject waiting runs, read everything |
-| `viewer@cawrys.local` | read only |
+| `admin@cawrys.local` | Full platform control: configure LiteLLM providers/keys, connect/disconnect Marketplace & MCP toolkits, run/approve playbooks, upload documents, manage users & white-label branding |
+| `engineer@cawrys.local` | On-site engineering view: upload documents, run & register playbooks/tools, chat with stored documents and pre-configured connectors; **read-only lock** on LiteLLM credentials and connector reconfigurations |
+| `approver@cawrys.local` | Review, approve, or reject medium/high-risk playbook executions & agent tool calls |
+| `viewer@cawrys.local` | Read-only operational visibility |
 
-- Web: http://localhost:3000
-- Intelligence API docs: http://localhost:8001/docs
-- Execution API docs: http://localhost:8002/docs
-- Edge ingest: http://localhost:8080 (`POST /ingest/file`, `POST /ingest/event`)
+---
 
-With `MOCK_AI=1`, extraction reads `Key: Value` lines from text/PDF/DOCX files and the reasoning step is a deterministic stand-in. Try a file like:
+## Core Architecture & Features
 
-```
-Drawing ID: DWG-1042
-Material: Aluminum 6061
-Quantity: 25
-Tolerance: 0.05
-```
+### 1. Dual-Mode Light Soft-Glass UI (`AI Mode` & `Dashboard Mode`)
+- **Floating Pill Navigation (`apps/web/components/top-nav.tsx`)**: Mode switcher pill toggles seamlessly between:
+  - **AI Mode**: Agent Chat (`/chat`), Connectors (`/connectors`), Marketplace (`/marketplace`), and Settings (`/settings`).
+  - **Dashboard Mode**: Overview (`/`), Documents (`/documents`), Execution & Playbooks (`/playbooks`), Approvals (`/approvals`), Audit Log (`/audit`), and Team (`/team`).
+- **ChatGPT / Grok-Style Conversational Canvas (`apps/web/components/chat-interface.tsx`)**:
+  - Collapsible workspace drawer listing live stored CAD drawings, PDFs, and specs from `/api/intelligence/v1/documents` for instant single-click prompt context attachment, alongside active connected toolkits.
+  - Real-time dashboard mutations directly from natural-language prompts (`POST /v1/dashboard/override`) and execution telemetry badges (`Live AI` vs `Context Engine`).
 
-Then in the web app: sign in as the engineer, upload it, open the document and run the `production-setup` playbook (seeded automatically). Sign out, sign in as the approver, and approve it on the Approvals page. A file missing `Quantity` is held for review instead.
+### 2. LiteLLM 20-Provider Integration & Dynamic Model Discovery
+- **Provider Catalog (`services/execution/app/chat_routes.py`)**: Supports 20 providers (`gemini`, `openai`, `anthropic`, `deepseek`, `groq`, `mistral`, `ollama`, `openrouter`, `perplexity`, `together_ai`, `cohere`, `xai`, `azure`, `bedrock`, `vertex_ai`, `cloudflare`, `fireworks_ai`, `anyscale`, `replicate`, `custom`) with official default base URLs and environment key detection (`GET /v1/chat/providers`).
+- **Live Model Fetching (`POST /v1/chat/models/fetch`)**: Queries provider model endpoints live (Ollama `/api/tags`, OpenAI-compatible `/models`, Gemini `/models`) with resilient catalog fallbacks.
+- **Dual-Path LLM Invocation**: Attempts LiteLLM execution whenever user credentials, environment keys, or local Ollama are present, with direct provider REST fallback (`Gemini generateContent`, `OpenAI /chat/completions`, `Anthropic /v1/messages`, `Ollama /api/chat`) and deterministic context-grounded fallback offline.
 
-`scripts/smoke_test.sh` checks a running stack end to end (login, roles, approval flow, audit). Set `OTHER_TENANT_TOKEN` to a token from a second tenant and it also checks tenant isolation.
+### 3. Composio 1,640+ Toolkit Marketplace & Industrial FastMCP Connectors
+- **Composio Marketplace (`services/execution/app/composio_marketplace.py`)**: Search, category checkbox filtering, sorting, configuration modal (`apps/web/components/marketplace-config-modal.tsx`), and direct Composio connection lifecycle (`POST /v1/marketplace/connect`).
+- **Industrial FastMCP Connectors (`services/execution/app/industrial_mcp.py`)**: Native API & FastMCP adapters for SAP S/4HANA, Siemens Xcelerator / Teamcenter PLM, Rockwell FactoryTalk, Schneider EcoStruxure, ABB Ability, and Emerson DeltaV (`GET /connectors` & live tool test runner).
 
-## Switching to real services
+### 4. Execution Playbooks, Policy Engine & OpenHands Agent Harness
+- **Interactive Playbooks Manager (`apps/web/components/playbooks-manager.tsx`)**: Browse seeded workflows (`production-setup`, `sap-inventory-reconciliation`, `siemens-eco-release`), customize inputs, run playbooks (`POST /v1/executions`), inspect step outputs, and register new playbooks or JSON-Schema-validated tools.
+- **Policy Interlocks (`services/execution/app/policy.py`)**: Hard-blocks direct `plc` and `machine_direct` connectors (`rejected`), auto-runs `low` risk steps, and pauses `medium`/`high` risk steps in `awaiting_approval` for human sign-off.
+- **Agent Execution Harness (`services/execution/app/harness/`)**: Persistent `agent_sessions` and `agent_events` with real-time SSE streaming.
 
-1. **Real AI:** set `MOCK_AI=0`, add provider keys to `.env`, and edit the model names in `infra/litellm/config.yaml`. Images go to the vision model; text, PDF and DOCX go to the extraction model; the reasoning model runs only when fields were extracted.
-2. **Neon:** set `NEON_DATABASE_URL` in `.env`, then run `psql "$NEON_DATABASE_URL" -f db/schema.sql`.
-3. **Cloudflare R2:** set `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. Deploy `infra/cloudflare` with `wrangler deploy` to put auth and routing in front of the APIs.
+### 5. Security, Readiness & Non-Functional Hardening
+- **Tenant-Isolated JWT Auth & Rate Limiting (`services/intelligence/app/auth_routes.py`)**: 12-hour HS256 JWTs stored in `httpOnly` cookies (`cawrys_token`), 15-minute sliding-window login throttling (`429 Too Many Requests`), cross-origin CSRF enforcement, and URL/path traversal filtering in the Next.js server proxy.
+- **Security & Observability Headers**: Both FastAPI services attach `X-Request-ID`, `X-Response-Time-Ms`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: strict-origin-when-cross-origin` on every response.
+- **Readiness Probes**: `GET /health` and `GET /health/ready` (verifying database connectivity) on Intelligence `:8001` and Execution `:8002`.
 
-## Auth and tenants
+---
 
-- Users sign in with email and password (scrypt hashes). Login returns a 12-hour JWT (HS256, signed with `AUTH_SECRET`) carrying user, tenant and role.
-- Both services validate the token themselves and scope every query to the token's tenant. The role and tenant never come from request parameters or headers.
-- The browser never sees the token: the web app keeps it in an httpOnly cookie and its `/api/*` routes attach it when forwarding to the services. Mutating proxy calls also refuse a cross-site `Origin`.
-- Admins create users with `POST /v1/auth/users`. Set `ALLOW_SIGNUP=1` to let anyone create a new tenant (the creator becomes its admin).
-- Each new tenant gets the demo tools and `production-setup` playbook on first use (`SEED_DEMO=0` turns that off).
-- Machines post events to the Go edge service with an `X-API-Key` (`EDGE_API_KEY`). Files go through it with the user's bearer token, which it forwards.
-- The audit log records the person's email for logins, uploads, runs, approvals and rejections.
+## Verification & Testing
 
-## How it behaves
-
-- Three tiers: a specialist extraction model, deterministic validation in plain code, and a reasoning model only when there is something to decide.
-- Every playbook step passes the policy engine. Low-risk steps run; medium and high-risk steps wait for an approver or admin. An approval resumes the run and never repeats steps that already ran.
-- Direct equipment actuation is blocked in policy (`plc`, `machine_direct` connectors). Machine operations must go through an interlocked MES or safety gateway.
-- Tools declare JSON Schema inputs; step parameters are validated before anything executes.
-- Every document, policy decision, execution and approval is written to the audit log.
-
-## Platform Capabilities
-
-### 1. Operational Dashboard & SVG Telemetry
-- **Live Telemetry (`apps/web/app/page.tsx`)**: Aggregates real-time metrics across both `intelligence` (`GET /v1/dashboard/summary`, `GET /v1/system/status`) and `execution` (`GET /v1/dashboard/summary`, `GET /health/ready`).
-- **Zero-Dependency Accessible SVG Charts (`apps/web/components/charts.tsx`)**: Renders daily document throughput (`StackedBars`), playbook execution trends, status distributions (`Distribution`), AI token consumption & latency by model role, top playbooks, pending approvals, and live service health probes.
-- **System Diagnostics (`POST /v1/system/ai-test`)**: Admins can test AI gateway connectivity and inspect runtime configuration directly from `/settings`.
-
-### 2. White-Label Branding
-- Configurable entirely via environment variables (`BRAND_NAME`, `BRAND_COMPANY`, `BRAND_TAGLINE`, `BRAND_SUPPORT_EMAIL`, `BRAND_DOCS_URL`, `BRAND_LOGO_URL`, `BRAND_PRIMARY_COLOR`, `BRAND_ACCENT_COLOR`, `BRAND_HIDE_POWERED_BY`) parsed and validated in `apps/web/lib/brand.ts`.
-- Dynamically themes CSS custom properties (`--brand-primary`, `--brand-accent`), sidebar navigation, settings summary, and the SVG favicon route (`/icon.svg`).
-
-### 3. Sliding-Window Login Rate Limiting & User Administration
-- **Sliding-Window Throttling (`services/intelligence/app/auth_routes.py`)**: Tracks login attempts in `login_attempts` and enforces a 15-minute sliding window (max 5 failed attempts per email or 30 per client IP), returning `HTTP 429 Too Many Requests` with `Retry-After: 900`.
-- **User & Role Administration (`apps/web/app/team/page.tsx`)**: Admins can list users (`GET /v1/auth/users`), invite/create users (`POST /v1/auth/users`), change roles or deactivate accounts (`PATCH /v1/auth/users/{id}`) with safeguards preventing self-demotion or deactivating the last active admin, and rotate passwords (`POST /v1/auth/me/password`).
-- **Multi-Method Web Proxy (`apps/web/app/api/[service]/[...path]/route.ts`)**: Forwards `GET`, `POST`, `PATCH`, `PUT`, and `DELETE` requests with `X-Forwarded-For` client IP preservation, path-traversal protection, and cross-origin CSRF verification.
-
-### 4. OpenHands-Inspired Agent Execution Harness
-- **Event-Sourced Architecture (`services/execution/app/harness/`)**: Persistent `agent_sessions` and monotonic per-session `agent_events` (`Action` and `Observation` payloads) stored in Postgres/SQLite and streamed in real time via Server-Sent Events (`GET /v1/agent/sessions/{id}/stream`).
-- **Multi-Model Orchestrator & Workers (`infra/litellm/config.yaml`)**:
-  - **Orchestrator (`cawrys-reason` -> `gemini/gemini-4-argon`)**: Performs high-level task decomposition, step planning (`plan`), tool selection (`tool_call`), sub-task delegation (`delegate`), and completion synthesis (`finish`).
-  - **Workers (`cawrys-extract` / `cawrys-vision` -> `gemini/gemini-3.8-flash`)**: Execute delegated sub-tasks (`extract_fields`, `validate_spec`, `summarize`) with low latency, plus full deterministic offline support when `MOCK_AI=1`.
-- **Policy Interlocks & Human-in-the-Loop Approvals (`policy_guard.py`)**: Every agent tool call is validated against its JSON Schema and evaluated by `policy.decide()`. Direct equipment actuation (`plc`, `machine_direct`) is hard-blocked (`rejected`), while medium/high-risk tools pause the session in `awaiting_approval` until an `approver` or `admin` calls `POST /v1/agent/sessions/{id}/approve` or `/reject`.
-
-## Verification Commands
-
-Run the unified verification harness (static checks, unit/integration tests, 4-tier E2E suite, SQLite multi-process stress tests, and live stack smoke tests):
+Run the complete test suite (unit, integration, and 4-tier E2E security/pipeline tests with automatic in-memory dispatcher fallback inside sandboxes):
 
 ```bash
-# Full verification suite
-./scripts/verify_all.sh all
+# Run all 178 tests (unit + integration + 4-tier E2E)
+PYTHONPATH=. .venv/bin/pytest tests/ -q
 
-# Individual verification stages
+# Web typecheck & production build
 cd apps/web && npm run typecheck && npm run build
+
+# Go static check
 cd services/edge-ingest && go vet ./...
-.venv/bin/python3 -m py_compile services/intelligence/app/*.py services/execution/app/*.py services/execution/app/harness/*.py
-PYTHONPATH=. .venv/bin/pytest tests/test_agent_harness.py -q
+
+# Live stack end-to-end smoke check (when services are running)
+bash scripts/smoke_test.sh
 ```
-
-## Known prototype limits
-
-- **Token revocation & MFA:** Sliding-window login rate limiting (`login_attempts`) and account deactivation (`is_active`) are built in, but there is no password reset flow, MFA, or pre-expiry JWT revocation list yet. Put Cloudflare Access in front or swap in your identity provider if needed.
-- **HTTPS is on you.** Set `COOKIE_SECURE=1` once the web app is served over HTTPS (Cloudflare Tunnel or a reverse proxy). Without it the session cookie can travel over plain HTTP.
-- **Demo accounts exist by default.** Set `SEED_DEMO=0` and create real users before exposing the stack.
-- **Connectors are stubs.** `log` records intent only; `http` is a generic REST call without secret resolution (`secret_ref` is not yet wired to Vault or a cloud secrets manager). Open Connector or Composio plug in behind `ConnectorProviderAdapter` in `services/execution/app/connectors.py`.
-- **Edge events are accepted and logged only.** Wiring them to a queue, MQTT or OPC-UA is the next edge step.
-
-## Build stages
-
-1. Document intelligence & operational telemetry dashboard (done)
-2. Action execution, policy engine & OpenHands agent harness with SSE streaming (done)
-3. Enterprise: real secret-backed connectors, multi-step branching, schedules, tenant policies
-4. Edge: MQTT / OPC-UA, sensors, vision streams (Go service is the starting point)

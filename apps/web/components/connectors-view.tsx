@@ -281,10 +281,10 @@ export function ConnectorsView({
         </Link>
         <Link
           href="/connectors"
-          className="flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
+          className="flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-neutral-800"
         >
           <span>Connected Connectors</span>
-          <span className="rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
+          <span className="rounded-full bg-neutral-800 text-white px-2 py-0.5 text-[10px] font-bold">
             {counts.connected}
           </span>
         </Link>
@@ -295,9 +295,9 @@ export function ConnectorsView({
         <Notice tone={banner.ok ? "info" : "bad"}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="font-medium text-white">{banner.title}</div>
+              <div className="font-medium text-neutral-900">{banner.title}</div>
               {banner.detail && (
-                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs opacity-90 max-h-36 overflow-y-auto">
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-700 opacity-90 max-h-36 overflow-y-auto">
                   {banner.detail}
                 </pre>
               )}
@@ -305,7 +305,7 @@ export function ConnectorsView({
             <button
               type="button"
               onClick={() => setBanner(null)}
-              className="text-xs text-neutral-400 hover:text-white shrink-0 p-1"
+              className="text-xs text-neutral-400 hover:text-neutral-700 shrink-0 p-1"
             >
               Dismiss
             </button>
@@ -316,8 +316,8 @@ export function ConnectorsView({
       {/* Search & Header Stats */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-white">Active Connected Toolkits</h2>
-          <p className="text-xs text-neutral-400">
+          <h2 className="text-base font-semibold text-neutral-900">Active Connected Toolkits</h2>
+          <p className="text-xs text-neutral-500">
             {connectedApps.length} toolkits configured and ready for automated playbook execution.
           </p>
         </div>
@@ -341,7 +341,7 @@ export function ConnectorsView({
           <Empty>
             <div className="space-y-3">
               <div className="flex justify-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-neutral-400">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-100 text-neutral-500">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden="true">
                     <path d="M12 22v-5" />
                     <path d="M9 8V2" />
@@ -350,8 +350,8 @@ export function ConnectorsView({
                   </svg>
                 </div>
               </div>
-              <div className="text-base font-semibold text-white">No Connected Toolkits Yet</div>
-              <p className="text-xs text-neutral-400 max-w-md mx-auto">
+              <div className="text-base font-semibold text-neutral-900">No Connected Toolkits Yet</div>
+              <p className="text-xs text-neutral-500 max-w-md mx-auto">
                 Configure and connect SaaS toolkits from Composio (1,640+) or Industrial FastMCP enterprise servers to start automating workflows.
               </p>
               <div className="pt-2">
@@ -443,32 +443,32 @@ export function ConnectorsView({
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div>
                         <span className="text-neutral-500">API Key Configured:</span>{" "}
-                        <span className="text-neutral-200 font-mono">
+                        <span className="text-neutral-800 font-mono">
                           {cfg.has_api_key || cfg.api_key_configured || cfg.api_key ? "Yes (Active)" : "OAuth Managed"}
                         </span>
                       </div>
                       <div>
                         <span className="text-neutral-500">Account Alias:</span>{" "}
-                        <span className="text-neutral-200 font-mono">
+                        <span className="text-neutral-800 font-mono">
                           {app.connection?.entity_id || "default"}
                         </span>
                       </div>
                       <div>
                         <span className="text-neutral-500">Base URL:</span>{" "}
-                        <span className="text-neutral-200 font-mono truncate block" title={cfg.base_url || "Default"}>
+                        <span className="text-neutral-800 font-mono truncate block" title={cfg.base_url || "Default"}>
                           {cfg.base_url || "Default Endpoint"}
                         </span>
                       </div>
                       <div>
                         <span className="text-neutral-500">Custom OAuth:</span>{" "}
-                        <span className="text-neutral-200 font-mono">
+                        <span className="text-neutral-800 font-mono">
                           {cfg.has_custom_oauth ? "Enabled" : "Standard"}
                         </span>
                       </div>
                     </div>
 
                     {app.connection?.created_at && (
-                      <div className="pt-1 border-t border-white/5 text-[10px] text-neutral-500">
+                      <div className="pt-1 border-t border-neutral-200 text-[10px] text-neutral-500">
                         Connected: {new Date(app.connection.created_at).toLocaleString()}
                         {app.connection.connected_by && ` by ${app.connection.connected_by}`}
                       </div>
@@ -477,7 +477,7 @@ export function ConnectorsView({
                 </div>
 
                 {/* Actions */}
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200/60 pt-4">
                   <div className="text-[11px] text-neutral-500">
                     {app.tools?.length || 0} registered actions
                   </div>
@@ -521,8 +521,8 @@ export function ConnectorsView({
                       >
                         {isBusy ? "Testing..." : "Test Connection"}
                       </Button>
-                      <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-neutral-400 font-medium">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-400" aria-hidden="true">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 font-medium">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-500" aria-hidden="true">
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         </svg>
@@ -550,28 +550,28 @@ export function ConnectorsView({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm duration-200"
           onClick={() => setExecutionModal(null)}
         >
           <div
-            className="w-full max-w-2xl rounded-2xl border border-white/15 bg-[#0a0c12] p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
+            className="w-full max-w-2xl rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <h3 className="text-lg font-semibold tracking-tight text-white">Test Connection Result</h3>
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <h3 className="text-lg font-semibold tracking-tight text-neutral-900">Test Connection Result</h3>
                 </div>
-                <p className="mt-0.5 text-xs text-neutral-400">
-                  {executionModal.app.name} · Latency: <span className="font-mono text-emerald-400">{executionModal.latencyMs}ms</span>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  {executionModal.app.name} &middot; Latency: <span className="font-mono text-emerald-600 font-semibold">{executionModal.latencyMs}ms</span>
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setExecutionModal(null)}
-                className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/10 hover:text-white transition"
+                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition"
                 aria-label="Close modal"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
@@ -582,21 +582,21 @@ export function ConnectorsView({
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col space-y-2">
-              <div className="flex items-center justify-between text-xs text-neutral-400">
+              <div className="flex items-center justify-between text-xs text-neutral-500">
                 <span className="font-medium">Output Payload</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => handleCopyJson(executionModal.result)}
-                  className="h-7 text-xs flex items-center gap-1.5"
+                  className="h-7 text-xs flex items-center gap-1.5 shadow-sm"
                 >
                   {copiedJson ? (
                     <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-400" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-600" aria-hidden="true">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
-                      <span className="text-emerald-300">Copied</span>
+                      <span className="text-emerald-700 font-medium">Copied</span>
                     </>
                   ) : (
                     <>
@@ -609,12 +609,12 @@ export function ConnectorsView({
                   )}
                 </Button>
               </div>
-              <pre className="flex-1 overflow-auto rounded-lg border border-white/10 bg-black/60 p-4 font-mono text-xs text-emerald-400/90 leading-relaxed shadow-inner">
+              <pre className="flex-1 overflow-auto rounded-2xl border border-neutral-800 bg-neutral-900 p-4 font-mono text-xs text-emerald-400 leading-relaxed shadow-inner">
                 {JSON.stringify(executionModal.result, null, 2)}
               </pre>
             </div>
 
-            <div className="flex items-center justify-end border-t border-white/10 pt-4">
+            <div className="flex items-center justify-end border-t border-neutral-100 pt-4">
               <Button
                 type="button"
                 variant="outline"

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import uuid
@@ -309,4 +310,110 @@ def seed_demo_users() -> None:
             )
         c.execute("update tenants set name=%s where id=%s", (f"{BRAND_NAME} Demo", DEFAULT_TENANT))
         audit(c, DEFAULT_TENANT, "demo.users_seeded")
+        c.commit()
+
+
+DEMO_DOCUMENTS = [
+    {
+        "filename": "DWG-4002-TURBINE.prt",
+        "mime_type": "application/octet-stream",
+        "doc_type": "technical_drawing",
+        "status": "ready",
+        "confidence": 0.96,
+        "fields": {
+            "drawing_id": "DWG-4002",
+            "material": "Inconel 718",
+            "quantity": 40,
+            "tolerance": 0.02,
+            "revision": "Rev C",
+        },
+    },
+    {
+        "filename": "SAP-BOM-Part-100.pdf",
+        "mime_type": "application/pdf",
+        "doc_type": "technical_drawing",
+        "status": "ready",
+        "confidence": 0.94,
+        "fields": {
+            "drawing_id": "PART-100-FLANGE",
+            "material": "Stainless Steel 316L",
+            "quantity": 450,
+            "tolerance": 0.05,
+            "plant": "Plant 1000",
+        },
+    },
+    {
+        "filename": "CNC-Line2-Calibration-Spec.txt",
+        "mime_type": "text/plain",
+        "doc_type": "specification",
+        "status": "needs_review",
+        "confidence": 0.82,
+        "fields": {
+            "machine_id": "CNC-LINE-2",
+            "spindle_rpm": 12000,
+            "thermal_drift_limit_c": 1.5,
+        },
+    },
+    {
+        "filename": "Rockwell-MES-SOP-v2.pdf",
+        "mime_type": "application/pdf",
+        "doc_type": "sop_manual",
+        "status": "ready",
+        "confidence": 0.91,
+        "fields": {
+            "work_order": "WO-9921",
+            "line": "Line 4",
+            "target_oee": "92.0%",
+        },
+    },
+]
+
+
+def seed_demo_documents() -> None:
+    """Seed demo documents and extractions for local development and smoke tests."""
+    if not SEED_DEMO:
+        return
+    with conn() as c:
+        if c.execute("select 1 from documents where tenant_id=%s limit 1", (DEFAULT_TENANT,)).fetchone():
+            return
+        for doc in DEMO_DOCUMENTS:
+            doc_id = str(uuid.uuid4())
+            ext_id = str(uuid.uuid4())
+            filename = doc["filename"]
+            status = doc["status"]
+            conf = doc["confidence"]
+            storage_key = f"{DEFAULT_TENANT}/{doc_id}/{filename}"
+            c.execute(
+                "insert into documents (id, tenant_id, filename, mime_type, storage_key, status) "
+                "values (%s,%s,%s,%s,%s,%s)",
+                (doc_id, DEFAULT_TENANT, filename, doc["mime_type"], storage_key, status),
+            )
+            validation = {
+                "issues": [],
+                "overall_confidence": conf,
+                "passed": status == "ready",
+                "needs_review": status == "needs_review",
+            }
+            decision = {
+                "summary": f"Extracted {doc['doc_type']} for {filename}",
+                "proposed_actions": [],
+                "open_questions": [],
+            }
+            c.execute(
+                "insert into extractions (id, document_id, tenant_id, doc_type, fields, confidence, validation, decision, requires_approval, model_trace) "
+                "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    ext_id,
+                    doc_id,
+                    DEFAULT_TENANT,
+                    doc["doc_type"],
+                    json.dumps(doc["fields"]),
+                    conf,
+                    json.dumps(validation),
+                    json.dumps(decision),
+                    True,
+                    json.dumps([]),
+                ),
+            )
+        audit(c, DEFAULT_TENANT, "demo.documents_seeded")
         c.commit()
