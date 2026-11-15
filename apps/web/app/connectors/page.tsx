@@ -12,8 +12,8 @@ export const metadata = { title: "Connectors" };
 export default async function ConnectorsPage() {
   const me = await requireMe();
   const brand = getBrand();
-  // Fetch full catalog (limit=0 retrieves all toolkits)
-  const data = await safe(serverGet<MarketplaceCatalog>("execution", "/v1/marketplace/apps?limit=0"));
+  // Fetch only connected toolkits for SSR (payload size < 5 KB vs 3.3 MB)
+  const data = await safe(serverGet<MarketplaceCatalog>("execution", "/v1/marketplace/apps?status=connected"));
 
   return (
     <div className="space-y-6">

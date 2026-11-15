@@ -272,43 +272,43 @@ function getAppInitials(name: string, key: string): string {
 function getAvatarStyles(app: MarketplaceApp) {
   if (app.provider === "fastmcp") {
     return {
-      bg: "from-amber-500/20 to-orange-600/30 border-amber-500/30 text-amber-300",
+      bg: "from-amber-500/20 to-orange-600/30 border-amber-500/30 text-amber-800",
       indicator: "bg-amber-400",
     };
   }
   const cat = (app.category || "").toLowerCase();
   if (cat.includes("developer") || cat.includes("devops")) {
     return {
-      bg: "from-emerald-500/20 to-teal-600/30 border-emerald-500/30 text-emerald-300",
+      bg: "from-emerald-500/20 to-teal-600/30 border-emerald-500/30 text-emerald-800",
       indicator: "bg-emerald-400",
     };
   }
   if (cat.includes("crm") || cat.includes("sales")) {
     return {
-      bg: "from-rose-500/20 to-orange-600/30 border-rose-500/30 text-rose-300",
+      bg: "from-rose-500/20 to-orange-600/30 border-rose-500/30 text-rose-800",
       indicator: "bg-rose-400",
     };
   }
   if (cat.includes("finance") || cat.includes("accounting") || cat.includes("billing")) {
     return {
-      bg: "from-green-500/20 to-emerald-600/30 border-green-500/30 text-green-300",
+      bg: "from-green-500/20 to-emerald-600/30 border-green-500/30 text-green-800",
       indicator: "bg-green-400",
     };
   }
   if (cat.includes("communication") || cat.includes("social")) {
     return {
-      bg: "from-purple-500/20 to-violet-600/30 border-purple-500/30 text-purple-300",
+      bg: "from-purple-500/20 to-violet-600/30 border-purple-500/30 text-purple-800",
       indicator: "bg-purple-400",
     };
   }
   if (cat.includes("support") || cat.includes("ticketing")) {
     return {
-      bg: "from-amber-500/20 to-yellow-600/30 border-yellow-500/30 text-yellow-300",
+      bg: "from-amber-500/20 to-yellow-600/30 border-yellow-500/30 text-amber-800",
       indicator: "bg-yellow-400",
     };
   }
   return {
-    bg: "from-indigo-500/20 to-blue-600/30 border-indigo-500/30 text-indigo-300",
+    bg: "from-indigo-500/20 to-blue-600/30 border-indigo-500/30 text-indigo-800",
     indicator: "bg-indigo-400",
   };
 }
@@ -427,7 +427,12 @@ export function MarketplaceGrid({
   }, []);
 
   useEffect(() => {
-    if (initial === null) {
+    const isPartial = Boolean(
+      initial?.apps &&
+      initial?.counts?.total &&
+      initial.apps.length < initial.counts.total
+    );
+    if (initial === null || isPartial) {
       refresh();
     }
   }, [initial, refresh]);

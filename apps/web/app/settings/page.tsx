@@ -1,6 +1,7 @@
 // apps/web/app/settings/page.tsx
 import React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AiTest, PasswordForm } from "@/components/settings-forms";
 import { LiteLLMSettingsCard } from "@/components/litellm-settings-card";
 import { Card, Notice, PageHeader, Pill } from "@/components/ui/kit";
@@ -14,6 +15,9 @@ export const metadata = { title: "Settings" };
 
 export default async function Settings() {
   const me = await requireMe();
+  if (me.role === "engineer") {
+    redirect("/chat");
+  }
   const brand = getBrand();
   const st = await safe(serverGet<SystemStatus>("intelligence", "/v1/system/status"));
   const admin = me.role === "admin";

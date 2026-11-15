@@ -1,5 +1,6 @@
 import React from "react";
-import { serverGet } from "@/lib/server";
+import { redirect } from "next/navigation";
+import { requireMe, serverGet } from "@/lib/server";
 import { Card, PageHeader, tableCls, tdCls, thCls } from "@/components/ui/kit";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +8,10 @@ export const dynamic = "force-dynamic";
 type Row = { id: number; actor: string; service: string; event: string; created_at: string };
 
 export default async function Audit() {
+  const me = await requireMe();
+  if (me.role === "engineer") {
+    redirect("/");
+  }
   let rows: Row[] = [];
   let err: string | null = null;
   try {

@@ -166,6 +166,7 @@ export function ChatInterface({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("default");
   const [connections, setConnections] = useState<MarketplaceConnection[]>(initialConnections);
   const [overrides, setOverrides] = useState<Record<string, any>>(initialOverrides);
   const [docsCount, setDocsCount] = useState<number>(initialDocsCount);
@@ -274,11 +275,23 @@ export function ChatInterface({
 
     async function loadData() {
       try {
+        let activeSession = "default";
+        if (typeof window !== "undefined") {
+          activeSession = localStorage.getItem("liontix_chat_session_id") || "";
+          if (!activeSession) {
+            activeSession = "session_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+            localStorage.setItem("liontix_chat_session_id", activeSession);
+          }
+          setSessionId(activeSession);
+        }
+
         const histRes = await getJSON<{ ok: boolean; messages: ChatMessage[] }>(
-          "/api/execution/v1/chat/history"
+          `/api/execution/v1/chat/history?session_id=${encodeURIComponent(activeSession)}`
         );
         if (histRes?.messages && histRes.messages.length > 0) {
           setMessages(histRes.messages);
+        } else {
+          setMessages([]);
         }
 
         const toolsRes = await getJSON<{
@@ -454,11 +467,27 @@ export function ChatInterface({
     }
   }, [input]);
 
-  function handleNewChat() {
+  async function handleNewChat() {
+    const currentSid = sessionId;
+    const newSid = "session_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("liontix_chat_session_id", newSid);
+    }
+    setSessionId(newSid);
     setMessages([]);
     setAttachedFiles([]);
     setInput("");
     setTimeout(() => inputRef.current?.focus(), 50);
+
+    if (currentSid) {
+      try {
+        await fetch(`/api/execution/v1/chat/history?session_id=${encodeURIComponent(currentSid)}`, {
+          method: "DELETE",
+        });
+      } catch (err) {
+        console.warn("Could not delete chat session:", err);
+      }
+    }
   }
 
   function toggleAttachDocument(doc: StoredDoc) {
@@ -574,7 +603,8 @@ export function ChatInterface({
         timestamp?: string;
       }>("/api/execution/v1/chat/message", {
         message: fullMessageText,
-        session_id: "default",
+        session_id: sessionId || "default",
+        attached_document_ids: currentAttachments.map((f) => f.id).filter(Boolean),
         history: messages.slice(-10),
         provider: modelConfig.provider,
         model: modelConfig.model,

@@ -43,20 +43,29 @@ export function TopNav({ brand, email, role }: TopNavProps) {
 
   const userInitial = (email?.[0] || "U").toUpperCase();
   const userName = email?.split("@")[0] || "User";
+  const isEngineer = role === "engineer";
 
   const aiTabs = [
     { href: "/chat", label: "Agent Chat" },
     { href: "/connectors", label: "Connectors" },
-    { href: "/marketplace", label: "Marketplace" },
-    { href: "/settings", label: "Settings" },
+    ...(!isEngineer
+      ? [
+          { href: "/marketplace", label: "Marketplace" },
+          { href: "/settings", label: "Settings" },
+        ]
+      : []),
   ];
 
   const dashboardTabs = [
     { href: "/", label: "Overview" },
     { href: "/documents", label: "Documents" },
-    { href: "/playbooks", label: "Execution" },
-    { href: "/approvals", label: "Approvals" },
-    { href: "/audit", label: "Audit" },
+    ...(!isEngineer
+      ? [
+          { href: "/playbooks", label: "Execution" },
+          { href: "/approvals", label: "Approvals" },
+          { href: "/audit", label: "Audit" },
+        ]
+      : []),
     ...(role === "admin" ? [{ href: "/team", label: "Team" }] : []),
   ];
 

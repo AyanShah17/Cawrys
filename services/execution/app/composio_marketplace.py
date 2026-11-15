@@ -1881,6 +1881,7 @@ def _audit(c, tenant_id: str, event: str, detail: dict, actor: str = "system"):
 def list_marketplace_apps(
     provider: str | None = Query(None, description="Filter by provider: all, composio, fastmcp"),
     category: str | None = Query(None, description="Filter by category"),
+    status: str | None = Query(None, description="Filter by connection status: connected, available, all"),
     search: str | None = Query(None, description="Search query across name, key, description, modules"),
     limit: int = Query(50, ge=0, description="Max apps to return (0 for all)"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
@@ -1975,6 +1976,20 @@ def list_marketplace_apps(
             return False
 
         filtered_apps = [a for a in filtered_apps if _matches_search(a)]
+
+    # Filter by connection status
+    if status and status.strip().lower() != "all":
+        st = status.strip().lower()
+        if st == "connected":
+            filtered_apps = [
+                a for a in filtered_apps
+                if conn_by_key.get(a["key"], {}).get("status") in ("connected", "pending_auth")
+            ]
+        elif st in ("available", "disconnected", "unconnected"):
+            filtered_apps = [
+                a for a in filtered_apps
+                if conn_by_key.get(a["key"], {}).get("status") not in ("connected", "pending_auth")
+            ]
 
     total_filtered = len(filtered_apps)
 

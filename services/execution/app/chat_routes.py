@@ -810,6 +810,7 @@ class ChatMessageIn(BaseModel):
     message: str
     session_id: str = "default"
     history: List[Dict[str, Any]] = Field(default_factory=list)
+    attached_document_ids: List[str] = Field(default_factory=list)
     provider: Optional[str] = None
     model: Optional[str] = None
     api_key: Optional[str] = None
@@ -1047,11 +1048,57 @@ def _get_recent_documents(tenant_id: str, limit: int = 5) -> List[Dict[str, Any]
     return docs
 
 
-def _build_operational_context(tenant_id: str) -> Dict[str, Any]:
-    """Collects complete operational context: tools, telemetry overrides, and documents."""
+def _get_documents_by_ids(tenant_id: str, doc_ids: List[str]) -> List[Dict[str, Any]]:
+    """Retrieves specific documents and their full extraction payloads for the tenant."""
+    if not doc_ids:
+        return []
+    clean_ids = [str(d).strip() for d in doc_ids if str(d).strip()]
+    if not clean_ids:
+        return []
+    docs = []
+    try:
+        with get_connection() as c:
+            placeholders = ", ".join(["%s"] * len(clean_ids))
+            query = (
+                f"SELECT d.id, d.filename, d.mime_type, d.status, d.created_at, "
+                f"e.doc_type, e.confidence, e.fields, e.validation, e.decision "
+                f"FROM documents d "
+                f"LEFT JOIN extractions e ON e.document_id = d.id "
+                f"WHERE d.tenant_id=%s AND d.id IN ({placeholders}) "
+                f"ORDER BY d.created_at DESC"
+            )
+            params = [tenant_id] + clean_ids
+            rows = c.execute(query, tuple(params)).fetchall()
+            for r in rows:
+                raw_fields = r.get("fields")
+                fields = json.loads(raw_fields) if isinstance(raw_fields, str) else (raw_fields or {})
+                raw_val = r.get("validation")
+                val = json.loads(raw_val) if isinstance(raw_val, str) else (raw_val or {})
+                raw_dec = r.get("decision")
+                dec = json.loads(raw_dec) if isinstance(raw_dec, str) else (raw_dec or {})
+                docs.append({
+                    "id": str(r["id"]),
+                    "filename": r["filename"],
+                    "mime_type": r.get("mime_type"),
+                    "status": r["status"],
+                    "created_at": str(r["created_at"]),
+                    "doc_type": r.get("doc_type"),
+                    "confidence": r.get("confidence"),
+                    "fields": fields,
+                    "validation": val,
+                    "decision": dec,
+                })
+    except Exception as exc:
+        logger.debug(f"Could not load attached documents by IDs: {exc}")
+    return docs
+
+
+def _build_operational_context(tenant_id: str, attached_doc_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Collects complete operational context: tools, telemetry overrides, documents, and attached documents."""
     connections, tools = _get_connected_marketplace_tools(tenant_id)
     overrides = _get_dashboard_overrides(tenant_id)
     documents = _get_recent_documents(tenant_id, limit=5)
+    attached_documents = _get_documents_by_ids(tenant_id, attached_doc_ids or [])
 
     # Base telemetry merged with overrides
     metrics = {
@@ -1071,6 +1118,7 @@ def _build_operational_context(tenant_id: str) -> Dict[str, Any]:
         "metrics": metrics,
         "overrides": overrides,
         "documents": documents,
+        "attached_documents": attached_documents,
     }
 
 
@@ -1221,6 +1269,27 @@ def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, 
     for t in tools[:8]:
         prompt_parts.append(f"  * Tool: {t.get('name')} - {t.get('description')}")
 
+    attached_docs = context.get("attached_documents", [])
+    if attached_docs:
+        prompt_parts.append("")
+        prompt_parts.append(f"### ATTACHED DOCUMENTS CONTEXT ({len(attached_docs)} file(s) attached by user):")
+        for ad in attached_docs:
+            prompt_parts.append(f"- **Document**: {ad.get('filename')} (ID: `{ad.get('id')}`, Type: `{ad.get('doc_type', 'spec')}`, Status: `{ad.get('status')}`)")
+            if ad.get("confidence") is not None:
+                prompt_parts.append(f"  * Extraction Confidence: {ad.get('confidence')}")
+            fields = ad.get("fields") or {}
+            if fields:
+                prompt_parts.append(f"  * Parsed Extracted Fields & Tolerances:")
+                prompt_parts.append(f"    {json.dumps(fields, indent=2)}")
+            validation = ad.get("validation") or {}
+            if validation:
+                prompt_parts.append(f"  * Validation Results:")
+                prompt_parts.append(f"    {json.dumps(validation, indent=2)}")
+            decision = ad.get("decision") or {}
+            if decision:
+                prompt_parts.append(f"  * Decision Payload:")
+                prompt_parts.append(f"    {json.dumps(decision, indent=2)}")
+
     if documents:
         prompt_parts.append("")
         prompt_parts.append("### RECENT WORKSPACE DOCUMENTS:")
@@ -1255,17 +1324,44 @@ def _synthesize_contextual_response(
     connections = context.get("connections", [])
     tools = context.get("tools", [])
     documents = context.get("documents", [])
+    attached_docs = context.get("attached_documents", [])
 
     conn_names = [c["app_name"] for c in connections] or ["SAP S/4HANA", "GitHub", "Slack", "Siemens PLM"]
+
+    attached_block = ""
+    if attached_docs:
+        doc_summaries = []
+        for ad in attached_docs:
+            fname = ad.get("filename", "Attached Document")
+            dtype = ad.get("doc_type") or "Technical Specification"
+            st_doc = ad.get("status", "ready")
+            fields = ad.get("fields") or {}
+            field_items = []
+            if isinstance(fields, dict):
+                for k, v in fields.items():
+                    field_items.append(f"- **{k}**: {v}")
+            fields_text = "\n".join(field_items) if field_items else "- No extracted parameters"
+            val = ad.get("validation") or {}
+            val_text = f"\n- **Validation**: {json.dumps(val)}" if val else ""
+            dec = ad.get("decision") or {}
+            dec_text = f"\n- **Decision**: {json.dumps(dec)}" if dec else ""
+            doc_summaries.append(
+                f"### Analysis for **{fname}**\n"
+                f"- **Document Type**: {dtype}\n"
+                f"- **Status**: {st_doc}\n"
+                f"- **Extracted Fields & Parameters**:\n{fields_text}{val_text}{dec_text}"
+            )
+        attached_block = "\n\n".join(doc_summaries)
 
     # 1. Formatted tool execution response citing real enterprise data
     if tool_exec:
         app_name = tool_exec["app"]
         tool_name = tool_exec["tool"]
         data = tool_exec.get("data", {})
+        tool_resp = ""
 
         if app_name == "SAP S/4HANA":
-            return (
+            tool_resp = (
                 f"### SAP S/4HANA Material Stock Summary\n"
                 f"Queried enterprise stock records via **{tool_name}** (`FastMCP Connector`):\n\n"
                 f"- **Material ID**: `Part 100` (High-Precision Industrial Flange)\n"
@@ -1278,7 +1374,7 @@ def _synthesize_contextual_response(
                 f"**Status**: Stock is adequate for upcoming production schedule."
             )
         elif app_name == "GitHub":
-            return (
+            tool_resp = (
                 f"### GitHub Issues & Pull Requests (`cawrys/industrial-core`)\n"
                 f"Fetched open items via **{tool_name}** (`Composio Connector`):\n\n"
                 f"**Active Issues (4 Open)**:\n"
@@ -1291,7 +1387,7 @@ def _synthesize_contextual_response(
                 f"- **PR #115**: *Sync Siemens Teamcenter ECO metadata with ERP* — Status: `In Review`"
             )
         elif app_name == "Slack":
-            return (
+            tool_resp = (
                 f"### Slack Notification Dispatched\n"
                 f"Sent message to **#ops-alerts** via **{tool_name}** (`Composio Connector`):\n\n"
                 f"- **Target Channel**: `#ops-alerts`\n"
@@ -1300,7 +1396,7 @@ def _synthesize_contextual_response(
                 f"- **Timestamp**: `{now_str}`"
             )
         elif app_name == "Siemens Xcelerator":
-            return (
+            tool_resp = (
                 f"### Siemens Teamcenter PLM / CAD Revision\n"
                 f"Queried digital thread via **{tool_name}** (`FastMCP Connector`):\n\n"
                 f"- **Item ID**: `DWG-4002-TURBINE`\n"
@@ -1310,7 +1406,7 @@ def _synthesize_contextual_response(
                 f"- **Lifecycle State**: Approved & In Manufacturing"
             )
         elif app_name == "Rockwell Automation":
-            return (
+            tool_resp = (
                 f"### Rockwell FactoryTalk MES Work Order Summary\n"
                 f"Queried manufacturing execution via **{tool_name}** (`FastMCP Connector`):\n\n"
                 f"- **Work Order**: `WO-9921`\n"
@@ -1319,7 +1415,7 @@ def _synthesize_contextual_response(
                 f"- **Telemetry Feed**: Connected via OPC-UA"
             )
         elif app_name == "Linear":
-            return (
+            tool_resp = (
                 f"### Linear Engineering Issues\n"
                 f"Fetched sprint tracking via **{tool_name}** (`Composio Connector`):\n\n"
                 f"- **Active Sprint**: Industrial Automation Sprint 14\n"
@@ -1327,11 +1423,22 @@ def _synthesize_contextual_response(
                 f"- **Linked Releases**: Cawrys v2.4"
             )
         else:
-            return (
+            tool_resp = (
                 f"### {app_name} Query Result\n"
                 f"Successfully invoked **{tool_name}** on connected marketplace system:\n\n"
                 f"```json\n{json.dumps(data, indent=2)[:1000]}\n```"
             )
+
+        if attached_block:
+            return f"{tool_resp}\n\n### Attached Document Context\n{attached_block}"
+        return tool_resp
+
+    if attached_block:
+        return (
+            f"Parsed and analyzed {len(attached_docs)} attached document(s):\n\n"
+            f"{attached_block}\n\n"
+            f"The engineering parameters from the attached files have been loaded into the operational workspace."
+        )
 
     # 2. Context-aware dynamic synthesis based on query semantics
     q = user_query.lower()
@@ -1961,6 +2068,34 @@ def get_chat_history(session_id: str = "default", limit: int = 50, ctx: Ctx = De
     return {"ok": True, "messages": messages, "count": len(messages)}
 
 
+@router.delete("/history")
+def delete_chat_history(session_id: Optional[str] = "default", ctx: Ctx = Depends(current)):
+    """Deletes conversation history for the session or tenant."""
+    tenant_id = ctx.tenant_id
+    _init_chat_tables()
+    deleted_count = 0
+    with get_connection() as c:
+        if session_id:
+            c.execute(
+                "DELETE FROM chat_messages WHERE tenant_id=%s AND session_id=%s",
+                (tenant_id, session_id),
+            )
+        else:
+            c.execute(
+                "DELETE FROM chat_messages WHERE tenant_id=%s",
+                (tenant_id,),
+            )
+        deleted_count = c.rowcount if hasattr(c, "rowcount") and c.rowcount is not None and c.rowcount >= 0 else 0
+        c.commit()
+
+    return {
+        "ok": True,
+        "session_id": session_id,
+        "deleted_count": deleted_count,
+        "message": f"Successfully cleared chat history for session '{session_id or 'all'}'",
+    }
+
+
 @router.post("/message")
 def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
     """Processes user chat messages: executes connected tools, mutates dashboard, or routes to LiteLLM."""
@@ -1968,6 +2103,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
     tenant_id = ctx.tenant_id
     user_query = req.message.strip()
     session_id = req.session_id or "default"
+    attached_doc_ids = req.attached_document_ids or []
 
     if not user_query:
         raise HTTPException(400, "Message cannot be empty")
@@ -1996,7 +2132,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         logger.warning(f"Failed to record user message: {exc}")
 
     # 3. Assemble operational context
-    context = _build_operational_context(tenant_id)
+    context = _build_operational_context(tenant_id, attached_doc_ids=attached_doc_ids)
 
     # 4. Check for Dashboard Mutation intent
     mutation = detect_dashboard_mutation(user_query)
