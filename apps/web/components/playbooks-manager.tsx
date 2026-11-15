@@ -1,11 +1,13 @@
 // apps/web/components/playbooks-manager.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { API, getJSON, post } from "@/lib/api";
+import { API, del, getJSON, post, put } from "@/lib/api";
 import { ago } from "@/lib/format";
 import { Button, Card, Pill, inputCls } from "@/components/ui/kit";
+import { IconBolt, IconCheck } from "@/components/ui/icons";
+import { loadLiteLLMConfig } from "./litellm-modal";
 
 export type PlaybookStep = {
   tool: string;
@@ -16,6 +18,14 @@ export type Playbook = {
   name: string;
   version: number;
   steps: PlaybookStep[];
+};
+
+export type RegisteredTool = {
+  name: string;
+  description?: string | null;
+  connector?: string;
+  risk?: "low" | "medium" | "high" | string;
+  input_schema?: Record<string, unknown>;
 };
 
 export type ExecStepResult = {
@@ -41,16 +51,105 @@ export type Exec = {
 export interface PlaybooksManagerProps {
   initialPlaybooks: Playbook[];
   initialExecutions: Exec[];
+  initialTools?: RegisteredTool[];
   role: "admin" | "engineer" | "approver" | "viewer" | string;
+}
+
+const AI_QUICK_PROMPTS = [
+  "Add quality_check step before schedule_production",
+  "Add slack_notify at end",
+  "Set schedule_production quantity to 250",
+  "Remove last step",
+  "Create playbook quality-gate with quality_check, notify_team",
+];
+
+function extractInputVars(steps: PlaybookStep[]): string[] {
+  const vars = new Set<string>();
+  const scan = (val: unknown) => {
+    if (typeof val === "string") {
+      const matches = val.matchAll(/\$inputs\.([a-zA-Z0-9_]+)/g);
+      for (const m of matches) {
+        if (m[1]) vars.add(m[1]);
+      }
+    } else if (val && typeof val === "object") {
+      for (const v of Object.values(val as Record<string, unknown>)) {
+        scan(v);
+      }
+    }
+  };
+  for (const st of steps) scan(st.params);
+  return Array.from(vars);
+}
+
+function getStepLiveState(
+  stepIdx: number,
+  stepTool: string,
+  exec: Exec | null
+): {
+  state: "idle" | "succeeded" | "awaiting_approval" | "rejected" | "skipped";
+  label: string;
+  output?: unknown;
+} {
+  if (!exec) return { state: "idle", label: "Ready" };
+  const results = exec.result?.results || [];
+  const matched = results.find(
+    (r) => r.step === stepIdx || (r.step === undefined && r.tool === stepTool)
+  );
+  if (matched) {
+    return { state: "succeeded", label: "Executed", output: matched.result };
+  }
+  const executedCount = results.length;
+  if (stepIdx === executedCount) {
+    if (exec.status === "awaiting_approval") {
+      return { state: "awaiting_approval", label: "Awaiting Approval" };
+    }
+    if (exec.status === "rejected" || exec.status === "failed") {
+      return { state: "rejected", label: "Blocked / Rejected" };
+    }
+  }
+  return { state: "skipped", label: "Pending" };
 }
 
 export function PlaybooksManager({
   initialPlaybooks,
   initialExecutions,
+  initialTools = [],
   role,
 }: PlaybooksManagerProps) {
   const [playbooks, setPlaybooks] = useState<Playbook[]>(initialPlaybooks ?? []);
   const [executions, setExecutions] = useState<Exec[]>(initialExecutions ?? []);
+  const [tools, setTools] = useState<RegisteredTool[]>(initialTools ?? []);
+
+  // Canvas selection state
+  const [selectedPlaybookName, setSelectedPlaybookName] = useState<string>(
+    initialPlaybooks?.[0]?.name || ""
+  );
+  const [selectedExecId, setSelectedExecId] = useState<string>(() => {
+    const firstPb = initialPlaybooks?.[0]?.name;
+    const latest = (initialExecutions || []).find(
+      (ex) => !firstPb || ex.result?.playbook === firstPb
+    );
+    return latest?.id || "";
+  });
+
+  // Node / Step Inspector state on Canvas
+  const [editingStepIdx, setEditingStepIdx] = useState<number | null>(null);
+  const [insertAtIdx, setInsertAtIdx] = useState<number | null>(null);
+  const [draftTool, setDraftTool] = useState<string>("");
+  const [draftCustomTool, setDraftCustomTool] = useState<string>("");
+  const [draftParamsJson, setDraftParamsJson] = useState<string>("{}");
+  const [canvasBusy, setCanvasBusy] = useState(false);
+  const [canvasNotice, setCanvasNotice] = useState<{
+    kind: "ok" | "err";
+    text: string;
+  } | null>(null);
+
+  // Confirm delete playbook inline toggle
+  const [confirmDeletePb, setConfirmDeletePb] = useState(false);
+
+  // AI Pipeline Copilot state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
 
   // Run Playbook Modal state
   const [runModalPlaybook, setRunModalPlaybook] = useState<Playbook | null>(null);
@@ -72,7 +171,7 @@ export function PlaybooksManager({
   const [isNewPlaybookOpen, setIsNewPlaybookOpen] = useState(false);
   const [newPlaybookName, setNewPlaybookName] = useState("");
   const [newPlaybookSteps, setNewPlaybookSteps] = useState(
-    "sap_check_inventory, fastmcp_inspect_tolerances, quote_vendor"
+    "erp_lookup_inventory, quality_check, notify_team"
   );
 
   // Register Tool Modal state
@@ -106,10 +205,62 @@ export function PlaybooksManager({
   const canAuthor = role === "admin" || role === "engineer";
   const canRun = role !== "viewer";
 
-  const refreshPlaybooks = async () => {
+  const activePlaybook = useMemo(
+    () =>
+      playbooks.find((p) => p.name === selectedPlaybookName) ||
+      playbooks[0] ||
+      null,
+    [playbooks, selectedPlaybookName]
+  );
+
+  const matchingExecutions = useMemo(() => {
+    if (!activePlaybook) return [];
+    return executions.filter(
+      (e) =>
+        e.result?.playbook === activePlaybook.name ||
+        (!e.result?.playbook && executions.length > 0)
+    );
+  }, [executions, activePlaybook]);
+
+  const inspectedExec = useMemo(
+    () => executions.find((e) => e.id === selectedExecId) || null,
+    [executions, selectedExecId]
+  );
+
+  const toolLookup = useMemo(() => {
+    const map: Record<string, RegisteredTool> = {};
+    for (const t of tools) map[t.name] = t;
+    return map;
+  }, [tools]);
+
+  // Keep active selection valid when playbooks change
+  useEffect(() => {
+    if (!activePlaybook && playbooks.length > 0) {
+      setSelectedPlaybookName(playbooks[0].name);
+    }
+  }, [activePlaybook, playbooks]);
+
+  const refreshTools = async () => {
+    try {
+      const fresh = await getJSON<RegisteredTool[]>(`${API.execution}/v1/tools`);
+      if (fresh) setTools(fresh);
+    } catch {
+      // ignore
+    }
+  };
+
+  const refreshPlaybooks = async (preferredName?: string) => {
     try {
       const fresh = await getJSON<Playbook[]>(`${API.execution}/v1/playbooks`);
-      if (fresh) setPlaybooks(fresh);
+      if (fresh) {
+        setPlaybooks(fresh);
+        if (preferredName && fresh.some((p) => p.name === preferredName)) {
+          setSelectedPlaybookName(preferredName);
+        } else if (fresh.length > 0 && !fresh.some((p) => p.name === selectedPlaybookName)) {
+          setSelectedPlaybookName(fresh[0].name);
+        }
+      }
+      await refreshTools();
     } catch {
       // ignore
     }
@@ -121,6 +272,204 @@ export function PlaybooksManager({
       if (fresh) setExecutions(fresh);
     } catch {
       // ignore
+    }
+  };
+
+  const selectPlaybookOnCanvas = (name: string) => {
+    setSelectedPlaybookName(name);
+    setEditingStepIdx(null);
+    setInsertAtIdx(null);
+    setConfirmDeletePb(false);
+    setCanvasNotice(null);
+    const latest = executions.find((e) => e.result?.playbook === name);
+    setSelectedExecId(latest?.id || "");
+  };
+
+  const openStepInspector = (idx: number) => {
+    if (!activePlaybook) return;
+    const step = activePlaybook.steps[idx];
+    if (!step) return;
+    setInsertAtIdx(null);
+    setEditingStepIdx(idx);
+    const inRegistered = tools.some((t) => t.name === step.tool);
+    setDraftTool(inRegistered ? step.tool : "__custom__");
+    setDraftCustomTool(inRegistered ? "" : step.tool);
+    setDraftParamsJson(JSON.stringify(step.params || {}, null, 2));
+    setCanvasNotice(null);
+  };
+
+  const openInsertStep = (atIdx: number) => {
+    if (!canAuthor) return;
+    setEditingStepIdx(null);
+    setInsertAtIdx(atIdx);
+    const fallbackTool = tools[0]?.name || "erp_lookup_inventory";
+    setDraftTool(fallbackTool);
+    setDraftCustomTool("");
+    setDraftParamsJson(
+      fallbackTool === "erp_lookup_inventory"
+        ? JSON.stringify({ material: "$inputs.material" }, null, 2)
+        : "{}"
+    );
+    setCanvasNotice(null);
+  };
+
+  const persistCanvasSteps = async (pbName: string, nextSteps: PlaybookStep[], okMsg: string) => {
+    setCanvasBusy(true);
+    setCanvasNotice(null);
+    try {
+      const res = await put<{ ok: boolean; playbook: Playbook; playbooks: Playbook[] }>(
+        `${API.execution}/v1/playbooks/${encodeURIComponent(pbName)}`,
+        { steps: nextSteps }
+      );
+      if (res.playbooks) setPlaybooks(res.playbooks);
+      else await refreshPlaybooks(pbName);
+      await refreshTools();
+      setEditingStepIdx(null);
+      setInsertAtIdx(null);
+      setCanvasNotice({ kind: "ok", text: okMsg });
+    } catch (err: any) {
+      setCanvasNotice({ kind: "err", text: err?.message || "Failed to update playbook pipeline" });
+    } finally {
+      setCanvasBusy(false);
+    }
+  };
+
+  const handleSaveStepInspector = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePlaybook || !canAuthor) return;
+
+    const chosenTool = (draftTool === "__custom__" ? draftCustomTool : draftTool).trim();
+    if (!chosenTool) {
+      setCanvasNotice({ kind: "err", text: "Please specify a valid tool name." });
+      return;
+    }
+
+    let parsedParams: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(draftParamsJson || "{}");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Parameters must be a JSON object");
+      }
+      parsedParams = parsed;
+    } catch (err: any) {
+      setCanvasNotice({ kind: "err", text: err?.message || "Parameters must be valid JSON" });
+      return;
+    }
+
+    const nextSteps = activePlaybook.steps.map((s) => ({ ...s }));
+    if (insertAtIdx !== null) {
+      nextSteps.splice(insertAtIdx, 0, { tool: chosenTool, params: parsedParams });
+      await persistCanvasSteps(
+        activePlaybook.name,
+        nextSteps,
+        `Inserted step '${chosenTool}' at position ${insertAtIdx + 1}.`
+      );
+    } else if (editingStepIdx !== null && nextSteps[editingStepIdx]) {
+      nextSteps[editingStepIdx] = { tool: chosenTool, params: parsedParams };
+      await persistCanvasSteps(
+        activePlaybook.name,
+        nextSteps,
+        `Updated step ${editingStepIdx + 1} ('${chosenTool}').`
+      );
+    }
+  };
+
+  const handleDeleteStep = async (idx: number) => {
+    if (!activePlaybook || !canAuthor) return;
+    if (activePlaybook.steps.length <= 1) {
+      setCanvasNotice({
+        kind: "err",
+        text: "A playbook requires at least one step. Use 'Delete Playbook' to remove the entire pipeline.",
+      });
+      return;
+    }
+    const target = activePlaybook.steps[idx];
+    const nextSteps = activePlaybook.steps.filter((_, i) => i !== idx);
+    await persistCanvasSteps(
+      activePlaybook.name,
+      nextSteps,
+      `Deleted step ${idx + 1} ('${target.tool}').`
+    );
+  };
+
+  const handleMoveStep = async (idx: number, delta: -1 | 1) => {
+    if (!activePlaybook || !canAuthor) return;
+    const newIdx = idx + delta;
+    if (newIdx < 0 || newIdx >= activePlaybook.steps.length) return;
+    const nextSteps = [...activePlaybook.steps];
+    const [moved] = nextSteps.splice(idx, 1);
+    nextSteps.splice(newIdx, 0, moved);
+    await persistCanvasSteps(
+      activePlaybook.name,
+      nextSteps,
+      `Moved '${moved.tool}' to step ${newIdx + 1}.`
+    );
+  };
+
+  const handleDeletePlaybook = async () => {
+    if (!activePlaybook || !canAuthor) return;
+    setCanvasBusy(true);
+    setCanvasNotice(null);
+    const deletedName = activePlaybook.name;
+    try {
+      const res = await del<{ ok: boolean; deleted: string; playbooks: Playbook[] }>(
+        `${API.execution}/v1/playbooks/${encodeURIComponent(deletedName)}`
+      );
+      const nextList = res.playbooks || [];
+      setPlaybooks(nextList);
+      setConfirmDeletePb(false);
+      setEditingStepIdx(null);
+      setInsertAtIdx(null);
+      setSelectedPlaybookName(nextList[0]?.name || "");
+      setSelectedExecId("");
+      setCanvasNotice({ kind: "ok", text: `Deleted playbook '${deletedName}'.` });
+    } catch (err: any) {
+      setCanvasNotice({ kind: "err", text: err?.message || "Could not delete playbook" });
+    } finally {
+      setCanvasBusy(false);
+    }
+  };
+
+  const handleAiEditSubmit = async (promptOverride?: string) => {
+    const promptToRun = (promptOverride ?? aiPrompt).trim();
+    if (!promptToRun || aiBusy || !canAuthor) return;
+
+    setAiBusy(true);
+    setCanvasNotice(null);
+    try {
+      const modelCfg = loadLiteLLMConfig();
+      const res = await post<{
+        ok: boolean;
+        action: string;
+        message: string;
+        playbook: Playbook | null;
+        playbooks: Playbook[];
+      }>(`${API.execution}/v1/playbooks/ai`, {
+        prompt: promptToRun,
+        playbook_name: activePlaybook?.name || undefined,
+        provider: modelCfg.provider,
+        model: modelCfg.model,
+        api_key: modelCfg.apiKey || undefined,
+        base_url: modelCfg.baseUrl || undefined,
+      });
+
+      if (res.playbooks) {
+        setPlaybooks(res.playbooks);
+      }
+      if (res.playbook?.name) {
+        setSelectedPlaybookName(res.playbook.name);
+      } else if (res.playbooks && res.playbooks.length > 0) {
+        setSelectedPlaybookName(res.playbooks[0].name);
+      }
+      setEditingStepIdx(null);
+      setInsertAtIdx(null);
+      if (!promptOverride) setAiPrompt("");
+      await refreshTools();
+      setCanvasNotice({ kind: "ok", text: res.message });
+    } catch (err: any) {
+      setCanvasNotice({ kind: "err", text: err?.message || "AI playbook edit failed" });
+    } finally {
+      setAiBusy(false);
     }
   };
 
@@ -161,6 +510,8 @@ export function PlaybooksManager({
       }>(`${API.execution}/v1/executions`, payload);
 
       setRunResult(res);
+      setSelectedPlaybookName(runModalPlaybook.name);
+      setSelectedExecId(res.execution_id);
       await refreshExecutions();
     } catch (err: any) {
       setRunError(err?.message || "Execution request failed");
@@ -177,25 +528,27 @@ export function PlaybooksManager({
     setModalError(null);
 
     try {
-      const tools = newPlaybookSteps
+      const stepTools = newPlaybookSteps
         .split(/[,\n]/)
         .map((s) => s.trim())
         .filter(Boolean);
 
-      if (tools.length === 0) {
+      if (stepTools.length === 0) {
         throw new Error("Please specify at least one tool step");
       }
 
-      const steps = tools.map((tool) => ({ tool }));
+      const steps = stepTools.map((tool) => ({ tool }));
+      const createdName = newPlaybookName.trim();
       await post(`${API.execution}/v1/playbooks`, {
-        name: newPlaybookName.trim(),
+        name: createdName,
         steps,
       });
 
       setIsNewPlaybookOpen(false);
       setNewPlaybookName("");
       setNewPlaybookSteps("");
-      await refreshPlaybooks();
+      await refreshPlaybooks(createdName);
+      setCanvasNotice({ kind: "ok", text: `Created playbook '${createdName}'.` });
     } catch (err: any) {
       setModalError(err?.message || "Failed to create playbook");
     } finally {
@@ -259,8 +612,604 @@ export function PlaybooksManager({
     }
   };
 
+  const detectedVars = activePlaybook ? extractInputVars(activePlaybook.steps) : [];
+
   return (
     <div className="space-y-6">
+      {/* Interactive Playbook Execution Pipeline Canvas */}
+      <Card
+        title="Playbook Pipeline Canvas"
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {activePlaybook && canRun && (
+              <button
+                type="button"
+                onClick={() => openRunModal(activePlaybook)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98]"
+              >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                <span>Run Pipeline</span>
+              </button>
+            )}
+            {canAuthor && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalError(null);
+                    setIsNewPlaybookOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-xs transition hover:bg-neutral-50 hover:text-neutral-900"
+                >
+                  <span>+ New Playbook</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalError(null);
+                    setIsRegisterToolOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-xs transition hover:bg-neutral-50 hover:text-neutral-900"
+                >
+                  <span>Register Tool</span>
+                </button>
+              </>
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Playbook Tabs + Run Telemetry Overlay Selector */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {playbooks.map((p) => {
+                const isSelected = activePlaybook?.name === p.name;
+                return (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => selectPlaybookOnCanvas(p.name)}
+                    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
+                      isSelected
+                        ? "bg-neutral-950 text-white shadow-sm"
+                        : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                    }`}
+                  >
+                    <span>{p.name}</span>
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] ${
+                        isSelected
+                          ? "bg-neutral-800 text-neutral-200"
+                          : "bg-neutral-200/80 text-neutral-600"
+                      }`}
+                    >
+                      v{p.version} · {p.steps.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {activePlaybook && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-[11px] font-medium text-neutral-500">
+                  Execution Overlay:
+                </label>
+                <select
+                  value={selectedExecId}
+                  onChange={(e) => setSelectedExecId(e.target.value)}
+                  className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-800 focus:border-neutral-400 focus:outline-none"
+                >
+                  <option value="">Design Mode (no run overlay)</option>
+                  {matchingExecutions.slice(0, 12).map((ex) => (
+                    <option key={ex.id} value={ex.id}>
+                      {ex.id.slice(0, 8)} · {ex.status} · {ago(ex.created_at)}
+                    </option>
+                  ))}
+                </select>
+
+                {canAuthor && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => openInsertStep(activePlaybook.steps.length)}
+                      disabled={canvasBusy}
+                      className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-100 transition disabled:opacity-50"
+                    >
+                      + Add Step
+                    </button>
+
+                    {confirmDeletePb ? (
+                      <div className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5">
+                        <button
+                          type="button"
+                          onClick={handleDeletePlaybook}
+                          disabled={canvasBusy}
+                          className="rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-semibold text-white hover:bg-rose-700"
+                        >
+                          Confirm Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeletePb(false)}
+                          className="px-2 py-0.5 text-[11px] font-medium text-neutral-600 hover:text-neutral-900"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeletePb(true)}
+                        disabled={canvasBusy}
+                        className="rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 transition"
+                      >
+                        Delete Playbook
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* AI Pipeline Copilot Bar */}
+          {canAuthor && (
+            <div className="rounded-2xl border border-neutral-200/90 bg-neutral-50/70 p-3.5 space-y-2.5">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex flex-1 items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 shadow-2xs focus-within:border-neutral-400">
+                  <IconBolt className="h-4 w-4 text-neutral-800 shrink-0" />
+                  <input
+                    type="text"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAiEditSubmit();
+                      }
+                    }}
+                    placeholder="Ask AI to edit pipeline: 'Add quality_check before schedule_production', 'Set quantity to 250', 'Remove last step'..."
+                    className="w-full bg-transparent text-xs text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+                    disabled={aiBusy}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAiEditSubmit()}
+                  disabled={aiBusy || !aiPrompt.trim()}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-neutral-800 disabled:opacity-40"
+                >
+                  {aiBusy ? "Applying..." : "Apply AI Edit"}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-medium text-neutral-500 mr-1">
+                  Quick AI Actions:
+                </span>
+                {AI_QUICK_PROMPTS.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    disabled={aiBusy}
+                    onClick={() => handleAiEditSubmit(q)}
+                    className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-[11px] text-neutral-700 hover:border-neutral-400 hover:text-neutral-950 transition disabled:opacity-50"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Status Banner */}
+          {canvasNotice && (
+            <div
+              className={`flex items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-medium ${
+                canvasNotice.kind === "ok"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-rose-200 bg-rose-50 text-rose-800"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {canvasNotice.kind === "ok" && <IconCheck className="h-3.5 w-3.5 text-emerald-700" />}
+                <span>{canvasNotice.text}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCanvasNotice(null)}
+                className="text-[11px] opacity-70 hover:opacity-100"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Dot-Grid Visual Pipeline Canvas */}
+          {!activePlaybook ? (
+            <div className="rounded-2xl border border-dashed border-neutral-300 bg-[#f8f9fb] py-12 text-center text-xs text-neutral-500">
+              No playbook selected. Create one above or ask the AI Pipeline Copilot to build a workflow.
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-neutral-200/80 bg-[#f8f9fb] bg-[radial-gradient(#d4d4d8_1px,transparent_1px)] [background-size:16px_16px] p-5 overflow-x-auto">
+              <div className="flex items-center gap-2 min-w-max py-2">
+                {/* Trigger Start Node */}
+                <div className="w-48 shrink-0 rounded-2xl border border-neutral-300/80 bg-white p-3.5 shadow-sm">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="rounded-full bg-neutral-950 px-2 py-0.5 font-mono text-[10px] font-semibold text-white">
+                      TRIGGER
+                    </span>
+                    <span className="text-[10px] font-medium text-neutral-500">Inputs</span>
+                  </div>
+                  <div className="text-xs font-semibold text-neutral-900">
+                    Manual / Document Run
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {detectedVars.length > 0 ? (
+                      detectedVars.map((v) => (
+                        <span
+                          key={v}
+                          className="rounded-md border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-[10px] text-neutral-700"
+                        >
+                          ${v}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[10px] text-neutral-400">No $inputs required</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Connector + Insert Slot 0 */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <div className="h-[2px] w-4 bg-neutral-300" />
+                  {canAuthor && (
+                    <button
+                      type="button"
+                      onClick={() => openInsertStep(0)}
+                      title="Insert step at beginning"
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold transition ${
+                        insertAtIdx === 0
+                          ? "border-neutral-950 bg-neutral-950 text-white"
+                          : "border-neutral-300 bg-white text-neutral-600 hover:border-neutral-950 hover:text-neutral-950"
+                      }`}
+                    >
+                      +
+                    </button>
+                  )}
+                  <svg className="h-3.5 w-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </div>
+
+                {/* Pipeline Step Nodes */}
+                {activePlaybook.steps.map((step, idx) => {
+                  const isEditing = editingStepIdx === idx;
+                  const meta = toolLookup[step.tool];
+                  const risk = meta?.risk || "low";
+                  const connector = meta?.connector || "log";
+                  const live = getStepLiveState(idx, step.tool, inspectedExec);
+                  const paramEntries = Object.entries(step.params || {});
+
+                  const liveBorder =
+                    isEditing
+                      ? "border-neutral-950 ring-2 ring-neutral-950/15"
+                      : live.state === "succeeded"
+                      ? "border-emerald-300"
+                      : live.state === "awaiting_approval"
+                      ? "border-amber-300"
+                      : live.state === "rejected"
+                      ? "border-rose-300"
+                      : "border-neutral-200/90 hover:border-neutral-400";
+
+                  const liveBadgeCls =
+                    live.state === "succeeded"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : live.state === "awaiting_approval"
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : live.state === "rejected"
+                      ? "border-rose-200 bg-rose-50 text-rose-800"
+                      : "border-neutral-200 bg-neutral-100 text-neutral-700";
+
+                  const riskBadgeCls =
+                    risk === "high"
+                      ? "bg-rose-50 text-rose-800 border-rose-200"
+                      : risk === "medium"
+                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                      : "bg-neutral-100 text-neutral-700 border-neutral-200";
+
+                  return (
+                    <React.Fragment key={`${step.tool}-${idx}`}>
+                      <div
+                        onClick={() => openStepInspector(idx)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openStepInspector(idx);
+                          }
+                        }}
+                        className={`group relative w-64 shrink-0 cursor-pointer rounded-2xl border bg-white p-3.5 shadow-sm transition-all ${liveBorder}`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5 mb-2">
+                          <span className="font-mono text-[10px] font-semibold text-neutral-500">
+                            STEP {String(idx + 1).padStart(2, "0")}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase ${riskBadgeCls}`}>
+                              {risk}
+                            </span>
+                            {inspectedExec && (
+                              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${liveBadgeCls}`}>
+                                {live.label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="font-mono text-xs font-bold text-neutral-900 truncate" title={step.tool}>
+                          {step.tool}
+                        </div>
+                        <div className="text-[10px] text-neutral-500 mt-0.5">
+                          connector: <span className="font-mono text-neutral-700">{connector}</span>
+                        </div>
+
+                        {/* Parameter Pills */}
+                        <div className="mt-2.5 space-y-1">
+                          {paramEntries.length === 0 ? (
+                            <div className="text-[10px] italic text-neutral-400">Default inputs</div>
+                          ) : (
+                            paramEntries.slice(0, 3).map(([k, v]) => (
+                              <div
+                                key={k}
+                                className="flex items-center justify-between gap-2 rounded-lg border border-neutral-100 bg-neutral-50 px-2 py-1 text-[10px]"
+                              >
+                                <span className="font-mono text-neutral-500 truncate">{k}</span>
+                                <span className="font-mono font-medium text-neutral-800 truncate max-w-[125px]">
+                                  {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                                </span>
+                              </div>
+                            ))
+                          )}
+                          {paramEntries.length > 3 && (
+                            <div className="text-[10px] text-neutral-400">
+                              +{paramEntries.length - 3} more param(s)
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Node Quick Actions */}
+                        {canAuthor && (
+                          <div
+                            className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={idx === 0 || canvasBusy}
+                                onClick={() => handleMoveStep(idx, -1)}
+                                className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-30"
+                                title="Move step left"
+                              >
+                                &larr;
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === activePlaybook.steps.length - 1 || canvasBusy}
+                                onClick={() => handleMoveStep(idx, 1)}
+                                className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-30"
+                                title="Move step right"
+                              >
+                                &rarr;
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openStepInspector(idx)}
+                                className="rounded-md border border-neutral-200 px-2 py-0.5 text-[10px] font-medium text-neutral-800 hover:bg-neutral-100"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                disabled={canvasBusy}
+                                onClick={() => handleDeleteStep(idx)}
+                                className="rounded-md border border-rose-200 px-2 py-0.5 text-[10px] font-medium text-rose-700 hover:bg-rose-50"
+                                title="Delete step"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Edge Connector & Edge Insert Button */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div className="h-[2px] w-4 bg-neutral-300" />
+                        {canAuthor && (
+                          <button
+                            type="button"
+                            onClick={() => openInsertStep(idx + 1)}
+                            title={`Insert step after ${step.tool}`}
+                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold transition ${
+                              insertAtIdx === idx + 1
+                                ? "border-neutral-950 bg-neutral-950 text-white"
+                                : "border-neutral-300 bg-white text-neutral-600 hover:border-neutral-950 hover:text-neutral-950"
+                            }`}
+                          >
+                            +
+                          </button>
+                        )}
+                        <svg className="h-3.5 w-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Output / Completion Node */}
+                <div className="w-48 shrink-0 rounded-2xl border border-neutral-300/80 bg-white p-3.5 shadow-sm">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-neutral-800 border border-neutral-200">
+                      OUTPUT
+                    </span>
+                    {inspectedExec && <Pill value={inspectedExec.status} />}
+                  </div>
+                  <div className="text-xs font-semibold text-neutral-900">
+                    Pipeline Completion
+                  </div>
+                  <div className="mt-1.5 text-[11px] text-neutral-500">
+                    {inspectedExec
+                      ? inspectedExec.result?.reason || `Run ${inspectedExec.id.slice(0, 8)} (${inspectedExec.status})`
+                      : `${activePlaybook.steps.length} configured stage(s)`}
+                  </div>
+                  {inspectedExec?.status === "awaiting_approval" && (
+                    <Link
+                      href="/approvals"
+                      className="mt-2 inline-flex items-center gap-1 rounded-full bg-neutral-950 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-neutral-800"
+                    >
+                      Approve Run &rarr;
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Inline Node / Step Editor Inspector */}
+          {activePlaybook && (editingStepIdx !== null || insertAtIdx !== null) && (
+            <form
+              onSubmit={handleSaveStepInspector}
+              className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm space-y-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-2.5">
+                <div>
+                  <h4 className="text-sm font-semibold text-neutral-900">
+                    {insertAtIdx !== null
+                      ? `Insert New Step at Position ${insertAtIdx + 1}`
+                      : `Inspect & Edit Step ${(editingStepIdx ?? 0) + 1}`}
+                  </h4>
+                  <p className="text-[11px] text-neutral-500">
+                    Assign any registered FastMCP tool or type a new tool name and JSON parameters.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingStepIdx(null);
+                    setInsertAtIdx(null);
+                  }}
+                  className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+                >
+                  Close Inspector
+                </button>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      Step Tool
+                    </label>
+                    <select
+                      value={draftTool}
+                      onChange={(e) => setDraftTool(e.target.value)}
+                      disabled={!canAuthor || canvasBusy}
+                      className={inputCls}
+                    >
+                      {tools.map((t) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name} ({t.risk || "low"})
+                        </option>
+                      ))}
+                      <option value="__custom__">+ Custom / New Tool Name...</option>
+                    </select>
+                  </div>
+
+                  {draftTool === "__custom__" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                        Custom Tool Identifier
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={draftCustomTool}
+                        onChange={(e) => setDraftCustomTool(e.target.value)}
+                        placeholder="e.g. quality_check"
+                        className={`${inputCls} font-mono text-xs`}
+                      />
+                    </div>
+                  )}
+
+                  {editingStepIdx !== null && inspectedExec && (
+                    <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-xs">
+                      <div className="font-semibold text-neutral-800 mb-1">
+                        Execution Output (Run {inspectedExec.id.slice(0, 8)})
+                      </div>
+                      <pre className="max-h-32 overflow-auto font-mono text-[11px] text-neutral-700">
+                        {JSON.stringify(
+                          getStepLiveState(
+                            editingStepIdx,
+                            activePlaybook.steps[editingStepIdx]?.tool || "",
+                            inspectedExec
+                          ),
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Step Parameters (JSON Object)
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={draftParamsJson}
+                    onChange={(e) => setDraftParamsJson(e.target.value)}
+                    disabled={!canAuthor || canvasBusy}
+                    className={`${inputCls} font-mono text-xs`}
+                  />
+                </div>
+              </div>
+
+              {canAuthor && (
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  {editingStepIdx !== null && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleDeleteStep(editingStepIdx)}
+                      disabled={canvasBusy}
+                    >
+                      Delete Step
+                    </Button>
+                  )}
+                  <Button type="submit" disabled={canvasBusy}>
+                    {canvasBusy
+                      ? "Saving..."
+                      : insertAtIdx !== null
+                      ? "Insert Step"
+                      : "Save Step Changes"}
+                  </Button>
+                </div>
+              )}
+            </form>
+          )}
+        </div>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Available Playbooks Card */}
         <Card
@@ -307,50 +1256,66 @@ export function PlaybooksManager({
             </div>
           ) : (
             <ul className="space-y-3.5 text-sm">
-              {playbooks.map((p) => (
-                <li
-                  key={p.name}
-                  className="group rounded-2xl border border-neutral-200/80 bg-neutral-50/50 p-4 transition-all duration-200 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-neutral-900 tracking-tight">{p.name}</span>
-                      <span className="rounded-full border border-neutral-200/80 bg-neutral-100 px-2 py-0.5 font-mono text-[10px] text-neutral-600">
-                        v{p.version}
-                      </span>
+              {playbooks.map((p) => {
+                const isActive = activePlaybook?.name === p.name;
+                return (
+                  <li
+                    key={p.name}
+                    className={`group rounded-2xl border p-4 transition-all duration-200 ${
+                      isActive
+                        ? "border-neutral-900 bg-white shadow-sm"
+                        : "border-neutral-200/80 bg-neutral-50/50 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-neutral-900 tracking-tight">{p.name}</span>
+                        <span className="rounded-full border border-neutral-200/80 bg-neutral-100 px-2 py-0.5 font-mono text-[10px] text-neutral-600">
+                          v{p.version}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => selectPlaybookOnCanvas(p.name)}
+                          className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition"
+                        >
+                          {isActive ? "Active on Canvas" : "Open Canvas"}
+                        </button>
+                        {canRun && (
+                          <button
+                            type="button"
+                            onClick={() => openRunModal(p)}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 py-1 text-xs font-medium text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98]"
+                          >
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
+                            <span>Run Playbook</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    {canRun && (
-                      <button
-                        type="button"
-                        onClick={() => openRunModal(p)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 py-1 text-xs font-medium text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98]"
-                      >
-                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <polygon points="5 3 19 12 5 21 5 3" />
-                        </svg>
-                        <span>Run Playbook</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Steps with clean arrow icons */}
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500 font-mono">
-                    {p.steps.map((s, idx) => (
-                      <React.Fragment key={idx}>
-                        <span className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-neutral-800 shadow-xs">
-                          {s.tool}
-                        </span>
-                        {idx < p.steps.length - 1 && (
-                          <svg className="h-3 w-3 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
-                          </svg>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </li>
-              ))}
+                    {/* Steps with clean arrow icons */}
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500 font-mono">
+                      {p.steps.map((s, idx) => (
+                        <React.Fragment key={idx}>
+                          <span className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-neutral-800 shadow-xs">
+                            {s.tool}
+                          </span>
+                          {idx < p.steps.length - 1 && (
+                            <svg className="h-3 w-3 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
@@ -404,6 +1369,18 @@ export function PlaybooksManager({
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {rawResult.playbook && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPlaybookName(rawResult.playbook!);
+                              setSelectedExecId(e.id);
+                            }}
+                            className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-neutral-700 hover:bg-neutral-100"
+                          >
+                            Trace
+                          </button>
+                        )}
                         <span className="text-[11px] text-neutral-400">
                           {ago(e.created_at)}
                         </span>
@@ -468,7 +1445,7 @@ export function PlaybooksManager({
                                   <span className="font-mono text-neutral-800">
                                     Step {r.step ?? i + 1}: {r.tool}
                                   </span>
-                                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium border border-emerald-200">
+                                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-800 font-medium border border-emerald-200">
                                     Done
                                   </span>
                                 </div>
@@ -542,7 +1519,6 @@ export function PlaybooksManager({
               </button>
             </div>
 
-            {/* Live Result Banner */}
             {runResult && (
               <div>
                 {runResult.status === "succeeded" && (
@@ -729,11 +1705,11 @@ export function PlaybooksManager({
                   rows={3}
                   value={newPlaybookSteps}
                   onChange={(e) => setNewPlaybookSteps(e.target.value)}
-                  placeholder="sap_check_inventory, fastmcp_inspect_tolerances, quote_vendor"
+                  placeholder="erp_lookup_inventory, quality_check, notify_team"
                   className={`${inputCls} font-mono text-xs`}
                 />
                 <p className="mt-1 text-[11px] text-neutral-400">
-                  Steps execute sequentially with policy validation at each stage.
+                  Unknown tools are auto-registered so your pipeline executes right away.
                 </p>
               </div>
 

@@ -153,6 +153,170 @@ function formatModelShortName(modelId: string): string {
   return parts[parts.length - 1] || modelId;
 }
 
+function cleanUserMessageContent(text: string): string {
+  return (text || "").replace(/\n*\[Referencing Attached Documents:[^\]]*\]/g, "").trim();
+}
+
+function renderInlineMarkdown(text: string): React.ReactNode {
+  const tokens: React.ReactNode[] = [];
+  const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let k = 0;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push(text.slice(lastIndex, match.index));
+    }
+    const tok = match[0];
+    if (tok.startsWith("**") && tok.endsWith("**")) {
+      tokens.push(
+        <strong key={k++} className="font-semibold text-neutral-950">
+          {tok.slice(2, -2)}
+        </strong>
+      );
+    } else if (tok.startsWith("`") && tok.endsWith("`")) {
+      tokens.push(
+        <code
+          key={k++}
+          className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-[12px] text-neutral-900 border border-neutral-200/70"
+        >
+          {tok.slice(1, -1)}
+        </code>
+      );
+    } else if (tok.startsWith("*") && tok.endsWith("*")) {
+      tokens.push(
+        <em key={k++} className="italic text-neutral-800">
+          {tok.slice(1, -1)}
+        </em>
+      );
+    }
+    lastIndex = match.index + tok.length;
+  }
+  if (lastIndex < text.length) {
+    tokens.push(text.slice(lastIndex));
+  }
+  return tokens;
+}
+
+function renderChatMarkdown(content: string): React.ReactNode {
+  const lines = (content || "").split(/\r?\n/);
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  let keyIdx = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Fenced code blocks
+    if (line.trim().startsWith("```")) {
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++;
+      nodes.push(
+        <pre
+          key={keyIdx++}
+          className="my-2 overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-900 p-3 font-mono text-xs text-emerald-300"
+        >
+          {codeLines.join("\n")}
+        </pre>
+      );
+      continue;
+    }
+
+    if (!line.trim()) {
+      i++;
+      continue;
+    }
+
+    // Headings
+    const headingMatch = line.match(/^(#{1,4})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const cls =
+        level === 1
+          ? "text-base font-bold text-neutral-950 mt-3 mb-1"
+          : level === 2
+          ? "text-[15px] font-bold text-neutral-950 mt-2.5 mb-1"
+          : "text-sm font-semibold text-neutral-900 mt-2 mb-1";
+      nodes.push(
+        <div key={keyIdx++} className={cls}>
+          {renderInlineMarkdown(headingMatch[2])}
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Blockquotes (including indented document excerpts)
+    if (line.trim().startsWith("> ")) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("> ")) {
+        quoteLines.push(lines[i].trim().slice(2));
+        i++;
+      }
+      nodes.push(
+        <blockquote
+          key={keyIdx++}
+          className="my-1.5 border-l-2 border-neutral-300 pl-3 text-xs text-neutral-700 space-y-0.5"
+        >
+          {quoteLines.map((ql, qIdx) => (
+            <div key={qIdx}>{renderInlineMarkdown(ql)}</div>
+          ))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Unordered list items
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+        i++;
+      }
+      nodes.push(
+        <ul key={keyIdx++} className="my-1.5 list-disc pl-5 space-y-1 text-neutral-800">
+          {items.map((item, li) => (
+            <li key={li}>{renderInlineMarkdown(item)}</li>
+          ))}
+        </ul>
+      );
+      continue;
+    }
+
+    // Ordered list items
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
+        i++;
+      }
+      nodes.push(
+        <ol key={keyIdx++} className="my-1.5 list-decimal pl-5 space-y-1 text-neutral-800">
+          {items.map((item, li) => (
+            <li key={li}>{renderInlineMarkdown(item)}</li>
+          ))}
+        </ol>
+      );
+      continue;
+    }
+
+    // Normal paragraph
+    nodes.push(
+      <p key={keyIdx++} className="my-1 leading-relaxed text-neutral-900">
+        {renderInlineMarkdown(line)}
+      </p>
+    );
+    i++;
+  }
+
+  return <div className="space-y-1">{nodes}</div>;
+}
+
 export function ChatInterface({
   role,
   initialTools = [],
@@ -557,14 +721,6 @@ export function ChatInterface({
       rawText ||
       `Analyze attached workspace files: ${attachedFiles.map((f) => f.filename).join(", ")}`;
 
-    const attachedContextStr =
-      attachedFiles.length > 0
-        ? `\n\n[Referencing Attached Documents: ${attachedFiles
-            .map((f) => `${f.filename} (${f.doc_type || "Document"})`)
-            .join(", ")}]`
-        : "";
-
-    const fullMessageText = effectiveText + attachedContextStr;
     const currentAttachments = [...attachedFiles];
 
     const userMsg: ChatMessage = {
@@ -602,7 +758,7 @@ export function ChatInterface({
         metadata?: Record<string, any>;
         timestamp?: string;
       }>("/api/execution/v1/chat/message", {
-        message: fullMessageText,
+        message: effectiveText,
         session_id: sessionId || "default",
         attached_document_ids: currentAttachments.map((f) => f.id).filter(Boolean),
         history: messages.slice(-10),
@@ -835,13 +991,27 @@ export function ChatInterface({
                       </div>
                     )}
 
-                    {isUser && <p className="whitespace-pre-wrap">{m.content}</p>}
+                    {isUser && <p className="whitespace-pre-wrap">{cleanUserMessageContent(m.content)}</p>}
 
                     {!isUser && (
                       <div className="space-y-3">
-                        <div className="prose prose-sm max-w-none whitespace-pre-wrap leading-relaxed text-neutral-900">
-                          {m.content}
+                        <div className="prose prose-sm max-w-none leading-relaxed text-neutral-900">
+                          {renderChatMarkdown(m.content)}
                         </div>
+
+                        {m.metadata?.playbook_mutated && (
+                          <div className="mt-2 flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs text-neutral-800">
+                            <span className="font-semibold text-neutral-900">
+                              Playbook Pipeline Updated
+                            </span>
+                            <Link
+                              href="/playbooks"
+                              className="inline-flex items-center gap-1 rounded-full bg-neutral-950 px-3 py-1 font-semibold text-white hover:bg-neutral-800 transition"
+                            >
+                              Open Canvas &rarr;
+                            </Link>
+                          </div>
+                        )}
 
                         {m.dashboard_mutated && (
                           <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900">

@@ -53,3 +53,29 @@ def put(key: str, data: bytes, content_type: str) -> None:
         raise ValueError("invalid storage key")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
+
+
+def get(key: str) -> bytes | None:
+    if not key or key.startswith("local-unstored/"):
+        return None
+    if R2_ENDPOINT:
+        try:
+            obj = client().get_object(Bucket=R2_BUCKET, Key=key)
+            return obj["Body"].read()
+        except Exception:
+            return None
+    candidates = [
+        Path(os.environ.get("LOCAL_STORAGE_DIR", str(LOCAL_DIR))),
+        Path("./data/files").resolve(),
+        Path("/data/files"),
+        Path("/tmp/cawrys_files"),
+    ]
+    for base_dir in candidates:
+        try:
+            resolved_base = base_dir.resolve()
+            path = (resolved_base / key).resolve()
+            if resolved_base in path.parents and path.is_file():
+                return path.read_bytes()
+        except Exception:
+            continue
+    return None

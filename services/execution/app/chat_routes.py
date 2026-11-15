@@ -31,7 +31,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import connectors
+from . import connectors, playbook_ai
 from .auth import Ctx, current
 from .sqlite_adapter import get_connection, is_sqlite
 
@@ -1048,6 +1048,106 @@ def _get_recent_documents(tenant_id: str, limit: int = 5) -> List[Dict[str, Any]
     return docs
 
 
+def _maybe_reprocess_low_confidence_doc(
+    c,
+    tenant_id: str,
+    row: Dict[str, Any],
+    fields: Dict[str, Any],
+    val: Dict[str, Any],
+    dec: Dict[str, Any],
+) -> tuple[Optional[str], float, Dict[str, Any], Dict[str, Any], Dict[str, Any], str]:
+    """Automatically runs OCR/re-extraction when an attached file has 0.0 confidence and raw bytes on disk."""
+    conf = row.get("confidence")
+    needs_retry = (not fields) or (conf is not None and float(conf) == 0.0)
+    storage_key = row.get("storage_key")
+    doc_type = row.get("doc_type")
+    status = str(row.get("status") or "ready")
+    conf_val = float(conf) if conf is not None else 0.0
+
+    if not needs_retry or not storage_key:
+        return doc_type, conf_val, fields, val, dec, status
+
+    try:
+        from services.intelligence.app import ingest as intel_ingest
+        from services.intelligence.app import mock as intel_mock
+        from services.intelligence.app import storage as intel_storage
+        from services.intelligence.app import validate as intel_validate
+
+        raw_bytes = intel_storage.get(storage_key)
+        if not raw_bytes:
+            return doc_type, conf_val, fields, val, dec, status
+
+        mime = row.get("mime_type") or "application/octet-stream"
+        filename = row.get("filename") or "upload"
+        k = intel_ingest.kind(mime, filename)
+        if k == "image":
+            extracted, trace_item = intel_mock.extract_image("ocr", raw_bytes, mime)
+        else:
+            raw_text = intel_ingest.to_text(k, raw_bytes)
+            extracted, trace_item = intel_mock.extract_text("ocr", raw_text)
+
+        new_fields = extracted.get("fields") or {}
+        if not new_fields:
+            return doc_type, conf_val, fields, val, dec, status
+
+        new_val = intel_validate.validate(
+            new_fields, extracted.get("field_confidence", {}), extracted.get("missing", [])
+        )
+        new_dec, trace2 = intel_mock.reason(
+            "ocr", extracted.get("doc_type", "document"), new_fields, new_val
+        )
+        new_doc_type = extracted.get("doc_type") or doc_type or "document"
+        new_conf = float(new_val.get("overall_confidence") or 0.9)
+        needs_review = new_val.get("needs_review") or any(
+            a.get("risk") == "high" for a in new_dec.get("proposed_actions", [])
+        )
+        new_status = "needs_review" if needs_review else "ready"
+
+        doc_id = str(row["id"])
+        existing_ext = c.execute(
+            "SELECT id FROM extractions WHERE document_id=%s AND tenant_id=%s",
+            (doc_id, tenant_id),
+        ).fetchone()
+        if existing_ext:
+            c.execute(
+                "UPDATE extractions SET doc_type=%s, fields=%s, confidence=%s, validation=%s, decision=%s, model_trace=%s "
+                "WHERE document_id=%s AND tenant_id=%s",
+                (
+                    new_doc_type,
+                    json.dumps(new_fields),
+                    new_conf,
+                    json.dumps(new_val),
+                    json.dumps(new_dec),
+                    json.dumps([trace_item, trace2]),
+                    doc_id,
+                    tenant_id,
+                ),
+            )
+        else:
+            c.execute(
+                "INSERT INTO extractions (id, document_id, tenant_id, doc_type, fields, confidence, validation, decision, requires_approval, model_trace) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    str(uuid.uuid4()),
+                    doc_id,
+                    tenant_id,
+                    new_doc_type,
+                    json.dumps(new_fields),
+                    new_conf,
+                    json.dumps(new_val),
+                    json.dumps(new_dec),
+                    1,
+                    json.dumps([trace_item, trace2]),
+                ),
+            )
+        c.execute("UPDATE documents SET status=%s WHERE id=%s AND tenant_id=%s", (new_status, doc_id, tenant_id))
+        c.commit()
+        return new_doc_type, new_conf, new_fields, new_val, new_dec, new_status
+    except Exception as exc:
+        logger.debug(f"On-demand document OCR/reprocess skipped: {exc}")
+        return doc_type, conf_val, fields, val, dec, status
+
+
 def _get_documents_by_ids(tenant_id: str, doc_ids: List[str]) -> List[Dict[str, Any]]:
     """Retrieves specific documents and their full extraction payloads for the tenant."""
     if not doc_ids:
@@ -1060,7 +1160,7 @@ def _get_documents_by_ids(tenant_id: str, doc_ids: List[str]) -> List[Dict[str, 
         with get_connection() as c:
             placeholders = ", ".join(["%s"] * len(clean_ids))
             query = (
-                f"SELECT d.id, d.filename, d.mime_type, d.status, d.created_at, "
+                f"SELECT d.id, d.filename, d.mime_type, d.storage_key, d.status, d.created_at, "
                 f"e.doc_type, e.confidence, e.fields, e.validation, e.decision "
                 f"FROM documents d "
                 f"LEFT JOIN extractions e ON e.document_id = d.id "
@@ -1076,14 +1176,18 @@ def _get_documents_by_ids(tenant_id: str, doc_ids: List[str]) -> List[Dict[str, 
                 val = json.loads(raw_val) if isinstance(raw_val, str) else (raw_val or {})
                 raw_dec = r.get("decision")
                 dec = json.loads(raw_dec) if isinstance(raw_dec, str) else (raw_dec or {})
+
+                doc_type, conf_val, fields, val, dec, status = _maybe_reprocess_low_confidence_doc(
+                    c, tenant_id, r, fields, val, dec
+                )
                 docs.append({
                     "id": str(r["id"]),
                     "filename": r["filename"],
                     "mime_type": r.get("mime_type"),
-                    "status": r["status"],
+                    "status": status,
                     "created_at": str(r["created_at"]),
-                    "doc_type": r.get("doc_type"),
-                    "confidence": r.get("confidence"),
+                    "doc_type": doc_type,
+                    "confidence": conf_val if conf_val or r.get("confidence") is not None else r.get("confidence"),
                     "fields": fields,
                     "validation": val,
                     "decision": dec,
@@ -1277,10 +1381,14 @@ def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, 
             prompt_parts.append(f"- **Document**: {ad.get('filename')} (ID: `{ad.get('id')}`, Type: `{ad.get('doc_type', 'spec')}`, Status: `{ad.get('status')}`)")
             if ad.get("confidence") is not None:
                 prompt_parts.append(f"  * Extraction Confidence: {ad.get('confidence')}")
-            fields = ad.get("fields") or {}
+            fields = dict(ad.get("fields") or {})
+            excerpt = fields.pop("full_text_excerpt", None)
             if fields:
                 prompt_parts.append(f"  * Parsed Extracted Fields & Tolerances:")
                 prompt_parts.append(f"    {json.dumps(fields, indent=2)}")
+            if excerpt:
+                prompt_parts.append(f"  * Full OCR / Extracted Text Content:")
+                prompt_parts.append(f"    {str(excerpt)[:6000]}")
             validation = ad.get("validation") or {}
             if validation:
                 prompt_parts.append(f"  * Validation Results:")
@@ -1335,22 +1443,36 @@ def _synthesize_contextual_response(
             fname = ad.get("filename", "Attached Document")
             dtype = ad.get("doc_type") or "Technical Specification"
             st_doc = ad.get("status", "ready")
-            fields = ad.get("fields") or {}
+            conf_doc = ad.get("confidence")
+            fields = dict(ad.get("fields") or {})
+            excerpt = str(fields.pop("full_text_excerpt", "") or "").strip()
+            title_val = fields.get("document_title")
+            summary_val = fields.get("summary")
+
             field_items = []
-            if isinstance(fields, dict):
-                for k, v in fields.items():
-                    field_items.append(f"- **{k}**: {v}")
-            fields_text = "\n".join(field_items) if field_items else "- No extracted parameters"
-            val = ad.get("validation") or {}
-            val_text = f"\n- **Validation**: {json.dumps(val)}" if val else ""
-            dec = ad.get("decision") or {}
-            dec_text = f"\n- **Decision**: {json.dumps(dec)}" if dec else ""
-            doc_summaries.append(
-                f"### Analysis for **{fname}**\n"
-                f"- **Document Type**: {dtype}\n"
-                f"- **Status**: {st_doc}\n"
-                f"- **Extracted Fields & Parameters**:\n{fields_text}{val_text}{dec_text}"
-            )
+            for k, v in fields.items():
+                if k in ("document_title", "summary") and len(fields) > 3:
+                    continue
+                field_items.append(f"- **{k}**: {v}")
+            fields_text = "\n".join(field_items[:30]) if field_items else "- No structured key-value parameters"
+
+            overview_lines = [
+                f"### Document Summary: **{fname}**",
+                f"- **Document Type**: {dtype} | **Status**: {st_doc}"
+                + (f" | **Confidence**: {conf_doc}" if conf_doc is not None else ""),
+            ]
+            if title_val:
+                overview_lines.append(f"- **Title / Header**: {title_val}")
+            if summary_val:
+                overview_lines.append(f"- **Overview**: {summary_val}")
+            overview_lines.append(f"- **Extracted Fields & Parameters**:\n{fields_text}")
+            if excerpt:
+                snippet_lines = [ln.strip() for ln in excerpt.splitlines() if ln.strip()][:28]
+                overview_lines.append(
+                    "- **Extracted Document Text Preview**:\n"
+                    + "\n".join(f"  > {ln}" for ln in snippet_lines)
+                )
+            doc_summaries.append("\n".join(overview_lines))
         attached_block = "\n\n".join(doc_summaries)
 
     # 1. Formatted tool execution response citing real enterprise data
@@ -2206,8 +2328,81 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
             "timestamp": now_str,
         }
 
+    # 4b. Check for explicit Playbook Pipeline Edit intent (admin/engineer only)
+    clean_query = re.sub(r"\n*\[Referencing Attached Documents:[^\]]*\]", "", user_query).strip() or user_query
+    if ctx.role in ("admin", "engineer") and playbook_ai.is_explicit_playbook_edit_intent(clean_query):
+        try:
+            with get_connection() as c:
+                pb_res = playbook_ai.apply_ai_playbook_instruction(
+                    c,
+                    tenant_id=tenant_id,
+                    prompt=clean_query,
+                    actor=ctx.email,
+                    provider=chosen_provider,
+                    model=chosen_model,
+                    api_key=chosen_api_key,
+                    base_url=chosen_base_url,
+                )
+            pb_obj = pb_res.get("playbook")
+            steps_preview = (
+                " -> ".join(f"`{s['tool']}`" for s in (pb_obj or {}).get("steps", []))
+                if pb_obj
+                else "(deleted)"
+            )
+            reply_text = (
+                f"### Playbook Pipeline Updated\n"
+                f"{pb_res['message']}\n\n"
+                + (f"- **Playbook**: `{pb_obj['name']}` (`v{pb_obj['version']}`)\n- **Pipeline Flow**: {steps_preview}" if pb_obj else "")
+            ).strip()
+            latency_ms = int((time.time() - start_time) * 1000)
+            bot_msg_id = str(uuid.uuid4())
+            meta = {
+                "playbook_mutated": True,
+                "action": pb_res.get("action"),
+                "playbook": pb_obj,
+                "provider": chosen_provider,
+                "model": chosen_model,
+                "provider_used": chosen_provider,
+                "model_used": chosen_model,
+                "live_ai": False,
+                "latency_ms": latency_ms,
+                "context_used": True,
+                "tool_executed": False,
+                "dashboard_mutated": False,
+            }
+            try:
+                with get_connection() as c:
+                    c.execute(
+                        "INSERT INTO chat_messages (id, tenant_id, session_id, role, content, metadata, created_at) "
+                        "VALUES (%s, %s, %s, 'assistant', %s, %s, %s)",
+                        (bot_msg_id, tenant_id, session_id, reply_text, json.dumps(meta), now_str),
+                    )
+                    c.commit()
+            except Exception:
+                pass
+            return {
+                "id": bot_msg_id,
+                "role": "assistant",
+                "content": reply_text,
+                "playbook_mutated": True,
+                "playbook": pb_obj,
+                "provider": chosen_provider,
+                "model": chosen_model,
+                "provider_used": chosen_provider,
+                "model_used": chosen_model,
+                "live_ai": False,
+                "latency_ms": latency_ms,
+                "context_used": True,
+                "tool_executed": False,
+                "dashboard_mutated": False,
+                "metadata": meta,
+                "timestamp": now_str,
+            }
+        except ValueError:
+            pass
+
     # 5. Check for Connected Marketplace Data query / tool execution
-    tool_exec = _match_and_execute_tool(user_query, context["connections"], context["tools"])
+    tool_exec = _match_and_execute_tool(clean_query, context["connections"], context["tools"])
 
     # 6. Formulate system prompt & messages for LiteLLM
     system_prompt = _build_system_prompt(context, tool_exec)
@@ -2215,7 +2410,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
     for h in (req.history or [])[-6:]:
         if isinstance(h, dict) and "role" in h and "content" in h:
             llm_messages.append({"role": str(h["role"]), "content": str(h["content"])})
-    llm_messages.append({"role": "user", "content": user_query})
+    llm_messages.append({"role": "user", "content": clean_query})
 
     # 7. Execute LiteLLM completion or intelligent contextual synthesis fallback
     reply_text, llm_err = _execute_litellm_completion(

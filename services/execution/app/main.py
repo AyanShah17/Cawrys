@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import connectors, policy
+from . import connectors, playbook_ai, policy
 from .auth import Ctx, current, require
 from .chat_routes import (
     DashboardMutateIn,
@@ -166,6 +166,20 @@ class ToolIn(BaseModel):
 class PlaybookIn(BaseModel):
     name: str
     steps: list[dict]  # [{tool: str, params: {...}}]
+
+
+class PlaybookUpdateIn(BaseModel):
+    steps: list[dict]  # [{tool: str, params: {...}}]
+    description: str | None = None
+
+
+class PlaybookAIEditIn(BaseModel):
+    prompt: str
+    playbook_name: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
 
 
 class RunIn(BaseModel):
@@ -352,16 +366,10 @@ def list_tools(ctx: Ctx = Depends(current)):
 def save_playbook(p: PlaybookIn, ctx: Ctx = Depends(require("admin", "engineer"))):
     tenant_id = ctx.tenant_id
     with conn() as c:
-        row = c.execute(
-            "select coalesce(max(version),0)+1 as v from playbooks where tenant_id=%s and name=%s", (tenant_id, p.name)
-        ).fetchone()
-        c.execute(
-            "insert into playbooks (tenant_id,name,version,steps) values (%s,%s,%s,%s)",
-            (tenant_id, p.name, row["v"], json.dumps(p.steps)),
+        saved = playbook_ai.save_playbook_version(
+            c, tenant_id, p.name, p.steps, actor=ctx.email, event="playbook.saved"
         )
-        audit(c, tenant_id, "playbook.saved", detail={"name": p.name, "version": row["v"]})
-        c.commit()
-    return {"name": p.name, "version": row["v"]}
+    return {"name": saved["name"], "version": saved["version"], "steps": saved["steps"]}
 
 
 @app.get("/v1/playbooks")
@@ -369,10 +377,56 @@ def list_playbooks(ctx: Ctx = Depends(current)):
     tenant_id = ctx.tenant_id
     with conn() as c:
         ensure_seeded(c, tenant_id)
-        return c.execute(
-            "select distinct on (name) name, version, steps from playbooks where tenant_id=%s order by name, version desc",
-            (tenant_id,),
-        ).fetchall()
+        return playbook_ai.list_latest_playbooks(c, tenant_id)
+
+
+@app.post("/v1/playbooks/ai")
+def ai_edit_playbook(req: PlaybookAIEditIn, ctx: Ctx = Depends(require("admin", "engineer"))):
+    tenant_id = ctx.tenant_id
+    if not req.prompt or not req.prompt.strip():
+        raise HTTPException(400, "prompt cannot be empty")
+    with conn() as c:
+        ensure_seeded(c, tenant_id)
+        try:
+            res = playbook_ai.apply_ai_playbook_instruction(
+                c,
+                tenant_id=tenant_id,
+                prompt=req.prompt.strip(),
+                playbook_name=req.playbook_name,
+                actor=ctx.email,
+                provider=req.provider,
+                model=req.model,
+                api_key=req.api_key,
+                base_url=req.base_url,
+            )
+            return res
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+
+@app.put("/v1/playbooks/{name}")
+def update_playbook(name: str, req: PlaybookUpdateIn, ctx: Ctx = Depends(require("admin", "engineer"))):
+    tenant_id = ctx.tenant_id
+    with conn() as c:
+        existing = playbook_ai.get_latest_playbook(c, tenant_id, name)
+        if not existing:
+            raise HTTPException(404, f"playbook '{name}' not found")
+        saved = playbook_ai.save_playbook_version(
+            c, tenant_id, name, req.steps, actor=ctx.email, event="playbook.updated"
+        )
+        all_pbs = playbook_ai.list_latest_playbooks(c, tenant_id)
+    return {"ok": True, "playbook": saved, "playbooks": all_pbs}
+
+
+@app.delete("/v1/playbooks/{name}")
+def remove_playbook(name: str, ctx: Ctx = Depends(require("admin", "engineer"))):
+    tenant_id = ctx.tenant_id
+    with conn() as c:
+        deleted = playbook_ai.delete_playbook(c, tenant_id, name, actor=ctx.email)
+        if not deleted:
+            raise HTTPException(404, f"playbook '{name}' not found")
+        all_pbs = playbook_ai.list_latest_playbooks(c, tenant_id)
+    return {"ok": True, "deleted": name, "playbooks": all_pbs}
 
 
 def _render(value, inputs: dict):

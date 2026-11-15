@@ -186,6 +186,104 @@ def get_document(doc_id: str, ctx: Ctx = Depends(current)):
     return row
 
 
+@app.post("/v1/documents/{doc_id}/reprocess")
+def reprocess_document(doc_id: str, ctx: Ctx = Depends(require("admin", "engineer"))):
+    try:
+        uuid.UUID(doc_id)
+    except ValueError:
+        raise HTTPException(404, "not found")
+
+    tenant_id = ctx.tenant_id
+    with conn() as c:
+        doc = c.execute(
+            "select d.*, e.id as extraction_id "
+            "from documents d left join extractions e on e.document_id=d.id "
+            "where d.id=%s and d.tenant_id=%s",
+            (doc_id, tenant_id),
+        ).fetchone()
+    if not doc:
+        raise HTTPException(404, "not found")
+
+    data = storage.get(doc["storage_key"])
+    if not data:
+        raise HTTPException(404, "stored file bytes not found for reprocessing")
+
+    mime = doc.get("mime_type") or "application/octet-stream"
+    filename = doc.get("filename") or "upload"
+    k = ingest.kind(mime, filename)
+
+    trace = []
+    if k == "image":
+        extracted, t = models.extract_image(MODEL_VISION, data, mime)
+    else:
+        extracted, t = models.extract_text(MODEL_EXTRACT, ingest.to_text(k, data))
+    trace.append(t)
+
+    fields = extracted.get("fields", {})
+    validation = validate.validate(
+        fields, extracted.get("field_confidence", {}), extracted.get("missing", [])
+    )
+    decision = {}
+    if fields:
+        decision, t2 = models.reason(MODEL_REASON, extracted.get("doc_type", "unknown"), fields, validation)
+        trace.append(t2)
+
+    needs_review = validation["needs_review"] or any(
+        a.get("risk") == "high" for a in decision.get("proposed_actions", [])
+    )
+    status = "needs_review" if needs_review else "ready"
+    ext_id = doc.get("extraction_id") or str(uuid.uuid4())
+
+    with conn() as c:
+        existing = c.execute("select id from extractions where document_id=%s and tenant_id=%s", (doc_id, tenant_id)).fetchone()
+        if existing:
+            ext_id = str(existing["id"])
+            c.execute(
+                "update extractions set doc_type=%s, fields=%s, confidence=%s, validation=%s, decision=%s, model_trace=%s "
+                "where id=%s and tenant_id=%s",
+                (
+                    extracted.get("doc_type"),
+                    json.dumps(fields),
+                    validation["overall_confidence"],
+                    json.dumps(validation),
+                    json.dumps(decision),
+                    json.dumps(trace),
+                    ext_id,
+                    tenant_id,
+                ),
+            )
+        else:
+            c.execute(
+                "insert into extractions (id, document_id, tenant_id, doc_type, fields, confidence, validation, decision, requires_approval, model_trace) "
+                "values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    ext_id,
+                    doc_id,
+                    tenant_id,
+                    extracted.get("doc_type"),
+                    json.dumps(fields),
+                    validation["overall_confidence"],
+                    json.dumps(validation),
+                    json.dumps(decision),
+                    True,
+                    json.dumps(trace),
+                ),
+            )
+        c.execute("update documents set status=%s where id=%s", (status, doc_id))
+        audit(c, tenant_id, "document.reprocessed", doc_id, {"status": status, "extraction_id": ext_id}, actor=ctx.email)
+        c.commit()
+
+    return {
+        "document_id": doc_id,
+        "extraction_id": ext_id,
+        "status": status,
+        "doc_type": extracted.get("doc_type"),
+        "fields": fields,
+        "validation": validation,
+        "decision": decision,
+    }
+
+
 @app.get("/v1/audit")
 def get_audit(limit: int = 100, ctx: Ctx = Depends(current)):
     tenant_id = ctx.tenant_id
