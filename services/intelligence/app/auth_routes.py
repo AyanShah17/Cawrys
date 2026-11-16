@@ -128,21 +128,21 @@ def login(body: LoginIn, request: Request):
 
         # 5. Check if user is inactive / disabled
         if user and ok and not user.get("is_active", 1):
-            c.execute("insert into login_attempts (email, ip, ok) values (%s,%s,%s)", (email, ip, 0))
+            c.execute("insert into login_attempts (email, ip, ok) values (%s,%s,%s)", (email, ip, False))
             audit(c, user["tenant_id"], "auth.login_failed", detail={"email": email, "ip": ip, "reason": "disabled"}, actor=email)
             c.commit()
             raise HTTPException(403, "Account is disabled. Contact your administrator.")
 
         # 6. Invalid credentials handling
         if not (user and ok):
-            c.execute("insert into login_attempts (email, ip, ok) values (%s,%s,%s)", (email, ip, 0))
+            c.execute("insert into login_attempts (email, ip, ok) values (%s,%s,%s)", (email, ip, False))
             if user:
                 audit(c, user["tenant_id"], "auth.login_failed", detail={"email": email, "ip": ip}, actor=email)
             c.commit()
             raise HTTPException(401, "invalid email or password")
 
         # 7. Successful login
-        c.execute("insert into login_attempts (email, ip, ok) values (%s,%s,%s)", (email, ip, 1))
+        c.execute("insert into login_attempts (email, ip, ok) values (%s,%s,%s)", (email, ip, True))
         c.execute("delete from login_attempts where email=%s and not ok", (email,))
         c.execute("update users set last_login_at=now() where id=%s", (user["id"],))
         audit(c, user["tenant_id"], "auth.login", detail={"ip": ip}, actor=email)
@@ -163,8 +163,8 @@ def signup(body: SignupIn):
         uid = str(uuid.uuid4())
         c.execute("insert into tenants (id, name) values (%s,%s)", (tid, body.company.strip()))
         c.execute(
-            "insert into users (id, tenant_id, email, role, password_hash, is_active) values (%s,%s,%s,'admin',%s,1)",
-            (uid, tid, email, hash_password(body.password)),
+            "insert into users (id, tenant_id, email, role, password_hash, is_active) values (%s,%s,%s,'admin',%s,%s)",
+            (uid, tid, email, hash_password(body.password), True),
         )
         user = c.execute("select * from users where id=%s", (uid,)).fetchone()
         audit(c, tid, "tenant.created", actor=email, detail={"company": body.company.strip()})
@@ -210,8 +210,8 @@ def create_user(body: UserIn, ctx: Ctx = Depends(require("admin"))):
             raise HTTPException(409, "email already registered")
         uid = str(uuid.uuid4())
         c.execute(
-            "insert into users (id, tenant_id, email, role, password_hash, is_active) values (%s,%s,%s,%s,%s,1)",
-            (uid, ctx.tenant_id, email, body.role, hash_password(body.password)),
+            "insert into users (id, tenant_id, email, role, password_hash, is_active) values (%s,%s,%s,%s,%s,%s)",
+            (uid, ctx.tenant_id, email, body.role, hash_password(body.password), True),
         )
         audit(c, ctx.tenant_id, "user.created", actor=ctx.email, detail={"email": email, "role": body.role})
         c.commit()
@@ -254,7 +254,7 @@ def update_user(user_id: str, body: UserPatch, ctx: Ctx = Depends(require("admin
             c.execute("update users set role=%s where id=%s", (body.role, user_id))
             changes["role"] = body.role
         if body.is_active is not None:
-            active_val = 1 if body.is_active else 0
+            active_val = bool(body.is_active)
             c.execute("update users set is_active=%s where id=%s", (active_val, user_id))
             changes["is_active"] = body.is_active
         if body.password is not None:
@@ -288,8 +288,8 @@ def bootstrap_admin() -> None:
             return
         c.execute("update tenants set name=%s where id=%s", (COMPANY_NAME, DEFAULT_TENANT))
         c.execute(
-            "insert into users (tenant_id, email, role, password_hash, is_active) values (%s,%s,'admin',%s,1)",
-            (DEFAULT_TENANT, BOOTSTRAP_ADMIN_EMAIL, hash_password(BOOTSTRAP_ADMIN_PASSWORD)),
+            "insert into users (tenant_id, email, role, password_hash, is_active) values (%s,%s,'admin',%s,%s)",
+            (DEFAULT_TENANT, BOOTSTRAP_ADMIN_EMAIL, hash_password(BOOTSTRAP_ADMIN_PASSWORD), True),
         )
         audit(c, DEFAULT_TENANT, "admin.bootstrapped", actor="system", detail={"email": BOOTSTRAP_ADMIN_EMAIL})
         c.commit()
@@ -305,8 +305,8 @@ def seed_demo_users() -> None:
             return
         for role in ROLES:
             c.execute(
-                "insert into users (tenant_id, email, role, password_hash, is_active) values (%s,%s,%s,%s,1)",
-                (DEFAULT_TENANT, f"{role}@{DEMO_DOMAIN}", role, hash_password(DEMO_PASSWORD)),
+                "insert into users (tenant_id, email, role, password_hash, is_active) values (%s,%s,%s,%s,%s)",
+                (DEFAULT_TENANT, f"{role}@{DEMO_DOMAIN}", role, hash_password(DEMO_PASSWORD), True),
             )
         c.execute("update tenants set name=%s where id=%s", (f"{BRAND_NAME} Demo", DEFAULT_TENANT))
         audit(c, DEFAULT_TENANT, "demo.users_seeded")

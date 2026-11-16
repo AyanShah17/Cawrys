@@ -1136,7 +1136,7 @@ def _maybe_reprocess_low_confidence_doc(
                     new_conf,
                     json.dumps(new_val),
                     json.dumps(new_dec),
-                    1,
+                    True,
                     json.dumps([trace_item, trace2]),
                 ),
             )

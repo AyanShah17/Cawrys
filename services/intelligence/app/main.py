@@ -361,16 +361,19 @@ async def set_system_persistence_mode(
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-    with conn() as c:
-        audit(
-            c,
-            ctx.tenant_id,
-            "persistence_mode.changed",
-            workflow_id=None,
-            detail=payload,
-            actor=ctx.email,
-        )
-        c.commit()
+    try:
+        with conn() as c:
+            audit(
+                c,
+                ctx.tenant_id,
+                "persistence_mode.changed",
+                workflow_id=None,
+                detail=payload,
+                actor=ctx.email,
+            )
+            c.commit()
+    except Exception:
+        pass
 
     return {**payload, "status": "updated"}
 
