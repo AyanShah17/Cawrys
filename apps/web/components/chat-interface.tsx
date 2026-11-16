@@ -43,7 +43,7 @@ type StoredDoc = {
 type ChatSessionSummary = {
   session_id: string;
   title: string;
-  project: string;
+  project?: string;
   updated_at: string;
   message_count: number;
 };
@@ -205,16 +205,11 @@ export function ChatInterface({
   // Attached file chips
   const [attachedFiles, setAttachedFiles] = useState<StoredDoc[]>([]);
 
-  // Conversation history sidebar & projects
+  // Conversation history sidebar
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
-  const [activeProject, setActiveProject] = useState<string>("Cawrys");
-  const [customProjects, setCustomProjects] = useState<string[]>(["Cawrys", "Playbooks"]);
-  const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sessionFilter, setSessionFilter] = useState("");
   const [showFilterInput, setShowFilterInput] = useState(false);
-  const [showNewProjectInput, setShowNewProjectInput] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
 
   // Composer "+" add/upload popover state
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -315,19 +310,6 @@ export function ChatInterface({
   useEffect(() => {
     loadDocuments();
     loadSessions();
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem("liontix_chat_projects");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setCustomProjects(parsed.map(String));
-          }
-        }
-      } catch {
-        // ignore invalid localStorage projects
-      }
-    }
   }, [loadDocuments, loadSessions]);
 
   useEffect(() => {
@@ -567,13 +549,10 @@ export function ChatInterface({
     }
   }, [input]);
 
-  async function handleNewChat(targetProject?: string) {
+  async function handleNewChat() {
     const newSid = "session_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
     if (typeof window !== "undefined") {
       localStorage.setItem("liontix_chat_session_id", newSid);
-    }
-    if (targetProject) {
-      setActiveProject(targetProject);
     }
     setSessionId(newSid);
     setMessages([]);
@@ -585,9 +564,6 @@ export function ChatInterface({
   async function handleSelectSession(sess: ChatSessionSummary) {
     if (!sess.session_id || loading) return;
     setSessionId(sess.session_id);
-    if (sess.project) {
-      setActiveProject(sess.project);
-    }
     if (typeof window !== "undefined") {
       localStorage.setItem("liontix_chat_session_id", sess.session_id);
     }
@@ -614,22 +590,6 @@ export function ChatInterface({
       await loadSessions();
     } catch (err) {
       console.warn("Could not delete chat session:", err);
-    }
-  }
-
-  function handleCreateProject(e: React.FormEvent) {
-    e.preventDefault();
-    const cleaned = newProjectName.trim();
-    if (!cleaned) return;
-    const nextProjects = customProjects.includes(cleaned)
-      ? customProjects
-      : [...customProjects, cleaned];
-    setCustomProjects(nextProjects);
-    setActiveProject(cleaned);
-    setNewProjectName("");
-    setShowNewProjectInput(false);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("liontix_chat_projects", JSON.stringify(nextProjects));
     }
   }
 
@@ -753,7 +713,6 @@ export function ChatInterface({
       }>("/api/execution/v1/chat/message", {
         message: effectiveText,
         session_id: sessionId || "default",
-        project: activeProject || "Cawrys",
         attached_document_ids: currentAttachments.map((f) => f.id).filter(Boolean),
         history: messages.slice(-10),
         provider: modelConfig.provider,
@@ -871,14 +830,8 @@ export function ChatInterface({
   );
   const activeModelShort = formatModelShortName(modelConfig.model);
 
-  const projectGroups = useMemo(() => {
+  const filteredSessions = useMemo(() => {
     const q = sessionFilter.trim().toLowerCase();
-    const order = new Set<string>(customProjects);
-    order.add(activeProject || "Cawrys");
-    for (const s of sessions) {
-      order.add(s.project || "Cawrys");
-    }
-
     const list = [...sessions];
     const hasCurrentInList = list.some((s) => s.session_id === sessionId);
     if (!hasCurrentInList && messages.length > 0 && sessionId) {
@@ -888,24 +841,13 @@ export function ChatInterface({
       list.unshift({
         session_id: sessionId,
         title,
-        project: activeProject || "Cawrys",
         updated_at: firstUser?.timestamp || new Date().toISOString(),
         message_count: messages.length,
       });
     }
-
-    return Array.from(order).map((projectName) => {
-      const items = list.filter((s) => {
-        if ((s.project || "Cawrys") !== projectName) return false;
-        if (!q) return true;
-        return (
-          s.title.toLowerCase().includes(q) ||
-          projectName.toLowerCase().includes(q)
-        );
-      });
-      return { project: projectName, items };
-    });
-  }, [customProjects, activeProject, sessions, sessionId, messages, sessionFilter]);
+    if (!q) return list;
+    return list.filter((s) => s.title.toLowerCase().includes(q));
+  }, [sessions, sessionId, messages, sessionFilter]);
 
   const activeSessionTitle = useMemo(() => {
     const found = sessions.find((s) => s.session_id === sessionId);
@@ -926,7 +868,7 @@ export function ChatInterface({
           {/* Top Action: + New Conversation */}
           <button
             type="button"
-            onClick={() => handleNewChat(activeProject)}
+            onClick={() => handleNewChat()}
             className="w-full rounded-xl border border-neutral-800 bg-neutral-900/70 hover:bg-neutral-800/90 hover:border-neutral-700 px-3.5 py-2.5 text-xs font-medium text-white flex items-center gap-2.5 transition-colors shrink-0"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-300 shrink-0">
@@ -936,77 +878,28 @@ export function ChatInterface({
             <span>New Conversation</span>
           </button>
 
-          {/* Secondary Quick Links */}
-          <div className="mt-3 space-y-0.5 shrink-0">
-            <Link
-              href="/playbooks"
-              className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-900 hover:text-white transition-colors"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5 text-neutral-400 shrink-0">
-                <circle cx="12" cy="12" r="9" />
-                <polyline points="12 7 12 12 15 14" />
-              </svg>
-              <span>Automations</span>
-            </Link>
-            <Link
-              href="/connectors"
-              className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-900 hover:text-white transition-colors"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5 text-neutral-400 shrink-0">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-              </svg>
-              <span>Customizations</span>
-            </Link>
-          </div>
-
-          {/* Projects Section Header */}
-          <div className="mt-5 mb-2 flex items-center justify-between px-1.5 shrink-0">
+          {/* Conversations Section Header */}
+          <div className="mt-4 mb-2 flex items-center justify-between px-1.5 shrink-0">
             <span className="text-[11px] font-medium tracking-wide text-neutral-400">
-              Projects
+              Conversations
             </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowNewProjectInput(false);
-                  setShowFilterInput((v) => !v);
-                }}
-                title="Filter conversations"
-                aria-label="Filter conversations"
-                className={`rounded-lg p-1 transition-colors ${
-                  showFilterInput || sessionFilter
-                    ? "bg-neutral-800 text-white"
-                    : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
-                }`}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
-                  <line x1="4" y1="6" x2="20" y2="6" />
-                  <line x1="7" y1="12" x2="17" y2="12" />
-                  <line x1="10" y1="18" x2="14" y2="18" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowFilterInput(false);
-                  setShowNewProjectInput((v) => !v);
-                }}
-                title="New project folder"
-                aria-label="New project folder"
-                className={`rounded-lg p-1 transition-colors ${
-                  showNewProjectInput
-                    ? "bg-neutral-800 text-white"
-                    : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
-                }`}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                  <line x1="12" y1="11" x2="12" y2="17" />
-                  <line x1="9" y1="14" x2="15" y2="14" />
-                </svg>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowFilterInput((v) => !v)}
+              title="Filter conversations"
+              aria-label="Filter conversations"
+              className={`rounded-lg p-1 transition-colors ${
+                showFilterInput || sessionFilter
+                  ? "bg-neutral-800 text-white"
+                  : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="7" y1="12" x2="17" y2="12" />
+                <line x1="10" y1="18" x2="14" y2="18" />
+              </svg>
+            </button>
           </div>
 
           {showFilterInput && (
@@ -1021,104 +914,56 @@ export function ChatInterface({
             </div>
           )}
 
-          {showNewProjectInput && (
-            <form onSubmit={handleCreateProject} className="mb-2 px-1 flex gap-1.5 shrink-0">
-              <input
-                type="text"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                placeholder="Folder name..."
-                autoFocus
-                className="min-w-0 flex-1 rounded-xl border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-600 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="rounded-xl bg-neutral-800 hover:bg-neutral-700 px-2.5 py-1.5 text-[11px] font-medium text-white shrink-0"
-              >
-                Add
-              </button>
-            </form>
-          )}
-
-          {/* Project Folders & Sessions List */}
-          <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-0.5">
-            {projectGroups.map(({ project, items }) => {
-              const isCollapsed = !!collapsedProjects[project];
-              const isSelectedProject = activeProject === project;
-              return (
-                <div key={project} className="space-y-1">
-                  <div className="flex items-center justify-between group">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveProject(project);
-                        setCollapsedProjects((prev) => ({
-                          ...prev,
-                          [project]: prev[project] ? false : !isSelectedProject ? false : !prev[project],
-                        }));
-                      }}
-                      className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium transition-colors w-full text-left ${
-                        isSelectedProject
-                          ? "text-white"
-                          : "text-neutral-400 hover:text-neutral-200"
-                      }`}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5 text-neutral-400 shrink-0">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                      </svg>
-                      <span className="truncate">{project}</span>
-                    </button>
-                  </div>
-
-                  {!isCollapsed && items.length > 0 && (
-                    <div className="pl-2 space-y-0.5">
-                      {items.map((sess) => {
-                        const isActiveSession = sess.session_id === sessionId;
-                        return (
-                          <div
-                            key={sess.session_id}
-                            onClick={() => handleSelectSession(sess)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                handleSelectSession(sess);
-                              }
-                            }}
-                            className={`group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs cursor-pointer transition-colors ${
-                              isActiveSession
-                                ? "bg-neutral-800/90 border border-neutral-700/80 text-white font-medium shadow-xs"
-                                : "border border-transparent text-neutral-300 hover:bg-neutral-900 hover:text-white"
-                            }`}
-                            title={sess.title}
-                          >
-                            <span className="truncate min-w-0 flex-1">{sess.title}</span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <span className="text-[10px] text-neutral-500 tabular-nums">
-                                {formatRelativeShort(sess.updated_at)}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteSession(sess.session_id, e)}
-                                title="Delete conversation"
-                                aria-label={`Delete ${sess.title}`}
-                                className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded text-neutral-500 hover:bg-neutral-700 hover:text-white transition-colors"
-                              >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-2.5 w-2.5">
-                                  <line x1="18" y1="6" x2="6" y2="18" />
-                                  <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
+          {/* Flat Conversations List */}
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-1 pr-0.5">
+            {filteredSessions.length === 0 ? (
+              <div className="px-2.5 py-6 text-center text-[11px] text-neutral-500">
+                {sessionFilter.trim() ? "No matching conversations" : "No conversations yet"}
+              </div>
+            ) : (
+              filteredSessions.map((sess) => {
+                const isActiveSession = sess.session_id === sessionId;
+                return (
+                  <div
+                    key={sess.session_id}
+                    onClick={() => handleSelectSession(sess)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleSelectSession(sess);
+                      }
+                    }}
+                    className={`group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs cursor-pointer transition-colors ${
+                      isActiveSession
+                        ? "bg-neutral-800/90 border border-neutral-700/80 text-white font-medium shadow-xs"
+                        : "border border-transparent text-neutral-300 hover:bg-neutral-900 hover:text-white"
+                    }`}
+                    title={sess.title}
+                  >
+                    <span className="truncate min-w-0 flex-1">{sess.title}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] text-neutral-500 tabular-nums">
+                        {formatRelativeShort(sess.updated_at)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteSession(sess.session_id, e)}
+                        title="Delete conversation"
+                        aria-label={`Delete ${sess.title}`}
+                        className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded text-neutral-500 hover:bg-neutral-700 hover:text-white transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-2.5 w-2.5">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })
+            )}
           </div>
         </aside>
       )}
@@ -1141,8 +986,6 @@ export function ChatInterface({
               </svg>
             </button>
             <div className="flex items-center gap-1.5 text-xs text-neutral-500 min-w-0">
-              <span className="font-medium text-neutral-700 shrink-0">{activeProject}</span>
-              <span className="text-neutral-300">/</span>
               <span className="truncate font-medium text-neutral-900">{activeSessionTitle}</span>
             </div>
           </div>
@@ -1162,7 +1005,7 @@ export function ChatInterface({
             )}
             <button
               type="button"
-              onClick={() => handleNewChat(activeProject)}
+              onClick={() => handleNewChat()}
               className="md:hidden inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100"
             >
               New
