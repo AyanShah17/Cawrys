@@ -40,6 +40,14 @@ type StoredDoc = {
   confidence?: number | null;
 };
 
+type ChatSessionSummary = {
+  session_id: string;
+  title: string;
+  project: string;
+  updated_at: string;
+  message_count: number;
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -143,6 +151,22 @@ function formatTime(ts?: string): string {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatRelativeShort(ts?: string): string {
+  if (!ts) return "now";
+  const normalized = ts.includes("T") || ts.endsWith("Z") ? ts : ts.replace(" ", "T") + "Z";
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return "now";
+  const diffSec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (diffSec < 60) return "now";
+  const mins = Math.floor(diffSec / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 14) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+}
+
 function formatProviderShortName(providerId: string, fullName?: string): string {
   if (PROVIDER_SHORT_NAMES[providerId]) return PROVIDER_SHORT_NAMES[providerId];
   return fullName || providerId;
@@ -178,10 +202,19 @@ export function ChatInterface({
   const [modelConfig, setModelConfig] = useState<LiteLLMConfig>(DEFAULT_LITELLM_CONFIG);
   const [showToolDetails, setShowToolDetails] = useState<Record<string, boolean>>({});
 
-  // Stored workspace documents & attached chips
-  const [storedDocs, setStoredDocs] = useState<StoredDoc[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
+  // Attached file chips
   const [attachedFiles, setAttachedFiles] = useState<StoredDoc[]>([]);
+
+  // Conversation history sidebar & projects
+  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  const [activeProject, setActiveProject] = useState<string>("Cawrys");
+  const [customProjects, setCustomProjects] = useState<string[]>(["Cawrys", "Playbooks"]);
+  const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sessionFilter, setSessionFilter] = useState("");
+  const [showFilterInput, setShowFilterInput] = useState(false);
+  const [showNewProjectInput, setShowNewProjectInput] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
 
   // Composer "+" add/upload popover state
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -253,11 +286,9 @@ export function ChatInterface({
   }, []);
 
   const loadDocuments = useCallback(async (): Promise<StoredDoc[]> => {
-    setLoadingDocs(true);
     try {
       const res = await getJSON<any>("/api/intelligence/v1/documents?limit=50");
       const list: StoredDoc[] = Array.isArray(res) ? res : res?.items || [];
-      setStoredDocs(list);
       if (list.length > 0) {
         setDocsCount(list.length);
       }
@@ -265,14 +296,39 @@ export function ChatInterface({
     } catch (err) {
       console.warn("Could not load stored documents:", err);
       return [];
-    } finally {
-      setLoadingDocs(false);
+    }
+  }, []);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const res = await getJSON<{ ok: boolean; sessions: ChatSessionSummary[] }>(
+        "/api/execution/v1/chat/sessions"
+      );
+      if (Array.isArray(res?.sessions)) {
+        setSessions(res.sessions);
+      }
+    } catch (err) {
+      console.warn("Could not load chat sessions:", err);
     }
   }, []);
 
   useEffect(() => {
     loadDocuments();
-  }, [loadDocuments]);
+    loadSessions();
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("liontix_chat_projects");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCustomProjects(parsed.map(String));
+          }
+        }
+      } catch {
+        // ignore invalid localStorage projects
+      }
+    }
+  }, [loadDocuments, loadSessions]);
 
   useEffect(() => {
     let isMounted = true;
@@ -302,7 +358,7 @@ export function ChatInterface({
       if (res.ok) {
         const data = await res.json();
         setPersistenceMode(data.mode === "neon" ? "neon" : "local");
-        await loadDocuments();
+        await Promise.all([loadDocuments(), loadSessions()]);
       }
     } catch (err) {
       console.warn("Failed to toggle persistence mode:", err);
@@ -511,35 +567,77 @@ export function ChatInterface({
     }
   }, [input]);
 
-  async function handleNewChat() {
-    const currentSid = sessionId;
+  async function handleNewChat(targetProject?: string) {
     const newSid = "session_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
     if (typeof window !== "undefined") {
       localStorage.setItem("liontix_chat_session_id", newSid);
+    }
+    if (targetProject) {
+      setActiveProject(targetProject);
     }
     setSessionId(newSid);
     setMessages([]);
     setAttachedFiles([]);
     setInput("");
     setTimeout(() => inputRef.current?.focus(), 50);
+  }
 
-    if (currentSid) {
-      try {
-        await fetch(`/api/execution/v1/chat/history?session_id=${encodeURIComponent(currentSid)}`, {
-          method: "DELETE",
-        });
-      } catch (err) {
-        console.warn("Could not delete chat session:", err);
-      }
+  async function handleSelectSession(sess: ChatSessionSummary) {
+    if (!sess.session_id || loading) return;
+    setSessionId(sess.session_id);
+    if (sess.project) {
+      setActiveProject(sess.project);
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("liontix_chat_session_id", sess.session_id);
+    }
+    setAttachedFiles([]);
+    try {
+      const histRes = await getJSON<{ ok: boolean; messages: ChatMessage[] }>(
+        `/api/execution/v1/chat/history?session_id=${encodeURIComponent(sess.session_id)}`
+      );
+      setMessages(Array.isArray(histRes?.messages) ? histRes.messages : []);
+    } catch (err) {
+      console.warn("Could not load selected chat history:", err);
     }
   }
 
-  function toggleAttachDocument(doc: StoredDoc) {
-    setAttachedFiles((prev) => {
-      const exists = prev.some((d) => d.id === doc.id);
-      if (exists) return prev.filter((d) => d.id !== doc.id);
-      return [...prev, doc];
-    });
+  async function handleDeleteSession(sid: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/execution/v1/chat/history?session_id=${encodeURIComponent(sid)}`, {
+        method: "DELETE",
+      });
+      if (sid === sessionId) {
+        await handleNewChat();
+      }
+      await loadSessions();
+    } catch (err) {
+      console.warn("Could not delete chat session:", err);
+    }
+  }
+
+  function handleCreateProject(e: React.FormEvent) {
+    e.preventDefault();
+    const cleaned = newProjectName.trim();
+    if (!cleaned) return;
+    const nextProjects = customProjects.includes(cleaned)
+      ? customProjects
+      : [...customProjects, cleaned];
+    setCustomProjects(nextProjects);
+    setActiveProject(cleaned);
+    setNewProjectName("");
+    setShowNewProjectInput(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("liontix_chat_projects", JSON.stringify(nextProjects));
+    }
+  }
+
+  function scrollToMessage(msgId: string) {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   }
 
   function removeAttachedFile(id: string) {
@@ -655,6 +753,7 @@ export function ChatInterface({
       }>("/api/execution/v1/chat/message", {
         message: effectiveText,
         session_id: sessionId || "default",
+        project: activeProject || "Cawrys",
         attached_document_ids: currentAttachments.map((f) => f.id).filter(Boolean),
         history: messages.slice(-10),
         provider: modelConfig.provider,
@@ -681,6 +780,7 @@ export function ChatInterface({
       }
 
       setMessages((prev) => [...prev, assistantMsg]);
+      loadSessions();
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
@@ -771,38 +871,308 @@ export function ChatInterface({
   );
   const activeModelShort = formatModelShortName(modelConfig.model);
 
+  const projectGroups = useMemo(() => {
+    const q = sessionFilter.trim().toLowerCase();
+    const order = new Set<string>(customProjects);
+    order.add(activeProject || "Cawrys");
+    for (const s of sessions) {
+      order.add(s.project || "Cawrys");
+    }
+
+    const list = [...sessions];
+    const hasCurrentInList = list.some((s) => s.session_id === sessionId);
+    if (!hasCurrentInList && messages.length > 0 && sessionId) {
+      const firstUser = messages.find((m) => m.role === "user");
+      const rawTitle = cleanUserMessageContent(firstUser?.content || "") || "New Conversation";
+      const title = rawTitle.length > 44 ? rawTitle.slice(0, 41).trimEnd() + "..." : rawTitle;
+      list.unshift({
+        session_id: sessionId,
+        title,
+        project: activeProject || "Cawrys",
+        updated_at: firstUser?.timestamp || new Date().toISOString(),
+        message_count: messages.length,
+      });
+    }
+
+    return Array.from(order).map((projectName) => {
+      const items = list.filter((s) => {
+        if ((s.project || "Cawrys") !== projectName) return false;
+        if (!q) return true;
+        return (
+          s.title.toLowerCase().includes(q) ||
+          projectName.toLowerCase().includes(q)
+        );
+      });
+      return { project: projectName, items };
+    });
+  }, [customProjects, activeProject, sessions, sessionId, messages, sessionFilter]);
+
+  const activeSessionTitle = useMemo(() => {
+    const found = sessions.find((s) => s.session_id === sessionId);
+    if (found?.title) return found.title;
+    const firstUser = messages.find((m) => m.role === "user");
+    if (firstUser) {
+      const cleaned = cleanUserMessageContent(firstUser.content);
+      return cleaned.length > 44 ? cleaned.slice(0, 41).trimEnd() + "..." : cleaned || "New Conversation";
+    }
+    return "New Conversation";
+  }, [sessions, sessionId, messages]);
+
   return (
-    <div className="flex flex-col h-[calc(100vh-7.5rem)] max-w-4xl mx-auto w-full">
-      {/* Minimal Top Utility Row */}
-      {(messages.length > 0 || hasOverrides) && (
-        <div className="flex items-center justify-end gap-2 px-4 pt-1 pb-2 shrink-0">
-          {hasOverrides && (
+    <div className="flex h-[calc(100vh-6.75rem)] w-full gap-4">
+      {/* Left Conversation History Sidebar */}
+      {sidebarOpen && (
+        <aside className="hidden md:flex w-64 shrink-0 flex-col rounded-3xl bg-[#111113] text-neutral-200 border border-neutral-800/90 p-3.5 shadow-xl select-none overflow-hidden">
+          {/* Top Action: + New Conversation */}
+          <button
+            type="button"
+            onClick={() => handleNewChat(activeProject)}
+            className="w-full rounded-xl border border-neutral-800 bg-neutral-900/70 hover:bg-neutral-800/90 hover:border-neutral-700 px-3.5 py-2.5 text-xs font-medium text-white flex items-center gap-2.5 transition-colors shrink-0"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-300 shrink-0">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>New Conversation</span>
+          </button>
+
+          {/* Secondary Quick Links */}
+          <div className="mt-3 space-y-0.5 shrink-0">
             <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100 transition shadow-xs"
+              href="/playbooks"
+              className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-900 hover:text-white transition-colors"
             >
-              <IconBolt className="h-3 w-3 text-emerald-600" />
-              <span>Dashboard Synced:</span>
-              <span className="font-semibold text-neutral-900">
-                {overrides.production_target || overrides.oee || "Active"}
-              </span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5 text-neutral-400 shrink-0">
+                <circle cx="12" cy="12" r="9" />
+                <polyline points="12 7 12 12 15 14" />
+              </svg>
+              <span>Automations</span>
             </Link>
-          )}
-          {messages.length > 0 && (
-            <button
-              type="button"
-              onClick={handleNewChat}
-              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition shadow-xs"
+            <Link
+              href="/connectors"
+              className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-900 hover:text-white transition-colors"
             >
-              New chat
-            </button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5 text-neutral-400 shrink-0">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+              </svg>
+              <span>Customizations</span>
+            </Link>
+          </div>
+
+          {/* Projects Section Header */}
+          <div className="mt-5 mb-2 flex items-center justify-between px-1.5 shrink-0">
+            <span className="text-[11px] font-medium tracking-wide text-neutral-400">
+              Projects
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewProjectInput(false);
+                  setShowFilterInput((v) => !v);
+                }}
+                title="Filter conversations"
+                aria-label="Filter conversations"
+                className={`rounded-lg p-1 transition-colors ${
+                  showFilterInput || sessionFilter
+                    ? "bg-neutral-800 text-white"
+                    : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
+                }`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="7" y1="12" x2="17" y2="12" />
+                  <line x1="10" y1="18" x2="14" y2="18" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFilterInput(false);
+                  setShowNewProjectInput((v) => !v);
+                }}
+                title="New project folder"
+                aria-label="New project folder"
+                className={`rounded-lg p-1 transition-colors ${
+                  showNewProjectInput
+                    ? "bg-neutral-800 text-white"
+                    : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
+                }`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {showFilterInput && (
+            <div className="mb-2 px-1 shrink-0">
+              <input
+                type="text"
+                value={sessionFilter}
+                onChange={(e) => setSessionFilter(e.target.value)}
+                placeholder="Filter conversations..."
+                className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-600 focus:outline-none"
+              />
+            </div>
           )}
-        </div>
+
+          {showNewProjectInput && (
+            <form onSubmit={handleCreateProject} className="mb-2 px-1 flex gap-1.5 shrink-0">
+              <input
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Folder name..."
+                autoFocus
+                className="min-w-0 flex-1 rounded-xl border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-600 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="rounded-xl bg-neutral-800 hover:bg-neutral-700 px-2.5 py-1.5 text-[11px] font-medium text-white shrink-0"
+              >
+                Add
+              </button>
+            </form>
+          )}
+
+          {/* Project Folders & Sessions List */}
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-0.5">
+            {projectGroups.map(({ project, items }) => {
+              const isCollapsed = !!collapsedProjects[project];
+              const isSelectedProject = activeProject === project;
+              return (
+                <div key={project} className="space-y-1">
+                  <div className="flex items-center justify-between group">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveProject(project);
+                        setCollapsedProjects((prev) => ({
+                          ...prev,
+                          [project]: prev[project] ? false : !isSelectedProject ? false : !prev[project],
+                        }));
+                      }}
+                      className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium transition-colors w-full text-left ${
+                        isSelectedProject
+                          ? "text-white"
+                          : "text-neutral-400 hover:text-neutral-200"
+                      }`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5 text-neutral-400 shrink-0">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span className="truncate">{project}</span>
+                    </button>
+                  </div>
+
+                  {!isCollapsed && items.length > 0 && (
+                    <div className="pl-2 space-y-0.5">
+                      {items.map((sess) => {
+                        const isActiveSession = sess.session_id === sessionId;
+                        return (
+                          <div
+                            key={sess.session_id}
+                            onClick={() => handleSelectSession(sess)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleSelectSession(sess);
+                              }
+                            }}
+                            className={`group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs cursor-pointer transition-colors ${
+                              isActiveSession
+                                ? "bg-neutral-800/90 border border-neutral-700/80 text-white font-medium shadow-xs"
+                                : "border border-transparent text-neutral-300 hover:bg-neutral-900 hover:text-white"
+                            }`}
+                            title={sess.title}
+                          >
+                            <span className="truncate min-w-0 flex-1">{sess.title}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-[10px] text-neutral-500 tabular-nums">
+                                {formatRelativeShort(sess.updated_at)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteSession(sess.session_id, e)}
+                                title="Delete conversation"
+                                aria-label={`Delete ${sess.title}`}
+                                className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded text-neutral-500 hover:bg-neutral-700 hover:text-white transition-colors"
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-2.5 w-2.5">
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </aside>
       )}
 
-      {/* Conversation Feed */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="max-w-3xl mx-auto w-full space-y-6">
+      {/* Main Chat Canvas Card */}
+      <div className="flex-1 min-w-0 flex flex-col rounded-3xl border border-neutral-200/80 bg-white/85 backdrop-blur-sm shadow-sm relative overflow-hidden">
+        {/* Compact Header Bar */}
+        <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-4 py-2.5 shrink-0 bg-white/70">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((v) => !v)}
+              title={sidebarOpen ? "Hide conversation sidebar" : "Show conversation sidebar"}
+              aria-label="Toggle conversation sidebar"
+              className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors shrink-0"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-4 w-4">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-1.5 text-xs text-neutral-500 min-w-0">
+              <span className="font-medium text-neutral-700 shrink-0">{activeProject}</span>
+              <span className="text-neutral-300">/</span>
+              <span className="truncate font-medium text-neutral-900">{activeSessionTitle}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {hasOverrides && (
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 transition shadow-xs"
+              >
+                <IconBolt className="h-3 w-3 text-emerald-600" />
+                <span>Synced:</span>
+                <span className="font-semibold text-neutral-900">
+                  {overrides.production_target || overrides.oee || "Active"}
+                </span>
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => handleNewChat(activeProject)}
+              className="md:hidden inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100"
+            >
+              New
+            </button>
+          </div>
+        </div>
+
+        {/* Conversation Feed */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar px-5 py-5">
+          <div className="max-w-3xl mx-auto w-full space-y-6">
           {isChatEmpty ? (
             <div className="pt-10 pb-4 space-y-8 animate-fadeIn">
               <div className="text-center space-y-3">
@@ -855,6 +1225,7 @@ export function ChatInterface({
               return (
                 <div
                   key={m.id}
+                  id={`msg-${m.id}`}
                   className={`flex gap-3.5 ${isUser ? "justify-end" : "justify-start"}`}
                 >
                   {!isUser && (
@@ -1058,8 +1429,41 @@ export function ChatInterface({
         </div>
       </div>
 
+      {/* Right-Edge Vertical Turn Scrubber */}
+      {messages.length > 0 && (
+        <div
+          className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 flex-col items-center gap-1.5 py-2 px-1"
+          aria-label="Conversation turns"
+        >
+          {messages.map((m, idx) => {
+            const isLast = idx === messages.length - 1;
+            const preview = cleanUserMessageContent(m.content).slice(0, 48);
+            return (
+              <button
+                key={`nav-${m.id}`}
+                type="button"
+                onClick={() => scrollToMessage(m.id)}
+                title={`${m.role === "user" ? "You" : "Assistant"}: ${preview}`}
+                aria-label={`Jump to message ${idx + 1}`}
+                className="group p-0.5 flex items-center justify-center"
+              >
+                {isLast ? (
+                  <span className="block h-2 w-2 rounded-full bg-neutral-900 group-hover:scale-125 transition-transform" />
+                ) : (
+                  <span
+                    className={`block h-[3px] rounded-full transition-all group-hover:w-3.5 group-hover:bg-neutral-800 ${
+                      m.role === "user" ? "w-2 bg-neutral-400" : "w-2.5 bg-neutral-300"
+                    }`}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Floating Bottom Input Composer */}
-      <div className="relative z-20 pt-2 pb-4 px-4 max-w-3xl mx-auto w-full shrink-0">
+      <div className="relative z-20 pt-2 pb-4 px-5 max-w-3xl mx-auto w-full shrink-0">
         <div className="rounded-3xl border border-neutral-200/90 bg-white shadow-md px-4 py-3 transition-all focus-within:border-neutral-300 focus-within:shadow-lg">
           {/* Top Attachment Preview Chips */}
           {attachedFiles.length > 0 && (
@@ -1353,6 +1757,7 @@ export function ChatInterface({
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

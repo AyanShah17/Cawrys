@@ -809,6 +809,7 @@ def _build_provider_list() -> List[Dict[str, Any]]:
 class ChatMessageIn(BaseModel):
     message: str
     session_id: str = "default"
+    project: Optional[str] = "Cawrys"
     history: List[Dict[str, Any]] = Field(default_factory=list)
     attached_document_ids: List[str] = Field(default_factory=list)
     provider: Optional[str] = None
@@ -2165,6 +2166,73 @@ def mutate_dashboard(req: DashboardMutateIn, ctx: Ctx = Depends(current)):
     }
 
 
+def _clean_session_title(text: str, max_len: int = 44) -> str:
+    cleaned = re.sub(r"\n*\[Referencing Attached Documents:[^\]]*\]", "", text or "").strip()
+    cleaned = " ".join(cleaned.split())
+    if not cleaned:
+        return "New Conversation"
+    if len(cleaned) <= max_len:
+        return cleaned
+    return cleaned[: max_len - 3].rstrip() + "..."
+
+
+@router.get("/sessions")
+def get_chat_sessions(limit: int = 100, ctx: Ctx = Depends(current)):
+    """Lists conversation sessions for the tenant grouped by recency."""
+    tenant_id = ctx.tenant_id
+    _init_chat_tables()
+    with get_connection() as c:
+        rows = c.execute(
+            "SELECT session_id, role, content, metadata, created_at FROM chat_messages "
+            "WHERE tenant_id=%s ORDER BY created_at ASC LIMIT 1000",
+            (tenant_id,),
+        ).fetchall()
+
+    sessions_map: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        sid = str(r.get("session_id") or "default")
+        raw_meta = r.get("metadata")
+        meta = json.loads(raw_meta) if isinstance(raw_meta, str) else (raw_meta or {})
+        created = str(r.get("created_at") or "")
+        role_val = str(r.get("role") or "")
+        content = str(r.get("content") or "")
+        proj_val = str(meta.get("project") or "").strip()
+
+        entry = sessions_map.get(sid)
+        if entry is None:
+            entry = {
+                "session_id": sid,
+                "title": "",
+                "project": proj_val or "Cawrys",
+                "created_at": created,
+                "updated_at": created,
+                "message_count": 0,
+            }
+            sessions_map[sid] = entry
+
+        entry["message_count"] += 1
+        if proj_val:
+            entry["project"] = proj_val
+        if created and (not entry["updated_at"] or created > entry["updated_at"]):
+            entry["updated_at"] = created
+        if not entry["title"]:
+            if role_val == "user":
+                entry["title"] = _clean_session_title(content)
+            elif role_val == "assistant":
+                entry["title"] = _clean_session_title(content)
+
+    for entry in sessions_map.values():
+        if not entry["title"]:
+            entry["title"] = "New Conversation"
+
+    sessions = sorted(
+        sessions_map.values(),
+        key=lambda s: s.get("updated_at") or "",
+        reverse=True,
+    )[: max(1, min(limit, 200))]
+    return {"ok": True, "sessions": sessions}
+
+
 @router.get("/history")
 def get_chat_history(session_id: str = "default", limit: int = 50, ctx: Ctx = Depends(current)):
     """Retrieves conversation history for the session."""
@@ -2244,12 +2312,17 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
     # 2. Record user message in DB
     msg_id = str(uuid.uuid4())
     now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    user_project = (req.project or "Cawrys").strip() or "Cawrys"
+    user_meta = json.dumps({
+        "project": user_project,
+        "attached_document_ids": attached_doc_ids,
+    })
     try:
         with get_connection() as c:
             c.execute(
                 "INSERT INTO chat_messages (id, tenant_id, session_id, role, content, metadata, created_at) "
-                "VALUES (%s, %s, %s, 'user', %s, '{}', %s)",
-                (msg_id, tenant_id, session_id, user_query, now_str),
+                "VALUES (%s, %s, %s, 'user', %s, %s, %s)",
+                (msg_id, tenant_id, session_id, user_query, user_meta, now_str),
             )
             c.commit()
     except Exception as exc:
