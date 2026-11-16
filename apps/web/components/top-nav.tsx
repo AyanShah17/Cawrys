@@ -3,7 +3,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Brand } from "@/lib/brand";
 import { useAppMode } from "@/lib/mode-context";
 
@@ -15,12 +15,52 @@ interface TopNavProps {
 
 export function TopNav({ brand, email, role }: TopNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { mode, toggleMode } = useAppMode();
   const [profileOpen, setProfileOpen] = useState(false);
   const [dateSelected, setDateSelected] = useState<string>("Today, Dec 7");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [persistenceMode, setPersistenceMode] = useState<"local" | "neon">("local");
+  const [persistenceLoading, setPersistenceLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/intelligence/v1/system/persistence-mode")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.mode) {
+          setPersistenceMode(data.mode === "neon" ? "neon" : "local");
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function togglePersistence() {
+    if (persistenceLoading) return;
+    const nextMode = persistenceMode === "local" ? "neon" : "local";
+    setPersistenceLoading(true);
+    try {
+      const res = await fetch("/api/intelligence/v1/system/persistence-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: nextMode }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPersistenceMode(data.mode === "neon" ? "neon" : "local");
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Failed to toggle persistence mode:", err);
+    } finally {
+      setPersistenceLoading(false);
+    }
+  }
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -121,6 +161,30 @@ export function TopNav({ brand, email, role }: TopNavProps) {
               <path d="M7 16V4M7 4L3 8M7 4l4 4" />
               <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
             </svg>
+          </button>
+
+          {/* Persistence Mode Toggle Button */}
+          <button
+            type="button"
+            onClick={togglePersistence}
+            disabled={persistenceLoading}
+            title={`Active: ${persistenceMode === "neon" ? "Neon" : "Local"}. Click to toggle persistence mode`}
+            className="rounded-full px-3 py-1.5 text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-700/80 transition-all flex items-center gap-1.5 shrink-0 select-none disabled:opacity-50"
+          >
+            {persistenceMode === "neon" ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-cyan-400 shrink-0">
+                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-emerald-400 shrink-0">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                <line x1="6" y1="6" x2="6.01" y2="6" />
+                <line x1="6" y1="18" x2="6.01" y2="18" />
+              </svg>
+            )}
+            <span>Persistence: {persistenceMode === "neon" ? "Neon" : "Local"}</span>
+            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${persistenceMode === "neon" ? "bg-cyan-400" : "bg-emerald-400"}`} />
           </button>
 
           {/* Vertical Divider */}

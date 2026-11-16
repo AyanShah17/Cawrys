@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from . import auth_routes, dashboard, ingest, models, storage, validate
 from .auth import Ctx, current, require
@@ -293,3 +294,83 @@ def get_audit(limit: int = 100, ctx: Ctx = Depends(current)):
             "select * from audit_log where tenant_id=%s order by created_at desc limit %s",
             (tenant_id, limit),
         ).fetchall()
+
+
+@app.get("/v1/documents/{doc_id}/file")
+def get_document_file(doc_id: str, ctx: Ctx = Depends(current)):
+    try:
+        uuid.UUID(doc_id)
+    except ValueError:
+        raise HTTPException(404, "not found")
+
+    with conn() as c:
+        doc = c.execute(
+            "select * from documents where id=%s and tenant_id=%s",
+            (doc_id, ctx.tenant_id),
+        ).fetchone()
+    if not doc:
+        raise HTTPException(404, "not found")
+
+    storage_key = doc.get("storage_key") or ""
+    stream = storage.get_stream(storage_key)
+    if stream is None:
+        raw = storage.get(storage_key)
+        if raw is None:
+            raise HTTPException(404, "file not found in storage")
+        stream = iter([raw])
+
+    mime = doc.get("mime_type") or "application/pdf"
+    filename = doc.get("filename") or "document.pdf"
+    return StreamingResponse(
+        stream,
+        media_type=mime,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@app.get("/v1/system/persistence-mode")
+def get_system_persistence_mode(ctx: Ctx = Depends(current)):
+    mode = storage.get_persistence_mode()
+    return {
+        "mode": mode,
+        "db": "sqlite" if mode == "local" else "postgres",
+        "storage": "local" if mode == "local" else "neon",
+    }
+
+
+@app.post("/v1/system/persistence-mode")
+async def set_system_persistence_mode(
+    request: Request,
+    ctx: Ctx = Depends(require("admin", "engineer")),
+):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "invalid json payload")
+    if not isinstance(body, dict) or "mode" not in body:
+        raise HTTPException(400, "missing mode field")
+    mode = body.get("mode")
+    if not isinstance(mode, str):
+        raise HTTPException(400, "invalid mode: must be local or neon")
+    norm_mode = mode.strip().lower()
+    if norm_mode not in ("local", "neon"):
+        raise HTTPException(400, "invalid mode: must be local or neon")
+
+    try:
+        payload = storage.set_persistence_mode(norm_mode)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    with conn() as c:
+        audit(
+            c,
+            ctx.tenant_id,
+            "persistence_mode.changed",
+            workflow_id=None,
+            detail=payload,
+            actor=ctx.email,
+        )
+        c.commit()
+
+    return {**payload, "status": "updated"}
+

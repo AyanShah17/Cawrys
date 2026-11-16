@@ -10,6 +10,12 @@ if [ -f .env ]; then
   set +a
 fi
 
+if [ -f .env.local ]; then
+  set -a
+  source .env.local
+  set +a
+fi
+
 export MOCK_AI="${MOCK_AI:-1}"
 export SEED_DEMO="${SEED_DEMO:-1}"
 export DEMO_PASSWORD="${DEMO_PASSWORD:-cawrys-demo}"

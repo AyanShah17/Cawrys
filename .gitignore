@@ -1,4 +1,6 @@
 .env
+.env.local
+uploaded_pdfs/
 .venv/
 node_modules/
 .next/
@@ -15,3 +17,4 @@ data/
 services/edge-ingest/edge-ingest
 bin/
 *.tsbuildinfo
+.neon

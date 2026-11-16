@@ -42,7 +42,23 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
         title={doc.filename}
         subtitle={`${doc.doc_type ?? "Technical Document"} · Status: ${doc.status} · Confidence: ${doc.confidence ? (doc.confidence * 100).toFixed(0) + "%" : "-"}`}
       >
-        <Pill value={doc.status} />
+        <div className="flex items-center gap-2">
+          <Pill value={doc.status} />
+          <a
+            href={`/api/intelligence/v1/documents/${encodeURIComponent(doc.id)}/file`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1 text-xs font-medium border border-neutral-700 shadow-sm transition-colors select-none"
+            title="Download or view original uploaded file"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Download Original File</span>
+          </a>
+        </div>
       </PageHeader>
 
       <Card title="Extracted Engineering Fields">

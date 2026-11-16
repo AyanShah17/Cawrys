@@ -57,9 +57,16 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ service: string
     console.error(`${service} service connection failed across targets:`, candidateBases, lastErr);
     return NextResponse.json({ detail: `${service} service unreachable` }, { status: 502 });
   }
+  const respHeaders: Record<string, string> = {
+    "content-type": upstream.headers.get("content-type") ?? "application/json",
+  };
+  const cd = upstream.headers.get("content-disposition");
+  if (cd) {
+    respHeaders["content-disposition"] = cd;
+  }
   return new NextResponse(upstream.body, {
     status: upstream.status,
-    headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
+    headers: respHeaders,
   });
 }
 

@@ -132,6 +132,16 @@ def get_sqlite_path() -> str:
 
 
 def is_sqlite() -> bool:
+    try:
+        from .storage import get_persistence_mode
+        mode = get_persistence_mode()
+        if mode == "local":
+            return True
+        elif mode == "neon":
+            url = (os.environ.get("NEON_DATABASE_URL") or os.environ.get("DATABASE_URL") or "").strip()
+            return not url or url.startswith("sqlite")
+    except Exception:
+        pass
     url = (os.environ.get("NEON_DATABASE_URL") or os.environ.get("DATABASE_URL") or "").strip()
     return not url or url.startswith("sqlite")
 
