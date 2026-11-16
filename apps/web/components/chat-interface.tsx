@@ -1106,7 +1106,7 @@ export function ChatInterface({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything, attach workspace files, or run operational commands..."
+            placeholder="Ask anything, upload files or images, or run operational commands..."
             className="w-full resize-none bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none leading-relaxed max-h-44"
           />
 
@@ -1123,7 +1123,7 @@ export function ChatInterface({
                     setIsAddMenuOpen((v) => !v);
                   }}
                   aria-label="Add files"
-                  title="Upload or attach workspace files"
+                  title="Upload files or images"
                   className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${
                     isAddMenuOpen
                       ? "bg-neutral-100 text-neutral-900"
@@ -1145,9 +1145,9 @@ export function ChatInterface({
                 />
 
                 {isAddMenuOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 w-72 rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl z-40">
-                    {canUpload && (
-                      <div className="pb-1.5 mb-1.5 border-b border-neutral-100">
+                  <div className="absolute bottom-full left-0 mb-2 w-60 rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-xl z-40">
+                    {canUpload ? (
+                      <div>
                         <button
                           type="button"
                           disabled={uploadingFile}
@@ -1159,63 +1159,17 @@ export function ChatInterface({
                             <polyline points="17 8 12 3 7 8" />
                             <line x1="12" y1="3" x2="12" y2="15" />
                           </svg>
-                          <span>{uploadingFile ? "Uploading document..." : "Upload file from computer"}</span>
+                          <span>{uploadingFile ? "Uploading..." : "Upload files or images"}</span>
                         </button>
                         {uploadError && (
                           <p className="px-2.5 pt-1 text-[11px] text-rose-600">{uploadError}</p>
                         )}
                       </div>
+                    ) : (
+                      <div className="px-2.5 py-2 text-xs text-neutral-500">
+                        File upload restricted for your role
+                      </div>
                     )}
-
-                    <div className="px-2.5 py-1 flex items-center justify-between">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-                        Workspace Files
-                      </span>
-                      <span className="text-[10px] font-mono text-neutral-400">
-                        {storedDocs.length}
-                      </span>
-                    </div>
-
-                    <div className="max-h-52 overflow-y-auto space-y-0.5 pr-0.5">
-                      {loadingDocs ? (
-                        <div className="px-2.5 py-3 text-xs text-neutral-400 text-center">
-                          Loading files...
-                        </div>
-                      ) : storedDocs.length === 0 ? (
-                        <div className="px-2.5 py-3 text-xs text-neutral-400 text-center">
-                          No workspace files available
-                        </div>
-                      ) : (
-                        storedDocs.map((doc) => {
-                          const isAttached = attachedFiles.some((f) => f.id === doc.id);
-                          return (
-                            <button
-                              key={doc.id}
-                              type="button"
-                              onClick={() => toggleAttachDocument(doc)}
-                              className={`w-full flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs transition-colors ${
-                                isAttached
-                                  ? "bg-neutral-950 text-white"
-                                  : "text-neutral-800 hover:bg-neutral-100"
-                              }`}
-                              title={doc.filename}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <IconFile
-                                  className={`h-3.5 w-3.5 shrink-0 ${
-                                    isAttached ? "text-white" : "text-neutral-400"
-                                  }`}
-                                />
-                                <span className="truncate font-medium">{doc.filename}</span>
-                              </div>
-                              {isAttached && (
-                                <IconCheck className="h-3.5 w-3.5 text-white shrink-0" />
-                              )}
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
