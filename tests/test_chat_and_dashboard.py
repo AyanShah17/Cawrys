@@ -624,4 +624,20 @@ def test_chat_assistant_strictly_zero_emojis(exec_client, auth_headers):
     assert not emoji_pattern.search(content4), f"Emoji found in tool response: {content4}"
 
 
+def test_chat_greeting_least_information_reveal(exec_client, auth_headers):
+    """Simple greetings must follow strict least-information-reveal policy without unrequested telemetry dumps."""
+    res = exec_client.post(
+        "/v1/chat/message",
+        json={"message": "hi", "session_id": "test-greeting-minimal"},
+        headers=auth_headers,
+    )
+    assert res.status_code == 200
+    content = res.json()["content"]
+    assert "Current Plant Status" not in content
+    assert "87.4%" not in content
+    assert "1,000 units" not in content
+    assert len(content) < 120
+
+
+
 

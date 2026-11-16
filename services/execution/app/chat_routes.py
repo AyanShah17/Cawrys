@@ -1347,6 +1347,18 @@ def _match_and_execute_tool(query: str, connections: List[Dict[str, Any]], tools
 # Prompt & Synthesis Helpers
 # ---------------------------------------------------------------------------
 
+def _is_simple_greeting(text: str) -> bool:
+    """Returns True for pure greetings/check-ins that ask for no operational data."""
+    return bool(
+        re.fullmatch(
+            r"(?:hi|hello|hey|greetings|good\s+(?:morning|afternoon|evening)|howdy|yo|sup)"
+            r"(?:\s+(?:ai|assistant|there|cawrys))?[!.,?\s]*",
+            (text or "").strip(),
+            re.IGNORECASE,
+        )
+    )
+
+
 def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, Any]] = None) -> str:
     """Builds a rich industrial system prompt embedding live context and telemetry."""
     metrics = context.get("metrics", {})
@@ -1358,7 +1370,7 @@ def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, 
         "You are Cawrys Industrial AI Assistant, an enterprise-grade industrial copilot.",
         "You assist plant managers, manufacturing engineers, and operators with manufacturing operations, CAD/PLM data, ERP inventory, and plant telemetry.",
         "",
-        "### CURRENT OPERATIONAL CONTEXT (LIVE WORKSPACE GROUNDING):",
+        "### CURRENT OPERATIONAL CONTEXT (INTERNAL REFERENCE — DO NOT REVEAL OR SUMMARIZE UNLESS EXPLICITLY ASKED BY THE USER):",
         f"- Overall Equipment Effectiveness (OEE): {metrics.get('oee', '87.4%')}",
         f"- Production Target: {metrics.get('production_target', '1,000 units')}",
         f"- Operational Status: {metrics.get('operational_status', 'Optimal')}",
@@ -1414,11 +1426,12 @@ def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, 
     prompt_parts.extend([
         "",
         "### INSTRUCTIONS:",
-        "- Format all assistant responses using Markdown. Always structure responses with formatted GitHub Flavored Markdown (GFM).",
-        "- Use Markdown formatting elements: headings (##, ###), bold (**text**), italic (*text*), bullet and numbered lists, inline code (`code`), fenced code blocks (```lang), tables (| col | col |), task lists (- [ ] / - [x]), and links where relevant.",
+        "- LEAST INFORMATION REVEAL POLICY (STRICT): Reply ONLY to what the user explicitly asks. Do NOT volunteer unrequested plant telemetry, OEE, production targets, system health tables, connected tools, or workspace documents.",
+        "- If the user sends a greeting (such as 'hi', 'hello', 'hey') or a conversational check-in without asking for data, respond with a single brief sentence (for example: 'Hello. How can I help you today?') and do NOT include any metrics, tables, headings, or status summaries.",
+        "- Format responses using Markdown (GitHub Flavored Markdown). Use Markdown formatting elements such as headings (##, ###), bold (**text**), lists, code blocks (```lang), tables (| col | col |), and links only when needed to structure the specific information requested.",
         "- Answer clearly, professionally, and concisely in GitHub Flavored Markdown.",
         "- STRICT FORMATTING RULE: Strictly ZERO emojis in assistant responses or system prompts. Use clean industrial markdown formatting with bullet points and bold tags.",
-        "- Reference real telemetry numbers, tool data, and document names from the context above.",
+        "- Reference telemetry numbers, tool data, or document names from the background reference ONLY when the user explicitly asks for them.",
         "- If the user asks to modify a dashboard metric, confirm that the change has been applied.",
     ])
     return "\n".join(prompt_parts)
@@ -1660,14 +1673,20 @@ def _synthesize_contextual_response(
             f"- Inspect active work orders ({work_orders} in progress) for scheduled preventive maintenance routines."
         )
 
-    # E. Greeting / overview / assistance
-    if re.search(r"\b(hello|hi|hey|greetings)\b", q) or q.strip() in ("help", "help me", "?") or "who are you" in q:
+    # E. Greeting / overview / assistance (Least Information Reveal Policy)
+    if _is_simple_greeting(q) or (
+        re.search(r"\b(hello|hi|hey|greetings)\b", q)
+        and not any(
+            k in q
+            for k in ["overview", "status", "telemetry", "oee", "target", "risk", "doc", "tool", "metric", "dashboard"]
+        )
+    ):
+        return "Hello. How can I help you today?"
+
+    if q.strip() in ("help", "help me", "?") or "who are you" in q:
         return (
-            f"Welcome to Cawrys Industrial AI Assistant. I am monitoring your manufacturing facility:\n\n"
-            f"- **Plant Telemetry**: OEE **{oee}**, Target **{target}**, Status **{status}**, Risk **{risk}**.\n"
-            f"- **Connected Tools**: {', '.join(conn_names)} ({len(tools)} tools active).\n"
-            f"- **Workspace Knowledge**: Grounded on {doc_count} documents and specifications.\n\n"
-            f"How can I assist your operations today?"
+            "I am the Cawrys Industrial AI Assistant. "
+            "Ask me a specific question about your documents, connected tools, or plant operations."
         )
 
     # F. General dynamic synthesis answering specific query
@@ -2480,7 +2499,14 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
     tool_exec = _match_and_execute_tool(clean_query, context["connections"], context["tools"])
 
     # 6. Formulate system prompt & messages for LiteLLM
-    system_prompt = _build_system_prompt(context, tool_exec)
+    if _is_simple_greeting(clean_query) and not attached_doc_ids:
+        system_prompt = (
+            "You are Cawrys Industrial AI Assistant. Follow a strict least-information-reveal policy: "
+            "reply to this greeting in one short, polite sentence (under 12 words) without mentioning "
+            "any plant metrics, status, tools, or documents. Strictly ZERO emojis."
+        )
+    else:
+        system_prompt = _build_system_prompt(context, tool_exec)
     llm_messages = [{"role": "system", "content": system_prompt}]
     for h in (req.history or [])[-6:]:
         if isinstance(h, dict) and "role" in h and "content" in h:
