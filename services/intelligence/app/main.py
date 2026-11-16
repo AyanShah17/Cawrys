@@ -81,7 +81,9 @@ async def process_document(file: UploadFile = File(...), ctx: Ctx = Depends(requ
     key = f"{tenant_id}/{doc_id}/{filename}"
 
     try:
-        storage.put(key, data, mime)
+        meta = storage.put(key, data, mime)
+        if meta and getattr(meta, "key", None):
+            key = meta.key
     except Exception as e:  # storage optional in local dev
         key = f"local-unstored/{doc_id}"
         storage_error = str(e)
@@ -338,6 +340,88 @@ def get_system_persistence_mode(ctx: Ctx = Depends(current)):
     }
 
 
+def _sync_existing_documents_to_neon() -> None:
+    """Best-effort sync of local documents into type-specific Neon buckets and Postgres when missing."""
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    try:
+        import sqlite3
+        from .sqlite_adapter import get_sqlite_path
+
+        db_path = get_sqlite_path()
+        if not os.path.exists(db_path):
+            return
+        local_provider = storage.LocalStorageProvider()
+        neon_provider = storage.NeonObjectStorageProvider()
+
+        sq = sqlite3.connect(db_path)
+        sq.row_factory = sqlite3.Row
+        try:
+            doc_rows = sq.execute(
+                "SELECT id, tenant_id, filename, mime_type, storage_key, status FROM documents"
+            ).fetchall()
+            ext_rows = sq.execute(
+                "SELECT id, document_id, tenant_id, doc_type, fields, confidence, validation, decision, requires_approval, model_trace FROM extractions"
+            ).fetchall()
+        finally:
+            sq.close()
+
+        ext_by_doc = {str(r["document_id"]): dict(r) for r in ext_rows}
+        if not doc_rows:
+            return
+
+        with conn() as pg:
+            existing_rows = pg.execute("SELECT id::text as id, filename, storage_key FROM documents").fetchall()
+            existing_ids = {str(r["id"]) for r in existing_rows}
+            existing_names = {(r["filename"], r["storage_key"]) for r in existing_rows}
+
+            for row in doc_rows:
+                doc_id = str(row["id"])
+                tenant_id = str(row["tenant_id"])
+                filename = row["filename"]
+                mime = row["mime_type"] or "application/octet-stream"
+                skey = row["storage_key"] or f"{tenant_id}/{doc_id}/{filename}"
+                if skey.startswith("local-unstored/"):
+                    continue
+
+                raw_bytes = local_provider.get(skey)
+                if raw_bytes is None:
+                    continue
+
+                meta = neon_provider.put(skey, raw_bytes, mime)
+                resolved_key = meta.key if meta and getattr(meta, "key", None) else skey
+
+                if doc_id not in existing_ids and (filename, resolved_key) not in existing_names:
+                    pg.execute(
+                        "INSERT INTO documents (id, tenant_id, filename, mime_type, storage_key, status) "
+                        "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",
+                        (doc_id, tenant_id, filename, mime, resolved_key, row["status"]),
+                    )
+                    existing_ids.add(doc_id)
+                    existing_names.add((filename, resolved_key))
+                    ext = ext_by_doc.get(doc_id)
+                    if ext:
+                        pg.execute(
+                            "INSERT INTO extractions (id, document_id, tenant_id, doc_type, fields, confidence, validation, decision, requires_approval, model_trace) "
+                            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",
+                            (
+                                str(ext["id"]),
+                                doc_id,
+                                tenant_id,
+                                ext.get("doc_type"),
+                                ext.get("fields") or "{}",
+                                ext.get("confidence"),
+                                ext.get("validation") or "{}",
+                                ext.get("decision") or "{}",
+                                bool(ext.get("requires_approval", True)),
+                                ext.get("model_trace") or "[]",
+                            ),
+                        )
+            pg.commit()
+    except Exception:
+        pass
+
+
 @app.post("/v1/system/persistence-mode")
 async def set_system_persistence_mode(
     request: Request,
@@ -360,6 +444,9 @@ async def set_system_persistence_mode(
         payload = storage.set_persistence_mode(norm_mode)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+    if norm_mode == "neon":
+        _sync_existing_documents_to_neon()
 
     try:
         with conn() as c:

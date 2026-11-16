@@ -187,6 +187,8 @@ export function ChatInterface({
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [persistenceMode, setPersistenceMode] = useState<"local" | "neon">("local");
+  const [persistenceLoading, setPersistenceLoading] = useState(false);
 
   // Composer small model capsule popover state
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -271,6 +273,43 @@ export function ChatInterface({
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/intelligence/v1/system/persistence-mode")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.mode) {
+          setPersistenceMode(data.mode === "neon" ? "neon" : "local");
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function togglePersistence() {
+    if (persistenceLoading) return;
+    const nextMode = persistenceMode === "local" ? "neon" : "local";
+    setPersistenceLoading(true);
+    try {
+      const res = await fetch("/api/intelligence/v1/system/persistence-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: nextMode }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPersistenceMode(data.mode === "neon" ? "neon" : "local");
+        await loadDocuments();
+      }
+    } catch (err) {
+      console.warn("Failed to toggle persistence mode:", err);
+    } finally {
+      setPersistenceLoading(false);
+    }
+  }
 
   // Load chat history, tools, provider catalog, and saved model config on mount
   useEffect(() => {
@@ -508,43 +547,58 @@ export function ChatInterface({
   }
 
   async function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!file || uploadingFile || !canUpload) return;
+    if (files.length === 0 || uploadingFile || !canUpload) return;
 
     setUploadingFile(true);
     setUploadError(null);
-    const fd = new FormData();
-    fd.append("file", file);
+    const uploadedResults: Array<{ file: File; payload: any }> = [];
 
     try {
-      const r = await fetch(`${API.intelligence}/v1/documents`, {
-        method: "POST",
-        body: fd,
-      });
-      if (r.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        throw new Error(j.detail || "File upload failed");
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const r = await fetch(`${API.intelligence}/v1/documents`, {
+          method: "POST",
+          body: fd,
+        });
+        if (r.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error(j.detail || "File upload failed");
+        }
+        uploadedResults.push({ file, payload: j });
       }
 
       const updatedDocs = await loadDocuments();
-      const uploadedId = j.document_id || j.id;
-      const matched = updatedDocs.find((d) => d.id === uploadedId);
-      const docToAttach: StoredDoc = matched || {
-        id: uploadedId || `upload-${Date.now()}`,
-        filename: file.name,
-        status: j.status || "ready",
-        created_at: new Date().toISOString(),
-        doc_type: j.doc_type ?? null,
-      };
+      const newlyAttached: StoredDoc[] = [];
+      for (const item of uploadedResults) {
+        const uploadedId = item.payload.document_id || item.payload.id;
+        const matched = updatedDocs.find((d) => d.id === uploadedId);
+        newlyAttached.push(
+          matched || {
+            id: uploadedId || `upload-${Date.now()}`,
+            filename: item.file.name,
+            status: item.payload.status || "ready",
+            created_at: new Date().toISOString(),
+            doc_type: item.payload.doc_type ?? null,
+          }
+        );
+      }
 
-      setAttachedFiles((prev) =>
-        prev.some((d) => d.id === docToAttach.id) ? prev : [...prev, docToAttach]
-      );
+      setAttachedFiles((prev) => {
+        const merged = [...prev];
+        for (const doc of newlyAttached) {
+          if (!merged.some((d) => d.id === doc.id)) {
+            merged.push(doc);
+          }
+        }
+        return merged;
+      });
       setIsAddMenuOpen(false);
     } catch (err: any) {
       setUploadError(err?.message || "Upload failed");
@@ -1085,6 +1139,7 @@ export function ChatInterface({
                 <input
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   className="hidden"
                   onChange={handleUploadFile}
                 />
@@ -1164,6 +1219,18 @@ export function ChatInterface({
                   </div>
                 )}
               </div>
+
+              {/* Persistence Mode Capsule (Local / Neon) */}
+              <button
+                type="button"
+                onClick={togglePersistence}
+                disabled={persistenceLoading}
+                title={`Active: ${persistenceMode === "neon" ? "Neon" : "Local"}. Click to switch persistence`}
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200/80 hover:text-neutral-950 border border-neutral-200/80 transition-colors select-none shrink-0 disabled:opacity-50"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${persistenceMode === "neon" ? "bg-cyan-500" : "bg-emerald-500"}`} />
+                <span>{persistenceMode === "neon" ? "Neon" : "Local"}</span>
+              </button>
 
               {/* Small Model Capsule */}
               <div ref={modelMenuRef} className="relative min-w-0">

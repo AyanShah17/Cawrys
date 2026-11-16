@@ -29,6 +29,47 @@ class StorageObjectMetadata:
     etag: Optional[str] = None
 
 
+DEFAULT_PDF_BUCKET = "cawrys-files"
+DEFAULT_IMAGE_BUCKET = "image-files"
+DEFAULT_TEXT_BUCKET = "text-files"
+
+_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg", ".tif", ".tiff", ".heic")
+_TEXT_EXTENSIONS = (".txt", ".md", ".csv", ".json", ".log", ".prt", ".docx")
+
+
+def resolve_bucket_for_file(key: str, content_type: str = "") -> str:
+    """Routes objects to PDF, image, or text buckets based on extension or MIME type."""
+    ct = (content_type or "").lower().strip()
+    lower_key = (key or "").lower().strip()
+    if ct.startswith("image/") or lower_key.endswith(_IMAGE_EXTENSIONS):
+        return os.environ.get("NEON_IMAGE_BUCKET") or DEFAULT_IMAGE_BUCKET
+    if ct.startswith("text/") or lower_key.endswith(_TEXT_EXTENSIONS):
+        return os.environ.get("NEON_TEXT_BUCKET") or DEFAULT_TEXT_BUCKET
+    return os.environ.get("NEON_STORAGE_BUCKET") or os.environ.get("R2_BUCKET") or DEFAULT_PDF_BUCKET
+
+
+def _load_env_if_needed() -> None:
+    """Loads .env / .env.local S3 credentials if absent from process environment."""
+    if os.environ.get("AWS_ENDPOINT_URL_S3"):
+        return
+    repo_root = Path(__file__).resolve().parents[3]
+    for env_name in (".env", ".env.local"):
+        env_path = repo_root / env_name
+        if not env_path.is_file():
+            continue
+        try:
+            for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+                s = raw_line.strip()
+                if not s or s.startswith("#") or "=" not in s:
+                    continue
+                k, v = s.split("=", 1)
+                val = v.strip().strip('"').strip("'")
+                if val and not os.environ.get(k):
+                    os.environ[k] = val
+        except OSError:
+            continue
+
+
 class BaseStorageProvider(abc.ABC):
     """Abstract base class for persistent storage providers."""
 
@@ -311,12 +352,13 @@ class NeonObjectStorageProvider(BaseStorageProvider):
     """Neon Object Storage provider using path-style S3 addressing with boto3."""
 
     def __init__(self, bucket: Optional[str] = None, client: Optional[Any] = None):
+        self._explicit_bucket = bucket is not None
         self._client = client
         self.bucket = (
             bucket
             or os.environ.get("NEON_STORAGE_BUCKET")
             or os.environ.get("R2_BUCKET")
-            or "cawrys-files"
+            or DEFAULT_PDF_BUCKET
         )
 
     def _get_client(self):
@@ -324,6 +366,7 @@ class NeonObjectStorageProvider(BaseStorageProvider):
             return self._client
         import boto3
 
+        _load_env_if_needed()
         endpoint = os.environ.get("AWS_ENDPOINT_URL_S3") or os.environ.get("R2_ENDPOINT")
         key_id = os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("R2_KEY")
         secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY") or os.environ.get("R2_SECRET")
@@ -339,6 +382,72 @@ class NeonObjectStorageProvider(BaseStorageProvider):
             config=cfg,
         )
         return self._client
+
+    def _all_managed_buckets(self) -> List[str]:
+        if self._explicit_bucket:
+            return [self.bucket]
+        candidates = [
+            os.environ.get("NEON_STORAGE_BUCKET") or os.environ.get("R2_BUCKET") or DEFAULT_PDF_BUCKET,
+            os.environ.get("NEON_IMAGE_BUCKET") or DEFAULT_IMAGE_BUCKET,
+            os.environ.get("NEON_TEXT_BUCKET") or DEFAULT_TEXT_BUCKET,
+            "assets",
+        ]
+        seen: List[str] = []
+        for b in candidates:
+            if b and b not in seen:
+                seen.append(b)
+        return seen
+
+    def _candidate_buckets(self, key: str = "", content_type: str = "") -> List[str]:
+        if self._explicit_bucket:
+            return [self.bucket]
+        primary = resolve_bucket_for_file(key, content_type)
+        ordered = [primary] + self._all_managed_buckets()
+        seen: List[str] = []
+        for b in ordered:
+            if b and b not in seen:
+                seen.append(b)
+        return seen
+
+    def _find_existing_key(
+        self, s3: Any, bucket: str, key: str, size: int, etag: str
+    ) -> Optional[str]:
+        """Returns existing matching object key in bucket to avoid redundant uploads."""
+        try:
+            s3.head_object(Bucket=bucket, Key=key)
+            return key
+        except (ClientError, botocore.exceptions.BotoCoreError):
+            pass
+
+        basename = os.path.basename(key)
+        prefix = f"{key.split('/', 1)[0]}/" if "/" in key else ""
+        try:
+            paginator = s3.get_paginator("list_objects_v2")
+            page_iter = paginator.paginate(Bucket=bucket, Prefix=prefix)
+        except Exception:
+            try:
+                params = {"Bucket": bucket}
+                if prefix:
+                    params["Prefix"] = prefix
+                page_iter = [s3.list_objects_v2(**params)]
+            except (ClientError, botocore.exceptions.BotoCoreError):
+                return None
+
+        try:
+            for page in page_iter:
+                for item in page.get("Contents", []):
+                    item_key = item.get("Key", "")
+                    if item_key == key:
+                        return item_key
+                    if not basename or os.path.basename(item_key) != basename:
+                        continue
+                    item_size = item.get("Size")
+                    item_etag = (item.get("ETag") or "").strip('"')
+                    if item_size == size and (not item_etag or item_etag == etag):
+                        return item_key
+        except (ClientError, botocore.exceptions.BotoCoreError):
+            return None
+        return None
 
     def _validate_key(self, key: str) -> None:
         if not key or not isinstance(key, str):
@@ -373,14 +482,29 @@ class NeonObjectStorageProvider(BaseStorageProvider):
         else:
             raise ValueError("invalid data payload: must be bytes or binary stream")
 
+        etag = hashlib.md5(body).hexdigest()
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        if self._explicit_bucket:
+            target_bucket = self.bucket
+        else:
+            target_bucket = resolve_bucket_for_file(key, content_type)
+            existing_key = self._find_existing_key(s3, target_bucket, key, len(body), etag)
+            if existing_key is not None:
+                return StorageObjectMetadata(
+                    key=existing_key,
+                    size=len(body),
+                    content_type=content_type,
+                    last_modified=now,
+                    etag=etag,
+                )
+
         s3.put_object(
-            Bucket=self.bucket,
+            Bucket=target_bucket,
             Key=key,
             Body=body,
             ContentType=content_type,
         )
-        etag = hashlib.md5(body).hexdigest()
-        now = datetime.datetime.now(datetime.timezone.utc)
         return StorageObjectMetadata(
             key=key,
             size=len(body),
@@ -392,112 +516,144 @@ class NeonObjectStorageProvider(BaseStorageProvider):
     def get(self, key: str) -> Optional[bytes]:
         if not key or key.startswith("local-unstored/"):
             return None
-        try:
-            s3 = self._get_client()
-            obj = s3.get_object(Bucket=self.bucket, Key=key)
-            body = obj["Body"]
-            if hasattr(body, "read"):
-                return body.read()
-            return bytes(body)
-        except ClientError as exc:
-            err_code = exc.response.get("Error", {}).get("Code", "")
-            status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-            if err_code in ("NoSuchKey", "404", "NotFound") or status_code == 404:
+        s3 = self._get_client()
+        for bucket in self._candidate_buckets(key):
+            try:
+                obj = s3.get_object(Bucket=bucket, Key=key)
+                body = obj["Body"]
+                if hasattr(body, "read"):
+                    return body.read()
+                return bytes(body)
+            except ClientError as exc:
+                err_code = exc.response.get("Error", {}).get("Code", "")
+                status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+                if err_code in ("NoSuchKey", "NoSuchBucket", "404", "NotFound") or status_code == 404:
+                    continue
+                raise
+            except botocore.exceptions.BotoCoreError:
                 return None
-            raise
-        except botocore.exceptions.BotoCoreError:
-            return None
+        return None
 
     def get_stream(
         self, key: str, chunk_size: int = 65536
     ) -> Optional[Iterator[bytes]]:
         if not key or key.startswith("local-unstored/"):
             return None
-        try:
-            s3 = self._get_client()
-            obj = s3.get_object(Bucket=self.bucket, Key=key)
-            body = obj["Body"]
+        s3 = self._get_client()
+        for bucket in self._candidate_buckets(key):
+            try:
+                obj = s3.get_object(Bucket=bucket, Key=key)
+                body = obj["Body"]
 
-            def _stream_gen() -> Iterator[bytes]:
-                if hasattr(body, "iter_chunks"):
-                    yield from body.iter_chunks(chunk_size=chunk_size)
-                elif hasattr(body, "read"):
-                    while True:
-                        chunk = body.read(chunk_size)
-                        if not chunk:
-                            break
-                        yield chunk
-                else:
-                    raw = bytes(body)
-                    for i in range(0, len(raw), chunk_size):
-                        yield raw[i : i + chunk_size]
+                def _stream_gen() -> Iterator[bytes]:
+                    if hasattr(body, "iter_chunks"):
+                        yield from body.iter_chunks(chunk_size=chunk_size)
+                    elif hasattr(body, "read"):
+                        while True:
+                            chunk = body.read(chunk_size)
+                            if not chunk:
+                                break
+                            yield chunk
+                    else:
+                        raw = bytes(body)
+                        for i in range(0, len(raw), chunk_size):
+                            yield raw[i : i + chunk_size]
 
-            return _stream_gen()
-        except ClientError as exc:
-            err_code = exc.response.get("Error", {}).get("Code", "")
-            status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-            if err_code in ("NoSuchKey", "404", "NotFound") or status_code == 404:
+                return _stream_gen()
+            except ClientError as exc:
+                err_code = exc.response.get("Error", {}).get("Code", "")
+                status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+                if err_code in ("NoSuchKey", "NoSuchBucket", "404", "NotFound") or status_code == 404:
+                    continue
+                raise
+            except botocore.exceptions.BotoCoreError:
                 return None
-            raise
-        except botocore.exceptions.BotoCoreError:
-            return None
+        return None
 
     def delete(self, key: str) -> bool:
         if not key or key.startswith("local-unstored/"):
             return False
-        try:
-            s3 = self._get_client()
-            s3.delete_object(Bucket=self.bucket, Key=key)
-            return True
-        except (ClientError, botocore.exceptions.BotoCoreError):
-            return False
+        s3 = self._get_client()
+        if self._explicit_bucket:
+            try:
+                s3.delete_object(Bucket=self.bucket, Key=key)
+                return True
+            except (ClientError, botocore.exceptions.BotoCoreError):
+                return False
+
+        deleted = False
+        for bucket in self._candidate_buckets(key):
+            try:
+                s3.head_object(Bucket=bucket, Key=key)
+                s3.delete_object(Bucket=bucket, Key=key)
+                deleted = True
+            except (ClientError, botocore.exceptions.BotoCoreError):
+                continue
+        return deleted
 
     def exists(self, key: str) -> bool:
         if not key or key.startswith("local-unstored/"):
             return False
-        try:
-            s3 = self._get_client()
-            s3.head_object(Bucket=self.bucket, Key=key)
-            return True
-        except (ClientError, botocore.exceptions.BotoCoreError):
-            return False
+        s3 = self._get_client()
+        for bucket in self._candidate_buckets(key):
+            try:
+                s3.head_object(Bucket=bucket, Key=key)
+                return True
+            except (ClientError, botocore.exceptions.BotoCoreError):
+                continue
+        return False
 
     def list(
         self, prefix: str = "", limit: int = 100
     ) -> List[StorageObjectMetadata]:
         s3 = self._get_client()
-        params = {"Bucket": self.bucket}
-        if prefix:
-            params["Prefix"] = prefix
-        resp = s3.list_objects_v2(**params)
-        contents = resp.get("Contents", [])
         results: List[StorageObjectMetadata] = []
-        for item in contents[:limit]:
-            results.append(
-                StorageObjectMetadata(
-                    key=item["Key"],
-                    size=item.get("Size", 0),
-                    last_modified=item.get("LastModified"),
-                    etag=item.get("ETag", "").strip('"') if item.get("ETag") else None,
+        seen_keys = set()
+        for bucket in self._all_managed_buckets():
+            params = {"Bucket": bucket}
+            if prefix:
+                params["Prefix"] = prefix
+            try:
+                resp = s3.list_objects_v2(**params)
+            except (ClientError, botocore.exceptions.BotoCoreError):
+                if self._explicit_bucket:
+                    raise
+                continue
+            contents = resp.get("Contents", [])
+            for item in contents:
+                item_key = item["Key"]
+                if item_key in seen_keys:
+                    continue
+                seen_keys.add(item_key)
+                results.append(
+                    StorageObjectMetadata(
+                        key=item_key,
+                        size=item.get("Size", 0),
+                        last_modified=item.get("LastModified"),
+                        etag=item.get("ETag", "").strip('"') if item.get("ETag") else None,
+                    )
                 )
-            )
+                if len(results) >= limit:
+                    return results
         return results
 
     def get_metadata(self, key: str) -> Optional[StorageObjectMetadata]:
         if not key or key.startswith("local-unstored/"):
             return None
-        try:
-            s3 = self._get_client()
-            res = s3.head_object(Bucket=self.bucket, Key=key)
-            return StorageObjectMetadata(
-                key=key,
-                size=res.get("ContentLength", 0),
-                content_type=res.get("ContentType", "application/octet-stream"),
-                last_modified=res.get("LastModified"),
-                etag=res.get("ETag", "").strip('"') if res.get("ETag") else None,
-            )
-        except (ClientError, botocore.exceptions.BotoCoreError):
-            return None
+        s3 = self._get_client()
+        for bucket in self._candidate_buckets(key):
+            try:
+                res = s3.head_object(Bucket=bucket, Key=key)
+                return StorageObjectMetadata(
+                    key=key,
+                    size=res.get("ContentLength", 0),
+                    content_type=res.get("ContentType", "application/octet-stream"),
+                    last_modified=res.get("LastModified"),
+                    etag=res.get("ETag", "").strip('"') if res.get("ETag") else None,
+                )
+            except (ClientError, botocore.exceptions.BotoCoreError):
+                continue
+        return None
 
 
 def get_persistence_mode() -> str:

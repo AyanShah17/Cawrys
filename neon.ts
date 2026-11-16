@@ -12,6 +12,8 @@ export default defineConfig({
   buckets: {
     // "private" is the default; use "public_read" for anonymous reads
     "cawrys-files": { access: "private" },
+    "image-files": { access: "private" },
+    "text-files": { access: "private" },
     assets: { access: "private" },
   },
   // Branch policy: per-branch tuning
