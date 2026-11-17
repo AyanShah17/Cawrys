@@ -1568,18 +1568,8 @@ export function ChatInterface({
               </div>
             </div>
 
-            {/* Right Side: Auto Status & Send Button */}
+            {/* Right Side: Send Button */}
             <div className="flex items-center gap-2 shrink-0">
-              <div
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-neutral-500 select-none"
-                title={`Autonomous routing across ${activeToolCount} active connectors`}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                <span>Auto</span>
-              </div>
-
               <button
                 type="button"
                 onClick={() => handleSend()}
