@@ -176,6 +176,20 @@ class FastMCP:
 
         return fn(**filtered_args)
 
+    def to_openai_tools(self) -> list[dict[str, Any]]:
+        """Export registered FastMCP tools into standard OpenAI / LiteLLM function calling schemas."""
+        tools: list[dict[str, Any]] = []
+        for name, meta in self.tool_metadata.items():
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": meta.name,
+                    "description": meta.description,
+                    "parameters": meta.parameters_schema,
+                },
+            })
+        return tools
+
 
 # ==============================================================================
 # FastMCP Server Instances
@@ -1997,6 +2011,8 @@ MCP_SERVERS: dict[str, FastMCP] = {
     "oracle_scm": oracle_mcp,
     "workspace_documents": document_mcp,
 }
+
+ALL_SERVERS_BY_NAME: dict[str, FastMCP] = MCP_SERVERS
 
 
 def _build_app_tools(server: FastMCP, app_key: str) -> list[dict[str, Any]]:

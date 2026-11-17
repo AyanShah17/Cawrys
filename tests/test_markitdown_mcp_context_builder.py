@@ -777,3 +777,29 @@ def test_e2e_unrelated_prompt_does_not_retrieve_documents(workspace, client, cap
     # No markdown artifact should have been generated for an unrelated prompt
     md_key = f"{workspace['tenant_id']}/{workspace['toefl_id']}/TOEFL_Score_Report.md"
     assert workspace["provider"].get(md_key) is None
+
+
+def test_mcp_to_openai_tools_and_toolkit_explorer_schemas():
+    """Validates FastMCP to_openai_tools and ToolkitExplorer.get_tool_definitions schema bindings."""
+    from services.execution.app.industrial_mcp import document_mcp, sap_mcp
+    from services.execution.app.context_builder import ToolkitExplorer
+
+    doc_tools = document_mcp.to_openai_tools()
+    assert len(doc_tools) >= 3
+    tool_names = {t["function"]["name"] for t in doc_tools}
+    assert "workspace_list_documents" in tool_names
+    assert "workspace_search_documents" in tool_names
+    assert "workspace_read_document_markdown" in tool_names
+
+    for t in doc_tools:
+        assert t["type"] == "function"
+        fn = t["function"]
+        assert "name" in fn and "description" in fn and "parameters" in fn
+        assert fn["parameters"].get("type") == "object"
+        assert_no_emojis(fn["description"])
+
+    explorer_tools = ToolkitExplorer.get_tool_definitions(["workspace_documents", "sap_s4hana"])
+    assert len(explorer_tools) > len(doc_tools)
+    explorer_names = {t["function"]["name"] for t in explorer_tools}
+    assert "workspace_search_documents" in explorer_names
+    assert "sap_mm_check_stock_overview" in explorer_names

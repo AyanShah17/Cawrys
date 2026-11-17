@@ -327,6 +327,19 @@ class ToolkitExplorer:
             "toolkits_explored": toolkits_explored,
         }
 
+    @classmethod
+    def get_tool_definitions(cls, toolkits: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """Returns standard OpenAI / LiteLLM tool schemas for registered FastMCP toolkits."""
+        from .industrial_mcp import ALL_SERVERS_BY_NAME
+
+        selected = toolkits or ["workspace_documents"]
+        tools: List[Dict[str, Any]] = []
+        for name in selected:
+            server = ALL_SERVERS_BY_NAME.get(name)
+            if server and hasattr(server, "to_openai_tools"):
+                tools.extend(server.to_openai_tools())
+        return tools
+
 
 class ContextBuilder:
     """Builds the LLM system prompt strictly after MCP toolkit exploration and retrieval."""
