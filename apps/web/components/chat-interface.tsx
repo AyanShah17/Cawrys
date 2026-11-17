@@ -861,10 +861,10 @@ export function ChatInterface({
   }, [sessions, sessionId, messages]);
 
   return (
-    <div className="flex h-[calc(100vh-6.75rem)] w-full gap-4">
+    <div className="flex h-full w-full gap-2 p-2 overflow-hidden bg-[#f4f5f8]">
       {/* Left Conversation History Sidebar */}
       {sidebarOpen && (
-        <aside className="hidden md:flex w-64 shrink-0 flex-col rounded-3xl bg-[#111113] text-neutral-200 border border-neutral-800/90 p-3.5 shadow-xl select-none overflow-hidden">
+        <aside className="flex w-64 shrink-0 flex-col rounded-2xl bg-[#111113] text-neutral-200 border border-neutral-800/90 p-3.5 shadow-xl select-none overflow-hidden">
           {/* Top Action: + New Conversation */}
           <button
             type="button"
@@ -969,7 +969,7 @@ export function ChatInterface({
       )}
 
       {/* Main Chat Canvas Card */}
-      <div className="flex-1 min-w-0 flex flex-col rounded-3xl border border-neutral-200/80 bg-white/85 backdrop-blur-sm shadow-sm relative overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-sm shadow-sm relative overflow-hidden">
         {/* Compact Header Bar */}
         <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-4 py-2.5 shrink-0 bg-white/70">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -978,7 +978,7 @@ export function ChatInterface({
               onClick={() => setSidebarOpen((v) => !v)}
               title={sidebarOpen ? "Hide conversation sidebar" : "Show conversation sidebar"}
               aria-label="Toggle conversation sidebar"
-              className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors shrink-0"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors shrink-0"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-4 w-4">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -1031,29 +1031,6 @@ export function ChatInterface({
                   Autonomous plant orchestration, CAD engineering analysis, and live telemetry execution across{" "}
                   {docsCount} workspace file{docsCount === 1 ? "" : "s"} and {activeToolCount} active connectors.
                 </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                {QUICK_ACTION_CARDS.map((card) => (
-                  <button
-                    key={card.title}
-                    type="button"
-                    onClick={() => handleSend(card.prompt)}
-                    className="group rounded-2xl border border-neutral-200/80 bg-white p-4 text-left transition-all duration-200 hover:border-neutral-400 hover:shadow-md hover:bg-neutral-50 active:scale-[0.98]"
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-sm font-semibold text-neutral-900 group-hover:text-black transition-colors">
-                        {card.title}
-                      </span>
-                      <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200">
-                        {card.tag}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-500 leading-relaxed group-hover:text-neutral-700">
-                      {card.subtitle}
-                    </p>
-                  </button>
-                ))}
               </div>
             </div>
           ) : (
@@ -1441,7 +1418,7 @@ export function ChatInterface({
                     title="Configured by Administrator. Contact system admin to change model."
                   >
                     <span className="truncate max-w-[230px]">
-                      {activeModelShort} ({activeProviderShort})
+                      {activeModelShort}
                     </span>
                   </div>
                 ) : (
@@ -1459,7 +1436,7 @@ export function ChatInterface({
                     }`}
                   >
                     <span className="truncate max-w-[230px]">
-                      {activeModelShort} ({activeProviderShort})
+                      {activeModelShort}
                     </span>
                     <IconChevronDown
                       className={`h-3.5 w-3.5 text-neutral-400 shrink-0 transition-transform ${

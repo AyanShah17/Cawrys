@@ -19,8 +19,10 @@ export function TopNav({ brand, email, role }: TopNavProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [dateSelected, setDateSelected] = useState<string>("Today, Dec 7");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [isFabOpen, setIsFabOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const fabRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -30,6 +32,9 @@ export function TopNav({ brand, email, role }: TopNavProps) {
       }
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotificationsOpen(false);
+      }
+      if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
+        setIsFabOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -76,6 +81,102 @@ export function TopNav({ brand, email, role }: TopNavProps) {
     return pathname.startsWith(href);
   };
 
+  if (mode === "ai") {
+    return (
+      <div ref={fabRef} className="fixed top-3.5 right-4 z-50">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsFabOpen((v) => !v)}
+            title={isFabOpen ? "Close menu" : "Navigation menu"}
+            aria-label="Navigation menu"
+            className="h-9 px-3.5 rounded-full bg-neutral-950 text-white border border-neutral-800 shadow-2xl hover:bg-neutral-900 active:scale-95 transition-all flex items-center gap-2 select-none"
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+            <span className="text-xs font-semibold">AI Mode</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${
+                isFabOpen ? "rotate-180" : ""
+              }`}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          {isFabOpen && (
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-neutral-800 bg-neutral-950 p-2.5 shadow-2xl space-y-2 text-white z-50 animate-fadeIn">
+              {/* Single UI Mode Switch Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  toggleMode();
+                  setIsFabOpen(false);
+                }}
+                className="w-full rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 px-3 py-2 text-xs font-medium flex items-center justify-between text-neutral-200 hover:text-white transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-400">
+                    <rect x="3" y="3" width="7" height="9" />
+                    <rect x="14" y="3" width="7" height="5" />
+                    <rect x="14" y="12" width="7" height="9" />
+                    <rect x="3" y="16" width="7" height="5" />
+                  </svg>
+                  <span>Switch to Dashboard</span>
+                </span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-500">
+                  <path d="M7 16V4M7 4L3 8M7 4l4 4" />
+                  <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              </button>
+
+              <div className="h-[1px] bg-neutral-800 my-1" />
+
+              {/* Contextual Route Pill Tabs */}
+              <div className="space-y-0.5">
+                {aiTabs.map((tab) => {
+                  const active = isActive(tab.href);
+                  return (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      onClick={() => setIsFabOpen(false)}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-colors ${
+                        active
+                          ? "bg-white text-black font-semibold shadow-xs"
+                          : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      {active && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <div className="h-[1px] bg-neutral-800 my-1" />
+
+              {/* User Identity & Logout */}
+              <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-neutral-400">
+                <span className="truncate max-w-[150px]">{email}</span>
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="text-red-400 hover:text-red-300 transition-colors font-medium"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <header className="sticky top-3 z-50 px-4 md:px-8 max-w-7xl mx-auto w-full">
       <div className="flex items-center justify-between gap-3">
@@ -99,23 +200,17 @@ export function TopNav({ brand, email, role }: TopNavProps) {
           <button
             type="button"
             onClick={toggleMode}
-            title={mode === "ai" ? "Switch to Dashboard Mode" : "Switch to AI Mode"}
-            aria-label={mode === "ai" ? "Switch to Dashboard Mode" : "Switch to AI Mode"}
+            title="Switch to AI Mode"
+            aria-label="Switch to AI Mode"
             className="rounded-full px-3.5 py-1.5 text-xs font-semibold bg-neutral-800/90 hover:bg-neutral-700 text-white border border-neutral-700/80 transition-all flex items-center gap-1.5 shrink-0 select-none"
           >
-            {mode === "ai" ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0">
-                <rect x="3" y="3" width="7" height="9" />
-                <rect x="14" y="3" width="7" height="5" />
-                <rect x="14" y="12" width="7" height="9" />
-                <rect x="3" y="16" width="7" height="5" />
-              </svg>
-            )}
-            <span>{mode === "ai" ? "AI Mode" : "Dashboard"}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0">
+              <rect x="3" y="3" width="7" height="9" />
+              <rect x="14" y="3" width="7" height="5" />
+              <rect x="14" y="12" width="7" height="9" />
+              <rect x="3" y="16" width="7" height="5" />
+            </svg>
+            <span>Dashboard</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 opacity-70 shrink-0" aria-hidden="true">
               <path d="M7 16V4M7 4L3 8M7 4l4 4" />

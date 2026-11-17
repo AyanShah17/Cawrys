@@ -2,7 +2,7 @@
 import "./globals.css";
 import React from "react";
 import type { Metadata } from "next";
-import { TopNav } from "@/components/top-nav";
+import { LayoutWrapper } from "@/components/layout-wrapper";
 import { getBrand } from "@/lib/brand";
 import { getMe } from "@/lib/server";
 import { ModeProvider } from "@/lib/mode-context";
@@ -28,12 +28,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen antialiased bg-[#f4f5f8] text-neutral-900">
         <ModeProvider>
           {me ? (
-            <div className="min-h-screen flex flex-col bg-[#f4f5f8]">
-              <TopNav brand={brand} email={me.email} role={me.role} />
-              <main className="min-w-0 flex-1 px-4 py-3 md:px-8 md:py-5">
-                <div className="mx-auto max-w-7xl">{children}</div>
-              </main>
-            </div>
+            <LayoutWrapper brand={brand} email={me.email} role={me.role}>
+              {children}
+            </LayoutWrapper>
           ) : (
             children
           )}
