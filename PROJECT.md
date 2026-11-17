@@ -25,6 +25,11 @@
 | 11 | E2E Test Suite Extension | 15 test cases in `test_09_agent_harness.py`, 6 test cases in `test_10_snapshot_features.py`, offline mock server updates in `mock_server.py` | M3 | Verification Survey |
 | 12 | Combined Branch Integration | Merge `ui` and `openhands` branches into `combined`, verify cross-service flows, SQLite WAL concurrency, zero regression | M4 | ORIGINAL_REQUEST §R3 |
 | 13 | Main Branch Merge & Smoke Test | Merge `combined` into `main`, execute `scripts/verify_all.sh all` and `scripts/smoke_test.sh`, achieving 100% pass | M5 | ORIGINAL_REQUEST §R3 |
+| 14 | Playbook Canvas & Vision OCR | Interactive pipeline DAG canvas (`playbook-canvas.tsx`), natural-language AI pipeline editing (`playbook_ai.py`), macOS Vision OCR (`ingest.py`) | M6 | Pipeline Editor Enhancement |
+| 15 | GFM Markdown Preview | Rich GitHub Flavored Markdown renderer (`markdown-preview.tsx`) with tables, code blocks, task lists, and blockquotes | M7 | Chat Interface UI Kit |
+| 16 | Neon Cloud & Multi-Bucket Storage | Dual persistence provider (`storage.py`) with Lakebase Postgres + `cawrys-files`, `image-files`, `text-files` buckets, SHA-256 deduplication, and composer toggle | M8 | Storage & Persistence Specification |
+| 17 | Flat Conversation History & Least-Disclosure Policy | Collapsible dark conversation history sidebar + turn scrubber (`chat-interface.tsx`), `GET /v1/chat/sessions`, and strict Least Information Reveal Policy | M9 | UX & Conversation Management |
+| 18 | MarkItDown OCR + Document MCP + ContextBuilder | Replaced vector RAG and blind prompt autoloading with `markitdown_converter.py`, `document_mcp` FastMCP server, and post-retrieval `ToolkitExplorer` + `ContextBuilder` with native schema export | M10 | Document Intelligence Architecture |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
@@ -34,6 +39,11 @@
 | M3 | E2E Test Suite & Infrastructure Extension | Extend `tests/e2e/` with `test_09_agent_harness.py`, `test_10_snapshot_features.py`, `tests/test_agent_harness.py`, and `mock_server.py` updates | M1, M2 | DONE |
 | M4 | Combined Branch Integration (`combined` branch) | Merge `ui` and `openhands` branches into `combined`, execute full test suite, resolve any integration discrepancies | M1, M2, M3 | DONE |
 | M5 | Final Merge to `main` & Verification | Merge `combined` into `main`, apply post-merge schema & telemetry polish, and verify static/unit/integration builds | M4 | DONE |
+| M6 | Playbook Canvas & Vision OCR | DAG canvas for execution pipelines, AI natural language playbook mutations, and Apple Vision OCR pipeline | M5 | DONE |
+| M7 | GFM Markdown Preview | Complete GitHub Flavored Markdown renderer in chat interface | M6 | DONE |
+| M8 | Neon Cloud & Multi-Bucket Storage | S3-compatible path-style multi-bucket object storage (`cawrys-files`, `image-files`, `text-files`) with Lakebase Postgres and local fallback | M7 | DONE |
+| M9 | Flat Conversation History & Disclosure Policy | Flat conversation history management with sessions API, and strict 1-sentence least-disclosure greeting policy | M8 | DONE |
+| M10 | MarkItDown OCR, Document MCP & ContextBuilder | MarkItDown Markdown conversion/caching, FastMCP workspace documents toolkit, and zero-token deterministic toolkit explorer + context builder | M9 | DONE |
 
 ## Verification & Quality Gates
 - **Web App (`apps/web`)**: `cd apps/web && npm run typecheck && npm run build`
