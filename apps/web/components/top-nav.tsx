@@ -83,7 +83,7 @@ export function TopNav({ brand, email, role }: TopNavProps) {
 
   if (mode === "ai") {
     return (
-      <div ref={fabRef} className="fixed top-3.5 right-4 z-50">
+      <div ref={fabRef} className="fixed top-3.5 sm:top-5 md:top-6 lg:top-7 right-3.5 sm:right-5 md:right-6 lg:right-7 z-50">
         <div className="relative">
           <button
             type="button"

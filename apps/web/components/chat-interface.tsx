@@ -861,10 +861,10 @@ export function ChatInterface({
   }, [sessions, sessionId, messages]);
 
   return (
-    <div className="flex h-full w-full gap-2 p-2 overflow-hidden bg-[#f4f5f8]">
+    <div className="flex h-full w-full gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3.5 md:p-4 lg:p-5 overflow-hidden bg-[#f4f5f8]">
       {/* Left Conversation History Sidebar */}
       {sidebarOpen && (
-        <aside className="flex w-64 shrink-0 flex-col rounded-2xl bg-[#111113] text-neutral-200 border border-neutral-800/90 p-3.5 shadow-xl select-none overflow-hidden">
+        <aside className="flex w-64 shrink-0 flex-col rounded-2xl md:rounded-3xl bg-[#111113] text-neutral-200 border border-neutral-800/90 p-3.5 shadow-xl select-none overflow-hidden">
           {/* Top Action: + New Conversation */}
           <button
             type="button"
@@ -969,9 +969,9 @@ export function ChatInterface({
       )}
 
       {/* Main Chat Canvas Card */}
-      <div className="flex-1 min-w-0 flex flex-col rounded-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-sm shadow-sm relative overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col rounded-2xl md:rounded-3xl border border-neutral-200/80 bg-white/95 backdrop-blur-sm shadow-sm relative overflow-hidden">
         {/* Compact Header Bar */}
-        <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-4 py-2.5 shrink-0 bg-white/70">
+        <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-4 pr-32 py-2.5 shrink-0 bg-white/70">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
