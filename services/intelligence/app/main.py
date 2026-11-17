@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from . import auth_routes, dashboard, ingest, models, storage, validate
+from . import auth_routes, dashboard, ingest, markitdown_converter, models, storage, validate
 from .auth import Ctx, current, require
 from .config import MODEL_EXTRACT, MODEL_REASON, MODEL_VISION
 from .db import audit, conn
@@ -68,6 +68,31 @@ def health_ready():
     return {"ok": True, "service": "intelligence", "database": "connected"}
 
 
+def _attach_markdown_artifact(
+    tenant_id: str,
+    doc_id: str,
+    filename: str,
+    mime: str,
+    data: bytes,
+    fields: dict,
+) -> None:
+    """Converts document bytes to GFM Markdown, persists .md best-effort, and updates fields."""
+    try:
+        md_result = markitdown_converter.convert_bytes_to_markdown(data, filename, mime, use_ocr=True)
+        md_text = str(md_result.get("markdown") or "").strip()
+        if not md_text or markitdown_converter._is_placeholder_markdown(md_text):
+            return
+        markdown_key = markitdown_converter.get_markdown_storage_key(tenant_id, doc_id, filename)
+        try:
+            storage.put(markdown_key, md_text.encode("utf-8"), "text/markdown")
+        except Exception:
+            pass
+        fields["markdown_key"] = markdown_key
+        fields["markdown_content"] = md_text[:24000]
+    except Exception:
+        pass
+
+
 @app.post("/v1/documents")
 async def process_document(file: UploadFile = File(...), ctx: Ctx = Depends(require("admin", "engineer"))):
     tenant_id = ctx.tenant_id
@@ -108,7 +133,7 @@ async def process_document(file: UploadFile = File(...), ctx: Ctx = Depends(requ
             extracted, t = models.extract_text(MODEL_EXTRACT, ingest.to_text(k, data))
         trace.append(t)
 
-        fields = extracted.get("fields", {})
+        fields = dict(extracted.get("fields", {}))
         # Tier 3 (before reasoning): deterministic validation
         validation = validate.validate(
             fields, extracted.get("field_confidence", {}), extracted.get("missing", [])
@@ -119,6 +144,8 @@ async def process_document(file: UploadFile = File(...), ctx: Ctx = Depends(requ
         if fields:
             decision, t2 = models.reason(MODEL_REASON, extracted.get("doc_type", "unknown"), fields, validation)
             trace.append(t2)
+
+        _attach_markdown_artifact(tenant_id, doc_id, filename, mime, data, fields)
 
         needs_review = validation["needs_review"] or any(
             a.get("risk") == "high" for a in decision.get("proposed_actions", [])
@@ -209,6 +236,8 @@ def reprocess_document(doc_id: str, ctx: Ctx = Depends(require("admin", "enginee
 
     data = storage.get(doc["storage_key"])
     if not data:
+        data = markitdown_converter._read_from_storage_or_local(doc["storage_key"])
+    if not data:
         raise HTTPException(404, "stored file bytes not found for reprocessing")
 
     mime = doc.get("mime_type") or "application/octet-stream"
@@ -222,7 +251,7 @@ def reprocess_document(doc_id: str, ctx: Ctx = Depends(require("admin", "enginee
         extracted, t = models.extract_text(MODEL_EXTRACT, ingest.to_text(k, data))
     trace.append(t)
 
-    fields = extracted.get("fields", {})
+    fields = dict(extracted.get("fields", {}))
     validation = validate.validate(
         fields, extracted.get("field_confidence", {}), extracted.get("missing", [])
     )
@@ -230,6 +259,8 @@ def reprocess_document(doc_id: str, ctx: Ctx = Depends(require("admin", "enginee
     if fields:
         decision, t2 = models.reason(MODEL_REASON, extracted.get("doc_type", "unknown"), fields, validation)
         trace.append(t2)
+
+    _attach_markdown_artifact(tenant_id, doc_id, filename, mime, data, fields)
 
     needs_review = validation["needs_review"] or any(
         a.get("risk") == "high" for a in decision.get("proposed_actions", [])

@@ -191,12 +191,17 @@ def _ocr_pdf_or_image_bytes(data: bytes, mode: str, ext: str = ".bin", max_pages
 
 
 def kind(mime: str, filename: str) -> str:
-    name = filename.lower()
-    if mime in IMAGE_TYPES or name.endswith((".png", ".jpg", ".jpeg", ".webp")):
+    name = (filename or "").lower().strip()
+    mime_norm = (mime or "").lower().strip()
+    if (
+        mime_norm in IMAGE_TYPES
+        or (mime_norm.startswith("image/") and "svg" not in mime_norm)
+        or name.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"))
+    ):
         return "image"
-    if mime == "application/pdf" or name.endswith(".pdf"):
+    if mime_norm == "application/pdf" or name.endswith(".pdf"):
         return "pdf"
-    if name.endswith(".docx"):
+    if name.endswith(".docx") or "wordprocessingml" in mime_norm:
         return "docx"
     return "text"
 
@@ -215,18 +220,19 @@ def to_text(k: str, data: bytes) -> str:
                     logger.debug(f"PDF decrypt attempt with default password: {dec_err}")
 
             pages_text = []
+            raw_non_ws_len = 0
             for idx, p in enumerate(reader.pages):
                 try:
                     txt = (p.extract_text() or "").strip()
                     if txt:
+                        raw_non_ws_len += len("".join(txt.split()))
                         pages_text.append(f"--- Page {idx + 1} of {len(reader.pages)} ---\n{txt}")
                 except Exception as page_err:
                     logger.warning(f"Failed extracting text from PDF page: {page_err}")
                     continue
 
             extracted = "\n".join(pages_text).strip()
-            non_ws_len = len("".join(extracted.split()))
-            if non_ws_len >= 40:
+            if raw_non_ws_len >= 40:
                 return extracted
 
             # Scanned / image-based PDF: fall back to Vision OCR
@@ -254,7 +260,13 @@ def to_text(k: str, data: bytes) -> str:
             from docx import Document
 
             doc = Document(io.BytesIO(data))
-            return "\n".join(p.text for p in doc.paragraphs)
+            parts = [p.text.strip() for p in doc.paragraphs if p.text and p.text.strip()]
+            for table in doc.tables:
+                for row in table.rows:
+                    cells = [c.text.strip() for c in row.cells]
+                    if any(cells):
+                        parts.append(" | ".join(cells))
+            return "\n".join(parts)
         except Exception as e:
             logger.warning(f"DOCX extraction fallback: {e}")
             return f"[DOCX text extraction failed: {type(e).__name__} - {e}]"

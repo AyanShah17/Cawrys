@@ -15,6 +15,8 @@ import inspect
 import json
 import logging
 import os
+from pathlib import Path
+import re
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -185,6 +187,7 @@ rockwell_mcp = FastMCP("rockwell_factorytalk")
 dassault_mcp = FastMCP("dassault_3dexperience")
 ptc_mcp = FastMCP("ptc_windchill")
 oracle_mcp = FastMCP("oracle_scm")
+document_mcp = FastMCP("workspace_documents")
 
 
 # ==============================================================================
@@ -1468,6 +1471,520 @@ def oracle_scm_create_purchase_requisition(
 
 
 # ==============================================================================
+# Workspace Documents MCP Server Tools (MarkItDown + OCR Retrieval)
+# ==============================================================================
+
+_DOC_SEARCH_STOPWORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "did",
+    "do", "does", "for", "from", "get", "give", "has", "have", "how", "i",
+    "in", "is", "it", "its", "list", "me", "my", "of", "on", "or", "our",
+    "please", "show", "tell", "that", "the", "their", "them", "there", "these",
+    "this", "to", "us", "was", "we", "were", "what", "which", "who", "will",
+    "with", "would", "you", "your",
+}
+
+_DOC_TOKEN_ALIASES: dict[str, tuple[str, ...]] = {
+    "specifications": ("specifications", "specification", "spec"),
+    "specification": ("specification", "specifications", "spec"),
+    "specs": ("specs", "spec", "specification"),
+    "spec": ("spec", "specification", "specifications"),
+    "documents": ("documents", "document", "doc"),
+    "document": ("document", "documents", "doc"),
+    "docs": ("docs", "doc", "document"),
+    "scores": ("scores", "score"),
+    "score": ("score", "scores"),
+    "drawings": ("drawings", "drawing", "dwg"),
+    "drawing": ("drawing", "drawings", "dwg"),
+    "tolerances": ("tolerances", "tolerance"),
+    "tolerance": ("tolerance", "tolerances"),
+    "reports": ("reports", "report"),
+    "report": ("report", "reports"),
+    "files": ("files", "file"),
+    "pdfs": ("pdfs", "pdf"),
+    "marksheets": ("marksheets", "marksheet", "transcript"),
+    "transcripts": ("transcripts", "transcript", "marksheet"),
+    "certificates": ("certificates", "certificate"),
+}
+
+
+def _get_doc_db_connection() -> Any:
+    from .sqlite_adapter import get_connection
+    return get_connection()
+
+
+def _load_markitdown_converter() -> Any:
+    try:
+        from services.intelligence.app import markitdown_converter
+        return markitdown_converter
+    except Exception:
+        import importlib
+        return importlib.import_module("services.intelligence.app.markitdown_converter")
+
+
+def _parse_doc_json(val: Any) -> dict[str, Any]:
+    if isinstance(val, dict):
+        return dict(val)
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            return dict(parsed) if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _derive_markdown_key(tenant_id: str, doc_id: str, filename: str, fields: dict[str, Any]) -> str:
+    existing = str(fields.get("markdown_key") or "").strip()
+    if existing:
+        return existing
+    try:
+        mc = _load_markitdown_converter()
+        return mc.get_markdown_storage_key(tenant_id, doc_id, filename)
+    except Exception:
+        stem = Path(filename or doc_id or "document").stem
+        return f"{tenant_id}/{doc_id}/{stem}.md"
+
+
+def _synthesize_fields_markdown(filename: str, doc_type: str, fields: dict[str, Any]) -> str:
+    clean_fields = {
+        k: v for k, v in fields.items()
+        if k not in ("markdown_content", "markdown_key", "full_text_excerpt") and v not in (None, "")
+    }
+    excerpt = str(fields.get("full_text_excerpt") or "").strip()
+    lines = [f"# {filename}", "", f"- **Document Type**: {doc_type or 'document'}"]
+    if clean_fields:
+        lines.append("")
+        lines.append("## Extracted Fields")
+        for k, v in clean_fields.items():
+            lines.append(f"- **{k}**: {v}")
+    if excerpt:
+        lines.append("")
+        lines.append("## Document Content")
+        lines.append(excerpt)
+    return "\n".join(lines).strip()
+
+
+def _ensure_doc_markdown_safe(
+    c: Any,
+    tenant_id: str,
+    row: dict[str, Any],
+    persist: bool = True,
+) -> dict[str, Any]:
+    doc_id = str(row.get("id") or "")
+    filename = str(row.get("filename") or "")
+    doc_type = str(row.get("doc_type") or "document")
+    status = str(row.get("status") or "ready")
+    conf = row.get("confidence")
+    orig_fields = _parse_doc_json(row.get("fields"))
+    created_at = str(row.get("created_at") or "")
+
+    try:
+        mc = _load_markitdown_converter()
+        res = dict(mc.ensure_document_markdown(c, tenant_id, dict(row), persist=persist) or {})
+    except Exception as exc:
+        logger.debug(f"ensure_document_markdown fallback for {doc_id}: {exc}")
+        res = {}
+
+    merged_fields = dict(orig_fields)
+    if isinstance(res.get("fields"), dict):
+        for k, v in res["fields"].items():
+            if v not in (None, ""):
+                merged_fields[k] = v
+
+    md_content = str(
+        res.get("markdown_content")
+        or merged_fields.get("markdown_content")
+        or ""
+    ).strip()
+    if not md_content and (merged_fields or orig_fields):
+        md_content = _synthesize_fields_markdown(filename, doc_type, merged_fields)
+
+    md_key = str(
+        res.get("markdown_key")
+        or _derive_markdown_key(tenant_id, doc_id, filename, merged_fields)
+    )
+
+    return {
+        "id": str(res.get("id") or doc_id),
+        "filename": str(res.get("filename") or filename),
+        "doc_type": str(res.get("doc_type") or doc_type),
+        "status": str(res.get("status") or status),
+        "confidence": res.get("confidence") if res.get("confidence") is not None else conf,
+        "markdown_key": md_key,
+        "markdown_content": md_content,
+        "fields": merged_fields,
+        "ocr_used": bool(res.get("ocr_used", False)),
+        "created_at": str(res.get("created_at") or created_at),
+    }
+
+
+def _tokenize_search_query(query: str) -> list[str]:
+    raw_tokens = re.findall(r"[a-z0-9]+", (query or "").lower())
+    seen: set[str] = set()
+    tokens: list[str] = []
+    for tok in raw_tokens:
+        if tok in _DOC_SEARCH_STOPWORDS:
+            continue
+        if len(tok) <= 1:
+            continue
+        if tok not in seen:
+            seen.add(tok)
+            tokens.append(tok)
+    return tokens
+
+
+def _token_variants(tok: str) -> tuple[str, ...]:
+    if tok in _DOC_TOKEN_ALIASES:
+        return _DOC_TOKEN_ALIASES[tok]
+    if tok.endswith("s") and len(tok) > 3:
+        return (tok, tok[:-1])
+    return (tok,)
+
+
+def _score_doc_match(
+    row: dict[str, Any],
+    query_lower: str,
+    tokens: list[str],
+    markdown_text: str = "",
+) -> tuple[int, list[str]]:
+    filename = str(row.get("filename") or "")
+    fn_lower = filename.lower()
+    fn_stem = Path(fn_lower).stem
+    fn_norm = re.sub(r"[^a-z0-9]+", " ", fn_lower).strip()
+    fn_tokens = set(fn_norm.split())
+    doc_type = str(row.get("doc_type") or "").lower()
+    fields = _parse_doc_json(row.get("fields"))
+
+    structured_copy = {
+        k: v for k, v in fields.items()
+        if k not in ("markdown_content", "full_text_excerpt")
+    }
+    structured_str = json.dumps(structured_copy).lower() if structured_copy else ""
+    raw_md = (
+        markdown_text
+        or str(fields.get("markdown_content") or "")
+        or str(fields.get("full_text_excerpt") or "")
+    )
+    if "[source file bytes unavailable" in raw_md.lower() or "[pdf document contains no extractable text" in raw_md.lower():
+        raw_md = ""
+    md_lines = [
+        ln for ln in raw_md.splitlines()
+        if not ln.strip().startswith(("- **Kind**:", "- **OCR Used**:", "- **Pages**:"))
+    ]
+    md_lower = "\n".join(md_lines).lower()
+
+    score = 0
+    matched: list[str] = []
+
+    if query_lower and (query_lower == fn_lower or query_lower == fn_stem):
+        score += 120
+    elif len(query_lower) >= 3 and query_lower in fn_norm:
+        score += 60
+
+    for tok in tokens:
+        variants = _token_variants(tok)
+        tok_hit = False
+        if any(v in fn_tokens for v in variants):
+            score += 35
+            tok_hit = True
+        elif any(len(v) >= 3 and v in fn_lower for v in variants):
+            score += 20
+            tok_hit = True
+
+        if any(v in doc_type for v in variants):
+            score += 12
+            tok_hit = True
+
+        if structured_str and any(v in structured_str for v in variants):
+            score += 15
+            tok_hit = True
+
+        if md_lower:
+            best_hits = 0
+            for v in variants:
+                if len(v) <= 3:
+                    hits = len(re.findall(rf"\b{re.escape(v)}\b", md_lower))
+                else:
+                    hits = md_lower.count(v)
+                if hits > best_hits:
+                    best_hits = hits
+            if best_hits > 0:
+                score += 10 + min(8, best_hits)
+                tok_hit = True
+
+        if tok_hit:
+            matched.append(tok)
+
+    if len(tokens) >= 2 and md_lower:
+        phrase = " ".join(tokens)
+        if phrase in md_lower:
+            score += 25
+
+    return score, matched
+
+
+def _fetch_tenant_document_rows(c: Any, tenant_id: str) -> list[dict[str, Any]]:
+    rows = c.execute(
+        "SELECT d.id, d.filename, d.mime_type, d.storage_key, d.status, d.created_at, "
+        "e.doc_type, e.confidence, e.fields, e.validation, e.decision "
+        "FROM documents d "
+        "LEFT JOIN extractions e ON e.document_id = d.id "
+        "WHERE d.tenant_id=%s ORDER BY d.created_at DESC",
+        (tenant_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@document_mcp.tool(
+    name="workspace_list_documents",
+    action="WORKSPACE_LIST_DOCUMENTS",
+    module="Workspace Documents",
+    endpoint="/v1/documents",
+    description="List stored workspace documents for a tenant with doc_type, status, and markdown storage key",
+    risk="low",
+)
+def workspace_list_documents(
+    tenant_id: str = "00000000-0000-0000-0000-000000000001",
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """List stored documents for the tenant."""
+    docs: list[dict[str, Any]] = []
+    try:
+        with _get_doc_db_connection() as c:
+            rows = _fetch_tenant_document_rows(c, tenant_id)
+        for row in rows:
+            doc_id = str(row.get("id") or "")
+            filename = str(row.get("filename") or "")
+            fields = _parse_doc_json(row.get("fields"))
+            docs.append({
+                "id": doc_id,
+                "filename": filename,
+                "doc_type": row.get("doc_type") or "document",
+                "status": str(row.get("status") or "ready"),
+                "markdown_key": _derive_markdown_key(tenant_id, doc_id, filename, fields),
+                "created_at": str(row.get("created_at") or ""),
+            })
+        return {
+            "ok": True,
+            "tenant_id": tenant_id,
+            "count": len(docs),
+            "documents": docs,
+        }
+    except Exception as exc:
+        logger.warning(f"workspace_list_documents failed: {exc}")
+        return {
+            "ok": False,
+            "tenant_id": tenant_id,
+            "count": 0,
+            "documents": [],
+            "error": str(exc),
+        }
+
+
+@document_mcp.tool(
+    name="workspace_search_documents",
+    action="WORKSPACE_SEARCH_DOCUMENTS",
+    module="Workspace Documents",
+    endpoint="/v1/documents/search",
+    description="Explore stored tenant documents, lazily convert matching PDFs/images via MarkItDown OCR to .md, and return ranked matched documents",
+    risk="low",
+)
+def workspace_search_documents(
+    tenant_id: str = "00000000-0000-0000-0000-000000000001",
+    query: str = "",
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Search stored workspace documents against query tokens and return MarkItDown markdown content."""
+    clean_query = (query or "").strip()
+    query_lower = clean_query.lower()
+    tokens = _tokenize_search_query(clean_query)
+
+    try:
+        with _get_doc_db_connection() as c:
+            rows = _fetch_tenant_document_rows(c, tenant_id)
+            if not rows:
+                return {
+                    "ok": True,
+                    "tenant_id": tenant_id,
+                    "query": query,
+                    "tokens": tokens,
+                    "count": 0,
+                    "documents": [],
+                }
+
+            if not clean_query:
+                ensured = [
+                    {**_ensure_doc_markdown_safe(c, tenant_id, row, persist=True), "score": 1, "matched_tokens": []}
+                    for row in rows[:5]
+                ]
+                return {
+                    "ok": True,
+                    "tenant_id": tenant_id,
+                    "query": query,
+                    "tokens": tokens,
+                    "count": len(ensured),
+                    "documents": ensured,
+                }
+
+            pass1_candidates: list[tuple[int, dict[str, Any]]] = []
+            uncached_rows: list[dict[str, Any]] = []
+            for row in rows:
+                fields = _parse_doc_json(row.get("fields"))
+                if not str(fields.get("markdown_content") or "").strip():
+                    uncached_rows.append(row)
+                p1_score, _ = _score_doc_match(row, query_lower, tokens)
+                if p1_score > 0:
+                    pass1_candidates.append((p1_score, row))
+
+            pass1_candidates.sort(key=lambda item: item[0], reverse=True)
+
+            ensured_by_id: dict[str, dict[str, Any]] = {}
+            for _, row in pass1_candidates[:5]:
+                doc_id = str(row.get("id") or "")
+                ensured = _ensure_doc_markdown_safe(c, tenant_id, row, persist=True)
+                ensured_by_id[doc_id] = ensured
+
+            # If Pass 1 produced no matches (or query tokens were only in PDF/image content not yet converted),
+            # lazily convert uncached documents via MarkItDown + OCR and search their Markdown content.
+            if not pass1_candidates and uncached_rows:
+                for row in uncached_rows[:10]:
+                    doc_id = str(row.get("id") or "")
+                    if doc_id not in ensured_by_id:
+                        ensured_by_id[doc_id] = _ensure_doc_markdown_safe(c, tenant_id, row, persist=True)
+
+            ranked: list[dict[str, Any]] = []
+            for row in rows:
+                doc_id = str(row.get("id") or "")
+                ensured = ensured_by_id.get(doc_id)
+                if ensured is not None:
+                    eval_row = {**row, "fields": ensured.get("fields", {}), "doc_type": ensured.get("doc_type")}
+                    md_text = ensured.get("markdown_content", "")
+                    score, matched_tokens = _score_doc_match(eval_row, query_lower, tokens, markdown_text=md_text)
+                    if score > 0:
+                        ranked.append({
+                            **ensured,
+                            "score": score,
+                            "matched_tokens": matched_tokens,
+                        })
+                else:
+                    score, matched_tokens = _score_doc_match(row, query_lower, tokens)
+                    if score > 0:
+                        ensured_doc = _ensure_doc_markdown_safe(c, tenant_id, row, persist=True)
+                        score, matched_tokens = _score_doc_match(
+                            {**row, "fields": ensured_doc.get("fields", {})},
+                            query_lower,
+                            tokens,
+                            markdown_text=ensured_doc.get("markdown_content", ""),
+                        )
+                        ranked.append({
+                            **ensured_doc,
+                            "score": score,
+                            "matched_tokens": matched_tokens,
+                        })
+
+            ranked.sort(key=lambda d: (int(d.get("score", 0)), str(d.get("created_at") or "")), reverse=True)
+            return {
+                "ok": True,
+                "tenant_id": tenant_id,
+                "query": query,
+                "tokens": tokens,
+                "count": len(ranked),
+                "documents": ranked,
+            }
+    except Exception as exc:
+        logger.warning(f"workspace_search_documents failed: {exc}")
+        return {
+            "ok": False,
+            "tenant_id": tenant_id,
+            "query": query,
+            "tokens": tokens,
+            "count": 0,
+            "documents": [],
+            "error": str(exc),
+        }
+
+
+@document_mcp.tool(
+    name="workspace_read_document_markdown",
+    action="WORKSPACE_READ_DOCUMENT_MARKDOWN",
+    module="Workspace Documents",
+    endpoint="/v1/documents/markdown",
+    description="Resolve a workspace document by ID or filename and return its MarkItDown .md Markdown content and extracted fields",
+    risk="low",
+)
+def workspace_read_document_markdown(
+    tenant_id: str = "00000000-0000-0000-0000-000000000001",
+    document_id: str = "",
+    filename: str = "",
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Read and lazily convert a document to MarkItDown Markdown."""
+    clean_id = (document_id or "").strip()
+    clean_name = (filename or "").strip()
+    if not clean_id and not clean_name:
+        return {
+            "ok": False,
+            "tenant_id": tenant_id,
+            "error": "Either document_id or filename is required",
+        }
+
+    try:
+        with _get_doc_db_connection() as c:
+            rows = _fetch_tenant_document_rows(c, tenant_id)
+            target_row: Optional[dict[str, Any]] = None
+
+            if clean_id:
+                for row in rows:
+                    if str(row.get("id") or "").strip() == clean_id:
+                        target_row = row
+                        break
+
+            if target_row is None and clean_name:
+                target_lower = clean_name.lower()
+                target_stem = Path(target_lower).stem
+                for row in rows:
+                    if str(row.get("filename") or "").strip().lower() == target_lower:
+                        target_row = row
+                        break
+                if target_row is None:
+                    for row in rows:
+                        if Path(str(row.get("filename") or "").lower()).stem == target_stem:
+                            target_row = row
+                            break
+                if target_row is None:
+                    for row in rows:
+                        if target_lower in str(row.get("filename") or "").lower():
+                            target_row = row
+                            break
+
+            if target_row is None:
+                return {
+                    "ok": False,
+                    "tenant_id": tenant_id,
+                    "document_id": clean_id,
+                    "filename": clean_name,
+                    "error": "Document not found",
+                }
+
+            doc_payload = _ensure_doc_markdown_safe(c, tenant_id, target_row, persist=True)
+            return {
+                "ok": True,
+                "tenant_id": tenant_id,
+                "document": doc_payload,
+                **doc_payload,
+            }
+    except Exception as exc:
+        logger.warning(f"workspace_read_document_markdown failed: {exc}")
+        return {
+            "ok": False,
+            "tenant_id": tenant_id,
+            "document_id": clean_id,
+            "filename": clean_name,
+            "error": str(exc),
+        }
+
+
+# ==============================================================================
 # Master Catalog & Application Definition
 # ==============================================================================
 
@@ -1478,6 +1995,7 @@ MCP_SERVERS: dict[str, FastMCP] = {
     "dassault_3dexperience": dassault_mcp,
     "ptc_windchill": ptc_mcp,
     "oracle_scm": oracle_mcp,
+    "workspace_documents": document_mcp,
 }
 
 
@@ -1618,6 +2136,25 @@ INDUSTRIAL_APPS_BY_KEY: dict[str, dict[str, Any]] = {
     app["key"]: app for app in INDUSTRIAL_MCP_APPS
 }
 
+WORKSPACE_DOCUMENTS_APP: dict[str, Any] = {
+    "key": "workspace_documents",
+    "name": "Workspace Documents MCP",
+    "category": "Document Intelligence",
+    "provider": "fastmcp",
+    "modules": ["Workspace Documents", "MarkItDown OCR"],
+    "description": "FastMCP workspace document toolkit for listing, searching, and reading MarkItDown OCR markdown artifacts.",
+    "composio_app": "WORKSPACE_DOCUMENTS_MCP",
+    "auth_schemes": ["INTERNAL"],
+    "docs_url": "/v1/documents",
+    "default_action": "workspace_list_documents",
+    "tools": _build_app_tools(document_mcp, "workspace_documents"),
+}
+
+ALL_MCP_APPS_BY_KEY: dict[str, dict[str, Any]] = {
+    **INDUSTRIAL_APPS_BY_KEY,
+    WORKSPACE_DOCUMENTS_APP["key"]: WORKSPACE_DOCUMENTS_APP,
+}
+
 
 # ==============================================================================
 # Tool Execution Engine (Live HTTP + Structured Industrial Fallback)
@@ -1630,7 +2167,7 @@ def execute_industrial_mcp_tool(
     config: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Execute an industrial MCP tool via live HTTP REST/OData or FastMCP instance."""
-    app_def = INDUSTRIAL_APPS_BY_KEY.get(app_key)
+    app_def = ALL_MCP_APPS_BY_KEY.get(app_key)
     if not app_def:
         raise KeyError(f"Unknown industrial MCP server: '{app_key}'")
 
@@ -1667,7 +2204,7 @@ def execute_industrial_mcp_tool(
                 "server": app_key,
                 "action": action,
                 "tool": tool_name,
-                "simulated": True,
+                "simulated": app_key != "workspace_documents",
                 "data": sim_data,
                 "result": sim_data,
             }
@@ -1676,6 +2213,21 @@ def execute_industrial_mcp_tool(
     tool_name = tool_meta.name
     endpoint = tool_meta.endpoint
     module_name = tool_meta.module
+
+    if app_key == "workspace_documents":
+        local_data = server.call_tool(tool_name, payload)
+        return {
+            "ok": bool(local_data.get("ok", True)) if isinstance(local_data, dict) else True,
+            "provider": "fastmcp",
+            "server": app_key,
+            "action": tool_meta.action,
+            "tool": tool_name,
+            "module": module_name,
+            "endpoint": endpoint,
+            "simulated": False,
+            "data": local_data,
+            "result": local_data,
+        }
 
     # Resolve configured live base URL & auth
     env_prefix = app_key.upper()
@@ -1798,7 +2350,7 @@ def list_mcp_servers() -> list[dict[str, Any]]:
 @router.get("/servers/{server_key}/tools")
 def get_mcp_server_tools(server_key: str) -> list[dict[str, Any]]:
     """Retrieve all MCP tools with JSON Schema and REST/OData endpoints for a server."""
-    app_def = INDUSTRIAL_APPS_BY_KEY.get(server_key)
+    app_def = ALL_MCP_APPS_BY_KEY.get(server_key)
     if not app_def:
         raise HTTPException(status_code=404, detail=f"MCP server '{server_key}' not found")
     return app_def["tools"]
@@ -1807,7 +2359,7 @@ def get_mcp_server_tools(server_key: str) -> list[dict[str, Any]]:
 @router.post("/servers/{server_key}/call")
 def call_mcp_server_tool(server_key: str, req: McpCallRequest) -> dict[str, Any]:
     """Execute a tool on an industrial MCP server."""
-    app_def = INDUSTRIAL_APPS_BY_KEY.get(server_key)
+    app_def = ALL_MCP_APPS_BY_KEY.get(server_key)
     if not app_def:
         raise HTTPException(status_code=404, detail=f"MCP server '{server_key}' not found")
 

@@ -51,26 +51,30 @@ def extract_text(model: str, text: str):
     doc_type = "technical_drawing" if is_drawing else "document"
     missing = [k for k in EXPECTED_FOR_DRAWING if k not in fields] if is_drawing else []
 
-    # For general/OCR/academic/prose documents (not strictly structured technical drawings),
+    # For general/OCR/academic/prose documents (not strictly compact technical drawings),
     # always retain document title, concise summary, and extracted text content so LLMs and chat
-    # have full visibility into the file even when few Key: Value pairs exist.
-    if not is_placeholder and len(clean_text) >= 15 and (not is_drawing or not fields):
+    # have full visibility into the file even when regex Key: Value pairs matched.
+    if not is_placeholder and len(clean_text) >= 15:
         non_empty_lines = [
             ln.strip()
             for ln in clean_text.splitlines()
             if ln.strip() and not ln.strip().startswith("--- Page ")
         ]
-        if non_empty_lines and "document_title" not in fields:
-            fields["document_title"] = non_empty_lines[0][:220]
-            conf["document_title"] = 0.92
-        if non_empty_lines and "summary" not in fields:
-            preview_lines = non_empty_lines[:10]
-            fields["summary"] = " ; ".join(preview_lines)[:600]
-            conf["summary"] = 0.92
-        fields["line_count"] = len(non_empty_lines)
-        conf["line_count"] = 0.96
-        fields["full_text_excerpt"] = clean_text[:6000]
-        conf["full_text_excerpt"] = 0.94
+        if not is_drawing or not fields or "drawing_id" not in fields:
+            if non_empty_lines and "document_title" not in fields:
+                fields["document_title"] = non_empty_lines[0][:220]
+                conf["document_title"] = 0.92
+            if non_empty_lines and "summary" not in fields:
+                preview_lines = non_empty_lines[:10]
+                fields["summary"] = " ; ".join(preview_lines)[:600]
+                conf["summary"] = 0.92
+            fields["line_count"] = len(non_empty_lines)
+            conf["line_count"] = 0.96
+            fields["full_text_excerpt"] = clean_text[:8000]
+            conf["full_text_excerpt"] = 0.94
+        elif len(non_empty_lines) > 6 and "full_text_excerpt" not in fields:
+            fields["full_text_excerpt"] = clean_text[:8000]
+            conf["full_text_excerpt"] = 0.94
 
     return (
         {"doc_type": doc_type, "fields": fields, "field_confidence": conf, "missing": missing},

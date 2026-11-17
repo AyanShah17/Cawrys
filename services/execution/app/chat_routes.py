@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 
 from . import connectors, playbook_ai
 from .auth import Ctx, current
+from .context_builder import ContextBuilder, ToolkitExplorer
 from .sqlite_adapter import get_connection, is_sqlite
 
 logger = logging.getLogger("execution.chat")
@@ -1231,12 +1232,23 @@ def _build_operational_context(tenant_id: str, attached_doc_ids: Optional[List[s
 # Tool Execution Matching
 # ---------------------------------------------------------------------------
 
+def _has_term(q: str, terms: List[str]) -> bool:
+    for t in terms:
+        if " " in t or "/" in t or "#" in t:
+            if t in q:
+                return True
+        else:
+            if re.search(rf"\b{re.escape(t)}\b", q):
+                return True
+    return False
+
+
 def _match_and_execute_tool(query: str, connections: List[Dict[str, Any]], tools: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Identifies if the query targets a specific connected tool and executes it."""
     q = query.lower()
 
     # 1. SAP S/4HANA stock or inventory
-    if any(k in q for k in ["sap", "stock", "inventory", "part 100", "material stock", "s/4hana"]):
+    if _has_term(q, ["sap", "stock", "inventory", "part 100", "material stock", "s/4hana"]):
         connector = connectors.get("fastmcp")
         params = {"material": "Part 100", "plant": "1000", "action": "sap_mm_get_material_stock"}
         res = connector.execute("fastmcp", "sap_s4hana:sap_mm_get_material_stock", params)
@@ -1249,7 +1261,7 @@ def _match_and_execute_tool(query: str, connections: List[Dict[str, Any]], tools
         }
 
     # 2. GitHub issues or PRs
-    if any(k in q for k in ["github", "issue", "pull request", "pr ", "prs", "repo"]):
+    if _has_term(q, ["github", "issue", "issues", "pull request", "pr", "prs", "repo", "repository"]):
         connector = connectors.get("composio")
         params = {"action": "composio_github_list_issues", "repo": "cawrys/industrial-core"}
         res = connector.execute("composio", "github:composio_github_create_issue", params)
@@ -1276,7 +1288,7 @@ def _match_and_execute_tool(query: str, connections: List[Dict[str, Any]], tools
         }
 
     # 3. Slack messages or notifications
-    if any(k in q for k in ["slack", "notify", "channel", "#ops-alerts", "message team"]):
+    if _has_term(q, ["slack", "notify", "channel", "#ops-alerts", "message team"]):
         connector = connectors.get("composio")
         params = {"channel": "#ops-alerts", "text": "Operational update triggered via Agent Chat", "action": "SLACK_SEND_MESSAGE"}
         res = connector.execute("composio", "slack:composio_slack_send_message", params)
@@ -1294,7 +1306,7 @@ def _match_and_execute_tool(query: str, connections: List[Dict[str, Any]], tools
         }
 
     # 4. Siemens Xcelerator / Teamcenter CAD Revisions
-    if any(k in q for k in ["siemens", "teamcenter", "cad", "revision", "dwg", "drawing", "plm"]):
+    if _has_term(q, ["siemens", "teamcenter", "cad", "revision", "revisions", "dwg", "drawing", "plm"]):
         connector = connectors.get("fastmcp")
         params = {"item_id": "DWG-4002-TURBINE", "action": "siemens_tc_get_cad_revision"}
         res = connector.execute("fastmcp", "siemens_xcelerator:siemens_tc_get_cad_revision", params)
@@ -1315,7 +1327,7 @@ def _match_and_execute_tool(query: str, connections: List[Dict[str, Any]], tools
         }
 
     # 5. Rockwell Automation / MES
-    if any(k in q for k in ["rockwell", "factorytalk", "work order", "mes", "plc"]):
+    if _has_term(q, ["rockwell", "factorytalk", "work order", "mes", "plc"]):
         connector = connectors.get("fastmcp")
         params = {"work_order_id": "WO-9921", "action": "rockwell_ft_get_work_order"}
         res = connector.execute("fastmcp", "rockwell_factorytalk:rockwell_ft_get_work_order", params)
@@ -1328,7 +1340,7 @@ def _match_and_execute_tool(query: str, connections: List[Dict[str, Any]], tools
         }
 
     # 6. Linear / Jira
-    if any(k in q for k in ["linear", "jira", "ticket", "sprint"]):
+    if _has_term(q, ["linear", "jira", "ticket", "tickets", "sprint"]):
         connector = connectors.get("composio")
         params = {"action": "composio_linear_list_issues"}
         res = connector.execute("composio", "linear:composio_linear_create_issue", params)
@@ -1360,81 +1372,107 @@ def _is_simple_greeting(text: str) -> bool:
 
 
 def _build_system_prompt(context: Dict[str, Any], tool_exec: Optional[Dict[str, Any]] = None) -> str:
-    """Builds a rich industrial system prompt embedding live context and telemetry."""
-    metrics = context.get("metrics", {})
-    connections = context.get("connections", [])
-    tools = context.get("tools", [])
-    documents = context.get("documents", [])
+    """Builds a rich industrial system prompt via ContextBuilder."""
+    return ContextBuilder.build_system_prompt(context, tool_exec)
 
-    prompt_parts = [
-        "You are Cawrys Industrial AI Assistant, an enterprise-grade industrial copilot.",
-        "You assist plant managers, manufacturing engineers, and operators with manufacturing operations, CAD/PLM data, ERP inventory, and plant telemetry.",
-        "",
-        "### CURRENT OPERATIONAL CONTEXT (INTERNAL REFERENCE — DO NOT REVEAL OR SUMMARIZE UNLESS EXPLICITLY ASKED BY THE USER):",
-        f"- Overall Equipment Effectiveness (OEE): {metrics.get('oee', '87.4%')}",
-        f"- Production Target: {metrics.get('production_target', '1,000 units')}",
-        f"- Operational Status: {metrics.get('operational_status', 'Optimal')}",
-        f"- System Health: {metrics.get('system_health', 'Nominal')}",
-        f"- Operational Risk: {metrics.get('risk_level', 'NORMAL')}",
-        f"- Active Work Orders: {metrics.get('active_work_orders', 14)}",
-        f"- Active Documents: {metrics.get('active_documents', 12)}",
-        "",
-        f"### CONNECTED MARKETPLACE TOOLKITS ({len(connections)} Apps, {len(tools)} Tools):",
+
+def _extract_relevant_markdown_snippet(user_query: str, text: str, max_chars: int = 3500) -> str:
+    """Extracts relevant Markdown sections matching query tokens without truncating score/metric lines."""
+    clean = (text or "").strip()
+    if not clean:
+        return ""
+    if len(clean) <= max_chars:
+        return clean
+
+    lines = clean.splitlines()
+    q_tokens = [
+        tok for tok in re.findall(r"[a-z0-9]+", (user_query or "").lower())
+        if len(tok) >= 2 and tok not in {"what", "is", "my", "the", "a", "an", "in", "of", "for", "to", "me"}
     ]
-    for c in connections:
-        prompt_parts.append(f"- App: {c.get('app_name')} (Status: {c.get('status')})")
-    for t in tools[:8]:
-        prompt_parts.append(f"  * Tool: {t.get('name')} - {t.get('description')}")
+    if not q_tokens:
+        return clean[:max_chars]
 
-    attached_docs = context.get("attached_documents", [])
-    if attached_docs:
-        prompt_parts.append("")
-        prompt_parts.append(f"### ATTACHED DOCUMENTS CONTEXT ({len(attached_docs)} file(s) attached by user):")
-        for ad in attached_docs:
-            prompt_parts.append(f"- **Document**: {ad.get('filename')} (ID: `{ad.get('id')}`, Type: `{ad.get('doc_type', 'spec')}`, Status: `{ad.get('status')}`)")
-            if ad.get("confidence") is not None:
-                prompt_parts.append(f"  * Extraction Confidence: {ad.get('confidence')}")
-            fields = dict(ad.get("fields") or {})
-            excerpt = fields.pop("full_text_excerpt", None)
-            if fields:
-                prompt_parts.append(f"  * Parsed Extracted Fields & Tolerances:")
-                prompt_parts.append(f"    {json.dumps(fields, indent=2)}")
-            if excerpt:
-                prompt_parts.append(f"  * Full OCR / Extracted Text Content:")
-                prompt_parts.append(f"    {str(excerpt)[:6000]}")
-            validation = ad.get("validation") or {}
-            if validation:
-                prompt_parts.append(f"  * Validation Results:")
-                prompt_parts.append(f"    {json.dumps(validation, indent=2)}")
-            decision = ad.get("decision") or {}
-            if decision:
-                prompt_parts.append(f"  * Decision Payload:")
-                prompt_parts.append(f"    {json.dumps(decision, indent=2)}")
+    selected_indices: set[int] = set()
+    for i in range(min(15, len(lines))):
+        selected_indices.add(i)
 
-    if documents:
-        prompt_parts.append("")
-        prompt_parts.append("### RECENT WORKSPACE DOCUMENTS:")
-        for d in documents[:5]:
-            prompt_parts.append(f"- {d.get('filename')} (type: {d.get('doc_type', 'spec')}, status: {d.get('status')})")
+    for idx, line in enumerate(lines):
+        line_lower = line.lower()
+        if any(tok in line_lower for tok in q_tokens):
+            for j in range(max(0, idx - 3), min(len(lines), idx + 5)):
+                selected_indices.add(j)
 
-    if tool_exec:
-        prompt_parts.append("")
-        prompt_parts.append(f"### EXECUTED TOOL RESULT ({tool_exec.get('app')} - {tool_exec.get('tool')}):")
-        prompt_parts.append(json.dumps(tool_exec.get("data", {}), indent=2))
-        prompt_parts.append("Incorporate this tool result directly into your response, citing specific IDs, numbers, and statuses.")
+    ordered = [lines[i] for i in sorted(selected_indices) if lines[i].strip()]
+    joined = "\n".join(ordered).strip()
+    if not joined:
+        return clean[:max_chars]
+    return joined[:max_chars]
 
-    prompt_parts.extend([
-        "",
-        "### INSTRUCTIONS:",
-        "- LEAST INFORMATION REVEAL POLICY (STRICT): Reply ONLY to what the user explicitly asks. Do NOT volunteer unrequested plant telemetry, OEE, production targets, system health tables, connected tools, or workspace documents.",
-        "- If the user sends a greeting (such as 'hi', 'hello', 'hey') or a conversational check-in without asking for data, respond with a single brief sentence (for example: 'Hello. How can I help you today?') and do NOT include any metrics, tables, headings, or status summaries.",
-        "- Format responses using Markdown (GitHub Flavored Markdown). Use Markdown formatting elements such as headings (##, ###), bold (**text**), lists, code blocks (```lang), tables (| col | col |), and links only when needed to structure the specific information requested.",
-        "- Answer clearly, professionally, and concisely in GitHub Flavored Markdown.",
-        "- STRICT FORMATTING RULE: Strictly ZERO emojis in assistant responses or system prompts. Use clean industrial markdown formatting with bullet points and bold tags.",
-        "- Reference telemetry numbers, tool data, or document names from the background reference ONLY when the user explicitly asks for them.",
-        "- If the user asks to modify a dashboard metric, confirm that the change has been applied.",
-    ])
-    return "\n".join(prompt_parts)
+
+def _format_doc_synthesis_block(
+    user_query: str,
+    docs: List[Dict[str, Any]],
+    is_mcp_retrieved: bool = False,
+) -> str:
+    """Formats attached or MCP-retrieved documents cleanly in GFM Markdown."""
+    if not docs:
+        return ""
+    doc_summaries = []
+    for doc in docs[:3]:
+        fname = doc.get("filename", "Document")
+        dtype = doc.get("doc_type") or "Technical Specification"
+        st_doc = doc.get("status", "ready")
+        conf_doc = doc.get("confidence")
+        fields = dict(doc.get("fields") or {})
+        excerpt = str(fields.pop("full_text_excerpt", "") or "").strip()
+        md_from_fields = str(fields.pop("markdown_content", "") or "").strip()
+        fields.pop("markdown_key", None)
+        md_content = str(doc.get("markdown_content") or md_from_fields or "").strip()
+
+        title_val = fields.get("document_title")
+        summary_val = fields.get("summary")
+
+        field_items = []
+        for k, v in fields.items():
+            if v in (None, ""):
+                continue
+            if k in ("document_title", "summary") and len(fields) > 3:
+                continue
+            field_items.append(f"- **{k}**: {v}")
+        fields_text = "\n".join(field_items[:30]) if field_items else "- No structured key-value parameters"
+
+        heading = (
+            f"### Retrieved Document Context: **{fname}**"
+            if is_mcp_retrieved
+            else f"### Document Summary: **{fname}**"
+        )
+        overview_lines = [heading]
+        if is_mcp_retrieved:
+            overview_lines.append(
+                f"- **Source**: `Workspace Documents MCP` | **Document Type**: `{dtype}` | **Status**: `{st_doc}`"
+                + (f" | **Confidence**: {conf_doc}" if conf_doc is not None else "")
+            )
+            if doc.get("markdown_key"):
+                overview_lines.append(f"- **Markdown Artifact**: `{doc.get('markdown_key')}`")
+        else:
+            overview_lines.append(
+                f"- **Document Type**: {dtype} | **Status**: {st_doc}"
+                + (f" | **Confidence**: {conf_doc}" if conf_doc is not None else "")
+            )
+
+        if title_val:
+            overview_lines.append(f"- **Title / Header**: {title_val}")
+        if summary_val:
+            overview_lines.append(f"- **Overview**: {summary_val}")
+        overview_lines.append(f"- **Extracted Fields & Parameters**:\n{fields_text}")
+
+        body_text = md_content or excerpt
+        if body_text:
+            snippet = _extract_relevant_markdown_snippet(user_query, body_text, max_chars=3500)
+            label = "MarkItDown Markdown Content" if md_content else "Extracted Document Text Preview"
+            overview_lines.append(f"- **{label}**:\n\n{snippet}")
+        doc_summaries.append("\n".join(overview_lines))
+    return "\n\n".join(doc_summaries)
 
 
 def _synthesize_contextual_response(
@@ -1449,47 +1487,12 @@ def _synthesize_contextual_response(
     tools = context.get("tools", [])
     documents = context.get("documents", [])
     attached_docs = context.get("attached_documents", [])
+    retrieved_docs = context.get("retrieved_documents", [])
 
     conn_names = [c["app_name"] for c in connections] or ["SAP S/4HANA", "GitHub", "Slack", "Siemens PLM"]
 
-    attached_block = ""
-    if attached_docs:
-        doc_summaries = []
-        for ad in attached_docs:
-            fname = ad.get("filename", "Attached Document")
-            dtype = ad.get("doc_type") or "Technical Specification"
-            st_doc = ad.get("status", "ready")
-            conf_doc = ad.get("confidence")
-            fields = dict(ad.get("fields") or {})
-            excerpt = str(fields.pop("full_text_excerpt", "") or "").strip()
-            title_val = fields.get("document_title")
-            summary_val = fields.get("summary")
-
-            field_items = []
-            for k, v in fields.items():
-                if k in ("document_title", "summary") and len(fields) > 3:
-                    continue
-                field_items.append(f"- **{k}**: {v}")
-            fields_text = "\n".join(field_items[:30]) if field_items else "- No structured key-value parameters"
-
-            overview_lines = [
-                f"### Document Summary: **{fname}**",
-                f"- **Document Type**: {dtype} | **Status**: {st_doc}"
-                + (f" | **Confidence**: {conf_doc}" if conf_doc is not None else ""),
-            ]
-            if title_val:
-                overview_lines.append(f"- **Title / Header**: {title_val}")
-            if summary_val:
-                overview_lines.append(f"- **Overview**: {summary_val}")
-            overview_lines.append(f"- **Extracted Fields & Parameters**:\n{fields_text}")
-            if excerpt:
-                snippet_lines = [ln.strip() for ln in excerpt.splitlines() if ln.strip()][:28]
-                overview_lines.append(
-                    "- **Extracted Document Text Preview**:\n"
-                    + "\n".join(f"  > {ln}" for ln in snippet_lines)
-                )
-            doc_summaries.append("\n".join(overview_lines))
-        attached_block = "\n\n".join(doc_summaries)
+    attached_block = _format_doc_synthesis_block(user_query, attached_docs, is_mcp_retrieved=False)
+    retrieved_block = _format_doc_synthesis_block(user_query, retrieved_docs, is_mcp_retrieved=True)
 
     # 1. Formatted tool execution response citing real enterprise data
     if tool_exec:
@@ -1572,11 +1575,17 @@ def _synthesize_contextual_response(
         return tool_resp
 
     if attached_block:
-        return (
+        base_resp = (
             f"Parsed and analyzed {len(attached_docs)} attached document(s):\n\n"
             f"{attached_block}\n\n"
             f"The engineering parameters from the attached files have been loaded into the operational workspace."
         )
+        if retrieved_block:
+            return f"{base_resp}\n\n{retrieved_block}"
+        return base_resp
+
+    if retrieved_block:
+        return retrieved_block
 
     # 2. Context-aware dynamic synthesis based on query semantics
     q = user_query.lower()
@@ -2498,7 +2507,57 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
     # 5. Check for Connected Marketplace Data query / tool execution
     tool_exec = _match_and_execute_tool(clean_query, context["connections"], context["tools"])
 
-    # 6. Formulate system prompt & messages for LiteLLM
+    # 5b. MCP Toolkit Exploration & Document Retrieval (on-demand, never autoloaded)
+    exploration: Dict[str, Any] = {
+        "retrieved_documents": [],
+        "document_tool_call": None,
+        "toolkits_explored": [],
+    }
+    _explicit_doc_when_tool_matched = bool(
+        re.search(
+            r"\b(?:pdf|document|documents|uploaded|file|files|toefl|resume|cv|cgpi|sgpi|marksheet|transcript|certificate)\b"
+            r"|\.(?:pdf|txt|md|docx|png|jpg|jpeg)\b",
+            clean_query.lower(),
+        )
+    )
+    if attached_doc_ids or (not _is_simple_greeting(clean_query) and (not tool_exec or _explicit_doc_when_tool_matched)):
+        exploration = ToolkitExplorer.explore_and_retrieve(
+            tenant_id=tenant_id,
+            user_query=clean_query,
+            attached_doc_ids=attached_doc_ids,
+            connections=context["connections"],
+            tools=context["tools"],
+        )
+
+    raw_retrieved = list(exploration.get("retrieved_documents") or [])
+    document_tool_call = exploration.get("document_tool_call")
+    toolkits_explored = list(exploration.get("toolkits_explored") or [])
+
+    attached_by_id = {
+        str(ad.get("id")): ad for ad in (context.get("attached_documents") or []) if ad.get("id")
+    }
+    extra_retrieved: List[Dict[str, Any]] = []
+    for rdoc in raw_retrieved:
+        rid = str(rdoc.get("id") or "")
+        if rid and rid in attached_by_id:
+            target_ad = attached_by_id[rid]
+            if rdoc.get("markdown_content"):
+                target_ad["markdown_content"] = rdoc["markdown_content"]
+            if rdoc.get("markdown_key"):
+                target_ad["markdown_key"] = rdoc["markdown_key"]
+            if isinstance(rdoc.get("fields"), dict):
+                merged_f = dict(target_ad.get("fields") or {})
+                for k, v in rdoc["fields"].items():
+                    if v not in (None, "") and k not in merged_f:
+                        merged_f[k] = v
+                target_ad["fields"] = merged_f
+        else:
+            extra_retrieved.append(rdoc)
+
+    context["retrieved_documents"] = extra_retrieved if attached_by_id else raw_retrieved
+    context["toolkits_explored"] = toolkits_explored
+
+    # 6. Formulate system prompt & messages for LiteLLM (post-retrieval)
     if _is_simple_greeting(clean_query) and not attached_doc_ids:
         system_prompt = (
             "You are Cawrys Industrial AI Assistant. Follow a strict least-information-reveal policy: "
@@ -2506,7 +2565,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
             "any plant metrics, status, tools, or documents. Strictly ZERO emojis."
         )
     else:
-        system_prompt = _build_system_prompt(context, tool_exec)
+        system_prompt = ContextBuilder.build_system_prompt(context, tool_exec)
     llm_messages = [{"role": "system", "content": system_prompt}]
     for h in (req.history or [])[-6:]:
         if isinstance(h, dict) and "role" in h and "content" in h:
@@ -2527,13 +2586,28 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         # Intelligent, context-grounded fallback (not generic boilerplate)
         reply_text = _synthesize_contextual_response(user_query, context, tool_exec)
 
+    tool_calls: List[Dict[str, Any]] = []
+    if tool_exec:
+        tool_calls.append(tool_exec)
+    if document_tool_call:
+        tool_calls.append(document_tool_call)
+    primary_tool = tool_exec or document_tool_call
+
     latency_ms = int((time.time() - start_time) * 1000)
     bot_msg_id = str(uuid.uuid4())
     meta = {
-        "tool_call": tool_exec,
-        "app": tool_exec["app"] if tool_exec else None,
-        "tool": tool_exec["tool"] if tool_exec else None,
-        "action": "marketplace_query" if tool_exec else "general_assist",
+        "tool_call": primary_tool,
+        "tool_calls": tool_calls,
+        "document_tool_call": document_tool_call,
+        "toolkits_explored": toolkits_explored,
+        "retrieved_document_ids": [d.get("id") for d in raw_retrieved if d.get("id")],
+        "app": primary_tool["app"] if primary_tool else None,
+        "tool": primary_tool["tool"] if primary_tool else None,
+        "action": (
+            "marketplace_query"
+            if tool_exec
+            else ("document_mcp_retrieval" if document_tool_call else "general_assist")
+        ),
         "provider": chosen_provider,
         "model": chosen_model,
         "provider_used": chosen_provider,
@@ -2541,7 +2615,7 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         "live_ai": is_live_ai,
         "latency_ms": latency_ms,
         "context_used": True,
-        "tool_executed": bool(tool_exec),
+        "tool_executed": bool(tool_calls),
         "dashboard_mutated": False,
     }
 
@@ -2567,8 +2641,8 @@ def handle_chat_message(req: ChatMessageIn, ctx: Ctx = Depends(current)):
         "live_ai": is_live_ai,
         "latency_ms": latency_ms,
         "context_used": True,
-        "tool_executed": bool(tool_exec),
-        "tool_calls": [tool_exec] if tool_exec else [],
+        "tool_executed": bool(tool_calls),
+        "tool_calls": tool_calls,
         "dashboard_mutated": False,
         "metadata": meta,
         "timestamp": now_str,
