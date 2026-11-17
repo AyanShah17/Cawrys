@@ -262,6 +262,7 @@ def test_r3_delete_chat_history_endpoint():
     del_data = res_del.json()
     assert del_data["ok"] is True
     assert del_data["session_id"] == session_id
+    assert del_data["deleted_count"] == 2
 
     # Verify messages are completely cleared
     res_get_after = client.get(

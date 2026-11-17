@@ -300,6 +300,10 @@ class SQLiteConnectionWrapper:
     def fetchall(self):
         return self._last_cursor.fetchall() if self._last_cursor else []
 
+    @property
+    def rowcount(self):
+        return self._last_cursor.rowcount if self._last_cursor else -1
+
     def commit(self):
         self._conn.commit()
 

@@ -2296,16 +2296,19 @@ def delete_chat_history(session_id: Optional[str] = "default", ctx: Ctx = Depend
     deleted_count = 0
     with get_connection() as c:
         if session_id:
-            c.execute(
+            cur = c.execute(
                 "DELETE FROM chat_messages WHERE tenant_id=%s AND session_id=%s",
                 (tenant_id, session_id),
             )
         else:
-            c.execute(
+            cur = c.execute(
                 "DELETE FROM chat_messages WHERE tenant_id=%s",
                 (tenant_id,),
             )
-        deleted_count = c.rowcount if hasattr(c, "rowcount") and c.rowcount is not None and c.rowcount >= 0 else 0
+        rowcount = getattr(cur, "rowcount", None)
+        if rowcount is None or rowcount < 0:
+            rowcount = getattr(c, "rowcount", None)
+        deleted_count = rowcount if rowcount is not None and rowcount >= 0 else 0
         c.commit()
 
     return {
