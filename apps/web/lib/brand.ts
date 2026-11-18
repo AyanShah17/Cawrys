@@ -13,7 +13,7 @@ export type Brand = {
 
 export type BrandConfig = Brand;
 
-const DEFAULT_PRIMARY = "#6366f1";
+const DEFAULT_PRIMARY = "#2563eb";
 
 function toRgb(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
