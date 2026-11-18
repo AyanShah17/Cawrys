@@ -1,9 +1,11 @@
+// apps/web/app/audit/page.tsx
 import React from "react";
 import { redirect } from "next/navigation";
 import { requireMe, serverGet } from "@/lib/server";
-import { Card, PageHeader, tableCls, tdCls, thCls } from "@/components/ui/kit";
+import { Badge, Card, Empty, Notice, PageHeader, tableCls, tdCls, thCls } from "@/components/ui/kit";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Audit Trail" };
 
 type Row = { id: number; actor: string; service: string; event: string; created_at: string };
 
@@ -16,8 +18,8 @@ export default async function Audit() {
   let err: string | null = null;
   try {
     rows = await serverGet<Row[]>("intelligence", "/v1/audit");
-  } catch (e: any) {
-    err = e.message;
+  } catch (e: unknown) {
+    err = e instanceof Error ? e.message : "Failed to load audit events";
   }
 
   return (
@@ -26,16 +28,12 @@ export default async function Audit() {
         title="Audit Trail"
         subtitle="Chronological, tamper-evident security and operational compliance log"
       />
-      {err && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800">
-          {err}
-        </div>
-      )}
+      {err && <Notice tone="bad">{err}</Notice>}
       <Card>
         {rows.length === 0 ? (
-          <p className="py-6 text-center text-xs text-neutral-400">No audit events recorded yet.</p>
+          <Empty>No audit events recorded yet.</Empty>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="-mx-1 overflow-x-auto px-1">
             <table className={tableCls}>
               <thead>
                 <tr>
@@ -47,13 +45,21 @@ export default async function Audit() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="hover:bg-neutral-50 transition-colors">
-                    <td className={`${tdCls} font-mono text-xs text-neutral-500`}>
+                  <tr key={r.id} className="transition-colors duration-150 ease-out-quart hover:bg-neutral-50/80">
+                    <td className={`${tdCls} whitespace-nowrap font-mono text-xs tabular-nums text-neutral-600`}>
                       {new Date(r.created_at).toLocaleString()}
                     </td>
-                    <td className={`${tdCls} font-semibold text-neutral-900`}>{r.service}</td>
-                    <td className={`${tdCls} text-neutral-800`}>{r.event}</td>
-                    <td className={`${tdCls} font-mono text-xs text-neutral-600`}>{r.actor}</td>
+                    <td className={`${tdCls} whitespace-nowrap`}>
+                      <Badge variant="secondary" className="font-mono text-[11px]">
+                        {r.service}
+                      </Badge>
+                    </td>
+                    <td className={`${tdCls} min-w-[14rem] break-words font-medium text-neutral-900`}>
+                      {r.event}
+                    </td>
+                    <td className={`${tdCls} whitespace-nowrap font-mono text-xs text-neutral-700`}>
+                      {r.actor}
+                    </td>
                   </tr>
                 ))}
               </tbody>

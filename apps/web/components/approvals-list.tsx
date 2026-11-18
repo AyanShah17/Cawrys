@@ -1,19 +1,24 @@
+// apps/web/components/approvals-list.tsx
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
 import { API, getJSON, post, type ExecRow } from "@/lib/api";
-import { Card, Pill } from "@/components/ui/kit";
+import { Button, Card, Empty, Notice, Pill, tableCls, tdCls, thCls } from "@/components/ui/kit";
 
 export function ApprovalsList({ canDecide }: { canDecide: boolean }) {
   const [rows, setRows] = useState<ExecRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
       setRows(await getJSON<ExecRow[]>(`${API.execution}/v1/executions`));
       setErr(null);
-    } catch (e: any) {
-      setErr(e.message);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Service unavailable");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -24,13 +29,16 @@ export function ApprovalsList({ canDecide }: { canDecide: boolean }) {
   }, [load]);
 
   async function act(id: string, action: "approve" | "reject") {
+    setBusyId(id);
     setMsg(null);
     try {
       await post(`${API.execution}/v1/executions/${id}/${action}`);
-      setMsg(`${action}d successfully.`);
+      setMsg({ ok: true, text: `Execution ${action}d successfully.` });
       await load();
-    } catch (e: any) {
-      setMsg(e.message);
+    } catch (e: unknown) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : `Failed to ${action} execution` });
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -40,78 +48,109 @@ export function ApprovalsList({ canDecide }: { canDecide: boolean }) {
   return (
     <div className="space-y-6">
       {err && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800">
+        <Notice tone="bad">
           Execution service unreachable: {err}
-        </div>
+        </Notice>
       )}
       {msg && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-800">
-          {msg}
-        </div>
+        msg.ok ? (
+          <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900">
+            {msg.text}
+          </div>
+        ) : (
+          <Notice tone="bad">{msg.text}</Notice>
+        )
       )}
 
       <Card title={`Waiting for Approval (${pending.length})`}>
-        {!pending.length ? (
-          <p className="text-xs text-neutral-400 py-6 text-center">No runs currently waiting for approval.</p>
+        {loading ? (
+          <div className="py-6 text-center text-xs text-neutral-600">Loading pending approvals...</div>
+        ) : !pending.length ? (
+          <Empty>No runs currently waiting for approval.</Empty>
         ) : (
-          <ul className="space-y-4">
-            {pending.map((r) => (
-              <li key={r.id} className="rounded-2xl border border-neutral-200/80 bg-neutral-50/50 p-5 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-neutral-900 text-sm">{r.result.playbook}</span>
-                    <span className="font-mono text-xs text-neutral-500 rounded bg-neutral-200/60 px-1.5 py-0.5">
-                      {r.id.slice(0, 8)}
-                    </span>
-                  </div>
-                  {canDecide ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => act(r.id, "approve")}
-                        className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-1.5 text-xs font-semibold shadow-xs transition active:scale-95"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => act(r.id, "reject")}
-                        className="rounded-full border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-100 px-4 py-1.5 text-xs font-semibold shadow-xs transition active:scale-95"
-                      >
-                        Reject
-                      </button>
+          <ul className="divide-y divide-neutral-100">
+            {pending.map((r) => {
+              const isBusy = busyId === r.id;
+              return (
+                <li key={r.id} className="space-y-3 py-4 first:pt-1 last:pb-1">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-neutral-950">{r.result.playbook}</span>
+                      <span className="rounded-md border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs tabular-nums text-neutral-700">
+                        {r.id.slice(0, 8)}
+                      </span>
+                      <Pill value={r.status} />
                     </div>
-                  ) : (
-                    <span className="text-xs text-neutral-400">Approver or admin role required</span>
+                    {canDecide ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => act(r.id, "approve")}
+                          className="bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-700"
+                        >
+                          {isBusy ? "Processing..." : "Approve"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => act(r.id, "reject")}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-neutral-600">Approver or admin role required</span>
+                    )}
+                  </div>
+                  {r.result.reason && (
+                    <p className="text-xs leading-relaxed text-neutral-700">{r.result.reason}</p>
                   )}
-                </div>
-                {r.result.reason && (
-                  <p className="text-xs text-neutral-600 leading-relaxed">{r.result.reason}</p>
-                )}
-                {r.result.inputs && (
-                  <pre className="overflow-auto rounded-xl bg-neutral-900 p-3 text-xs text-neutral-200 font-mono">
-                    {JSON.stringify(r.result.inputs, null, 2)}
-                  </pre>
-                )}
-              </li>
-            ))}
+                  {r.result.inputs && (
+                    <pre className="overflow-auto rounded-xl border border-neutral-800 bg-neutral-950 p-3 font-mono text-xs leading-relaxed text-neutral-200">
+                      {JSON.stringify(r.result.inputs, null, 2)}
+                    </pre>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>
 
       <Card title="Approval History">
-        {history.length === 0 ? (
-          <p className="text-xs text-neutral-400 py-4 text-center">No past executions.</p>
+        {loading ? (
+          <div className="py-6 text-center text-xs text-neutral-600">Loading execution history...</div>
+        ) : history.length === 0 ? (
+          <Empty>No past executions.</Empty>
         ) : (
-          <ul className="space-y-2 text-xs">
-            {history.slice(0, 15).map((r) => (
-              <li key={r.id} className="flex items-center justify-between rounded-xl border border-neutral-200/60 bg-neutral-50/50 p-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-neutral-900">{r.result.playbook}</span>
-                  <span className="font-mono text-neutral-400">{r.id.slice(0, 8)}</span>
-                </div>
-                <Pill value={r.status} />
-              </li>
-            ))}
-          </ul>
+          <div className="-mx-1 overflow-x-auto px-1">
+            <table className={tableCls}>
+              <thead>
+                <tr>
+                  <th className={thCls}>Playbook</th>
+                  <th className={thCls}>Execution ID</th>
+                  <th className={`${thCls} text-right`}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.slice(0, 15).map((r) => (
+                  <tr key={r.id} className="transition-colors duration-150 ease-out-quart hover:bg-neutral-50/80">
+                    <td className={`${tdCls} font-medium text-neutral-950`}>{r.result.playbook}</td>
+                    <td className={`${tdCls} font-mono text-xs tabular-nums text-neutral-600`}>
+                      {r.id.slice(0, 8)}
+                    </td>
+                    <td className={`${tdCls} pr-0 text-right`}>
+                      <Pill value={r.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>

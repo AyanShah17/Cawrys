@@ -22,8 +22,8 @@ export function PasswordForm() {
       setMsg({ ok: true, text: "Password updated successfully." });
       setCurrentPassword("");
       setNewPassword("");
-    } catch (e: any) {
-      setMsg({ ok: false, text: e.message || "Failed to update password." });
+    } catch (e: unknown) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Failed to update password." });
     } finally {
       setBusy(false);
     }
@@ -32,11 +32,18 @@ export function PasswordForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       {msg && (
-        <p role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-700 font-medium" : "text-rose-700 font-medium"}`}>
+        <div
+          role={msg.ok ? "status" : "alert"}
+          className={`rounded-xl border px-3.5 py-2.5 text-xs font-medium ${
+            msg.ok
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-rose-200 bg-rose-50 text-rose-900"
+          }`}
+        >
           {msg.text}
-        </p>
+        </div>
       )}
-      <label className="block text-xs font-semibold text-neutral-700">
+      <label className="block text-xs font-semibold text-neutral-800">
         Current password
         <input
           required
@@ -44,22 +51,27 @@ export function PasswordForm() {
           autoComplete="current-password"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
-          className={`${inputCls} mt-1`}
+          className={`${inputCls} mt-1.5`}
         />
       </label>
-      <label className="block text-xs font-semibold text-neutral-700">
+      <label className="block text-xs font-semibold text-neutral-800">
         New password
         <input
           required
           type="password"
           minLength={8}
           autoComplete="new-password"
+          placeholder="Minimum 8 characters"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
-          className={`${inputCls} mt-1`}
+          className={`${inputCls} mt-1.5`}
         />
       </label>
-      <button disabled={busy} className={btnCls}>Update password</button>
+      <div className="pt-1">
+        <button type="submit" disabled={busy} className={btnCls}>
+          {busy ? "Updating..." : "Update password"}
+        </button>
+      </div>
     </form>
   );
 }
@@ -76,20 +88,27 @@ export function AiTest() {
         `${API.intelligence}/v1/system/ai-test`
       );
       setRes(data);
-    } catch (e: any) {
-      setRes({ ok: false, error: e.message || "Connection failed" });
+    } catch (e: unknown) {
+      setRes({ ok: false, error: e instanceof Error ? e.message : "Connection failed" });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="space-y-2">
-      <button disabled={busy} onClick={runTest} className={btnGhostCls}>
+    <div className="space-y-2.5">
+      <button type="button" disabled={busy} onClick={runTest} className={btnGhostCls}>
         {busy ? "Testing connection..." : "Test AI connection"}
       </button>
       {res && (
-        <div className={`text-xs ${res.ok ? "text-emerald-700 font-medium" : "text-rose-700 font-medium"}`}>
+        <div
+          role={res.ok ? "status" : "alert"}
+          className={`rounded-xl border px-3.5 py-2.5 text-xs font-medium tabular-nums ${
+            res.ok
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-rose-200 bg-rose-50 text-rose-900"
+          }`}
+        >
           {res.ok ? (
             <span>
               Connected ({res.latency_ms} ms, {res.tokens} tokens)

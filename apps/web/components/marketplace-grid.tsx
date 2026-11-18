@@ -12,7 +12,10 @@ import Link from "next/link";
 import { API, del, getJSON, post } from "@/lib/api";
 import { Badge, Button, Card, Empty, Notice, btnCls, btnGhostCls, inputCls } from "@/components/ui/kit";
 import {
+  ExecutionResultModal,
   MarketplaceConfigModal,
+  getAppInitials,
+  getAvatarTone,
   type ConnectPayload,
 } from "./marketplace-config-modal";
 
@@ -249,69 +252,6 @@ const FALLBACK_CATALOG: MarketplaceCatalog = {
     },
   ],
 };
-
-function getAppInitials(name: string, key: string): string {
-  if (key === "sap_s4hana") return "SAP";
-  if (key === "siemens_xcelerator") return "SX";
-  if (key === "rockwell_factorytalk") return "RA";
-  if (key === "dassault_3dexperience") return "3DS";
-  if (key === "ptc_windchill") return "PTC";
-  if (key === "oracle_scm") return "ORA";
-
-  const clean = name.replace(/[^a-zA-Z0-9\s]/g, "").trim();
-  const words = clean.split(/\s+/).filter(Boolean);
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase();
-  }
-  return key.slice(0, 2).toUpperCase();
-}
-
-function getAvatarStyles(app: MarketplaceApp) {
-  if (app.provider === "fastmcp") {
-    return {
-      bg: "from-amber-500/20 to-orange-600/30 border-amber-500/30 text-amber-800",
-      indicator: "bg-amber-400",
-    };
-  }
-  const cat = (app.category || "").toLowerCase();
-  if (cat.includes("developer") || cat.includes("devops")) {
-    return {
-      bg: "from-emerald-500/20 to-teal-600/30 border-emerald-500/30 text-emerald-800",
-      indicator: "bg-emerald-400",
-    };
-  }
-  if (cat.includes("crm") || cat.includes("sales")) {
-    return {
-      bg: "from-rose-500/20 to-orange-600/30 border-rose-500/30 text-rose-800",
-      indicator: "bg-rose-400",
-    };
-  }
-  if (cat.includes("finance") || cat.includes("accounting") || cat.includes("billing")) {
-    return {
-      bg: "from-green-500/20 to-emerald-600/30 border-green-500/30 text-green-800",
-      indicator: "bg-green-400",
-    };
-  }
-  if (cat.includes("communication") || cat.includes("social")) {
-    return {
-      bg: "from-purple-500/20 to-violet-600/30 border-purple-500/30 text-purple-800",
-      indicator: "bg-purple-400",
-    };
-  }
-  if (cat.includes("support") || cat.includes("ticketing")) {
-    return {
-      bg: "from-amber-500/20 to-yellow-600/30 border-yellow-500/30 text-amber-800",
-      indicator: "bg-yellow-400",
-    };
-  }
-  return {
-    bg: "from-indigo-500/20 to-blue-600/30 border-indigo-500/30 text-indigo-800",
-    indicator: "bg-indigo-400",
-  };
-}
 
 export function MarketplaceGrid({
   initial,
@@ -808,22 +748,22 @@ export function MarketplaceGrid({
   return (
     <div className="space-y-6">
       {/* Top Navigation Tabs: Switch between All Toolkits and Connected Connectors */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200/60 pb-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-4">
         <Link
           href="/marketplace"
-          className="flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
+          className="inline-flex h-8 items-center gap-2 rounded-full bg-neutral-950 px-3.5 text-xs font-semibold text-white transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
         >
           <span>All Toolkits</span>
-          <span className="rounded-full bg-neutral-800 text-white px-2 py-0.5 text-[10px] font-bold">
+          <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-white">
             {counts.total.toLocaleString()}
           </span>
         </Link>
         <Link
           href="/connectors"
-          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition"
+          className="inline-flex h-8 items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 text-xs font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
         >
           <span>Connected Connectors</span>
-          <span className="rounded-full bg-emerald-500/20 text-emerald-800 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-emerald-800">
             {counts.connected}
           </span>
         </Link>
@@ -836,31 +776,31 @@ export function MarketplaceGrid({
       )}
 
       {/* Top Architecture Status Card */}
-      <Card className="relative overflow-hidden border-neutral-200/70 bg-white">
+      <Card>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             {isProWhitelabel ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
                 Composio Pro · White-Label Active ({brandName})
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-800">
-                <span className="h-2 w-2 rounded-full bg-indigo-500" aria-hidden />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium tabular-nums text-blue-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" aria-hidden="true" />
                 composio.dev Ecosystem ({counts.composio.toLocaleString()} Toolkits)
               </span>
             )}
 
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
-              <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium tabular-nums text-amber-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-600" aria-hidden="true" />
               FastMCP Industrial Gateway ({counts.fastmcp} Enterprise Servers)
             </span>
 
-            <span className="text-sm text-neutral-600">
-              <strong className="font-semibold text-neutral-900">{counts.connected}</strong> / {counts.total.toLocaleString()} connectors active
+            <span className="text-sm tabular-nums text-neutral-700">
+              <strong className="font-semibold text-neutral-950">{counts.connected}</strong> / {counts.total.toLocaleString()} connectors active
             </span>
 
-            <span className="text-xs text-neutral-500">
+            <span className="text-xs text-neutral-600">
               {catalog.api_key_configured || catalog.composio_api_configured
                 ? "Live Composio API key configured"
                 : "Composio Connect direct link enabled"}
@@ -870,6 +810,7 @@ export function MarketplaceGrid({
           <button
             type="button"
             onClick={() => setShowRoadmap((v) => !v)}
+            aria-expanded={showRoadmap}
             className={btnGhostCls}
           >
             {showRoadmap ? "Hide Architecture Roadmap" : "Architecture & Protocols"}
@@ -877,20 +818,20 @@ export function MarketplaceGrid({
         </div>
 
         {showRoadmap && (
-          <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-xs text-neutral-700 space-y-3">
-            <div className="font-semibold text-neutral-900">
+          <div className="mt-4 space-y-3 border-t border-neutral-200 pt-4 text-xs text-neutral-700">
+            <div className="font-semibold text-neutral-950">
               Integration Architecture: 1,640+ composio.dev Toolkits &amp; 6 Industrial FastMCP Servers
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1 rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
-                <div className="font-semibold text-indigo-900">1. composio.dev Connector Network (1,640+ Toolkits)</div>
-                <p className="text-neutral-600 leading-relaxed">
+              <div className="space-y-1 rounded-xl border border-blue-200 bg-blue-50/50 p-3.5">
+                <div className="font-semibold text-blue-900">1. composio.dev Connector Network (1,640+ Toolkits)</div>
+                <p className="leading-relaxed text-neutral-700">
                   Universal broker for SaaS, CRM, DevOps, Finance, and AI tools (Slack, GitHub, Gmail, Sheets, Linear, Jira, Salesforce, HubSpot, Stripe, Notion, Postman, Cloudflare, Sentry, Vercel). Saves configuration and opens Composio Connect for authentication.
                 </p>
               </div>
-              <div className="space-y-1 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+              <div className="space-y-1 rounded-xl border border-amber-200 bg-amber-50/50 p-3.5">
                 <div className="font-semibold text-amber-900">2. FastMCP Industrial Protocol (6 Enterprise Servers)</div>
-                <p className="text-neutral-600 leading-relaxed">
+                <p className="leading-relaxed text-neutral-700">
                   Model Context Protocol servers for SAP S/4HANA (OData/BAPIs), Siemens Xcelerator (Teamcenter PLM/Opcenter MES/NX), Rockwell Automation (FactoryTalk/Studio 5000), Dassault 3DEXPERIENCE, PTC Windchill, and Oracle SCM.
                 </p>
               </div>
@@ -904,28 +845,26 @@ export function MarketplaceGrid({
         <Notice tone={banner.ok ? "info" : "bad"}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="font-medium text-white">{banner.title}</div>
+              <div className="font-semibold text-neutral-950">{banner.title}</div>
               {banner.detail && (
-                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs opacity-90 max-h-40 overflow-y-auto">
+                <pre className="mt-1.5 max-h-40 overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono text-xs text-neutral-800">
                   {banner.detail}
                 </pre>
               )}
               {banner.actionUrl && (
-                <div className="mt-2.5">
+                <div className="mt-3">
                   <a
                     href={banner.actionUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg hover:bg-indigo-500 transition"
+                    className={btnCls}
                   >
-                    <span className="inline-flex items-center gap-1.5">
-                      {banner.actionLabel || "Open Direct Link"}
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                    </span>
+                    <span>{banner.actionLabel || "Open Direct Link"}</span>
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
                   </a>
                 </div>
               )}
@@ -933,7 +872,7 @@ export function MarketplaceGrid({
             <button
               type="button"
               onClick={() => setBanner(null)}
-              className="text-xs text-neutral-400 hover:text-white shrink-0 p-1"
+              className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-neutral-600 transition-colors hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
             >
               Dismiss
             </button>
@@ -942,9 +881,9 @@ export function MarketplaceGrid({
       )}
 
       {/* Unified Filter Controls Panel */}
-      <div className="space-y-4 rounded-3xl border border-neutral-200/70 bg-white p-5 shadow-sm">
+      <div className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
         {/* Row 1: Provider Tabs & Status Filter */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Connector provider tabs">
             <button
               type="button"
@@ -954,18 +893,18 @@ export function MarketplaceGrid({
                 setProviderFilter("all");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              className={`inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-xs transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${
                 providerFilter === "all"
-                  ? "bg-neutral-950 text-white shadow-sm font-bold"
-                  : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
+                  ? "bg-neutral-950 font-semibold text-white"
+                  : "border border-neutral-200 bg-neutral-50 font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-950"
               }`}
             >
               <span>All Connectors</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
                   providerFilter === "all"
-                    ? "bg-neutral-800 text-white font-bold"
-                    : "bg-neutral-200 text-neutral-700"
+                    ? "bg-neutral-800 text-white"
+                    : "bg-neutral-200/80 text-neutral-700"
                 }`}
               >
                 {counts.total.toLocaleString()}
@@ -980,18 +919,18 @@ export function MarketplaceGrid({
                 setProviderFilter("composio");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              className={`inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-xs transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${
                 providerFilter === "composio"
-                  ? "bg-neutral-950 text-white shadow-sm font-bold"
-                  : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
+                  ? "bg-neutral-950 font-semibold text-white"
+                  : "border border-neutral-200 bg-neutral-50 font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-950"
               }`}
             >
               <span>Composio.dev</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
                   providerFilter === "composio"
-                    ? "bg-neutral-800 text-white font-bold"
-                    : "bg-neutral-200 text-neutral-700"
+                    ? "bg-neutral-800 text-white"
+                    : "bg-neutral-200/80 text-neutral-700"
                 }`}
               >
                 {counts.composio.toLocaleString()}
@@ -1006,18 +945,18 @@ export function MarketplaceGrid({
                 setProviderFilter("fastmcp");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+              className={`inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-xs transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${
                 providerFilter === "fastmcp"
-                  ? "bg-neutral-950 text-white shadow-sm font-bold"
-                  : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
+                  ? "bg-neutral-950 font-semibold text-white"
+                  : "border border-neutral-200 bg-neutral-50 font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-950"
               }`}
             >
               <span>Industrial FastMCP</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
                   providerFilter === "fastmcp"
-                    ? "bg-neutral-800 text-white font-bold"
-                    : "bg-neutral-200 text-neutral-700"
+                    ? "bg-neutral-800 text-white"
+                    : "bg-neutral-200/80 text-neutral-700"
                 }`}
               >
                 {counts.fastmcp}
@@ -1026,17 +965,17 @@ export function MarketplaceGrid({
           </div>
 
           {/* Status Filter Toggle */}
-          <div className="flex items-center rounded-full border border-neutral-200 bg-neutral-100 p-1 text-xs">
+          <div className="inline-flex h-9 max-w-full flex-wrap items-center rounded-full border border-neutral-200 bg-neutral-100 p-1 text-xs">
             <button
               type="button"
               onClick={() => {
                 setStatusFilter("all");
                 setCurrentPage(1);
               }}
-              className={`rounded-full px-3 py-1 font-medium transition ${
+              className={`inline-flex h-7 items-center rounded-full px-3 tabular-nums transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                 statusFilter === "all"
-                  ? "bg-white text-neutral-950 font-semibold shadow-xs"
-                  : "text-neutral-500 hover:text-neutral-900"
+                  ? "bg-white font-semibold text-neutral-950"
+                  : "font-medium text-neutral-600 hover:text-neutral-950"
               }`}
             >
               All ({statusCounts.all})
@@ -1047,13 +986,13 @@ export function MarketplaceGrid({
                 setStatusFilter("connected");
                 setCurrentPage(1);
               }}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition ${
+              className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 tabular-nums transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                 statusFilter === "connected"
-                  ? "bg-white text-neutral-950 font-semibold shadow-xs"
-                  : "text-neutral-500 hover:text-neutral-900"
+                  ? "bg-white font-semibold text-neutral-950"
+                  : "font-medium text-neutral-600 hover:text-neutral-950"
               }`}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
               Connected Only ({statusCounts.connected})
             </button>
             <button
@@ -1062,10 +1001,10 @@ export function MarketplaceGrid({
                 setStatusFilter("available");
                 setCurrentPage(1);
               }}
-              className={`rounded-full px-3 py-1 font-medium transition ${
+              className={`inline-flex h-7 items-center rounded-full px-3 tabular-nums transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                 statusFilter === "available"
-                  ? "bg-white text-neutral-950 font-semibold shadow-xs"
-                  : "text-neutral-500 hover:text-neutral-900"
+                  ? "bg-white font-semibold text-neutral-950"
+                  : "font-medium text-neutral-600 hover:text-neutral-950"
               }`}
             >
               Available ({statusCounts.available})
@@ -1074,10 +1013,10 @@ export function MarketplaceGrid({
         </div>
 
         {/* Row 2: Search Input & Sort Dropdown & Pagination Size */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-100">
-          <div className="relative flex-1 min-w-[280px] max-w-lg">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-400">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-3">
+          <div className="relative w-full min-w-0 sm:flex-1 sm:min-w-[240px] sm:max-w-lg">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -1101,7 +1040,7 @@ export function MarketplaceGrid({
                   setCurrentPage(1);
                   searchInputRef.current?.focus();
                 }}
-                className="absolute right-3 top-2.5 text-xs text-neutral-400 hover:text-neutral-900"
+                className="absolute inset-y-0 right-2 my-auto flex h-6 w-6 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                 title="Clear search"
                 aria-label="Clear search"
               >
@@ -1111,15 +1050,15 @@ export function MarketplaceGrid({
                 </svg>
               </button>
             ) : (
-              <div className="pointer-events-none absolute right-3 top-2.5 hidden sm:flex items-center gap-1">
-                <kbd className="rounded border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 text-[10px] font-mono text-neutral-500">
+              <div className="pointer-events-none absolute inset-y-0 right-3 hidden items-center sm:flex">
+                <kbd className="rounded border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 font-mono text-[10px] text-neutral-600">
                   Ctrl+K
                 </kbd>
               </div>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs text-neutral-600">
             {/* Category Checkbox Dropdown */}
             <div className="relative" ref={categoryDropdownRef}>
               <button
@@ -1129,10 +1068,10 @@ export function MarketplaceGrid({
                 aria-expanded={isCategoryOpen}
                 aria-haspopup="true"
                 onClick={() => setIsCategoryOpen((prev) => !prev)}
-                className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-800 hover:bg-neutral-50 hover:border-neutral-300 transition focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                className="flex h-9 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-800 transition-colors duration-150 ease-out-quart hover:border-neutral-300 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
               >
-                <span>{categoryButtonLabel}</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true">
+                <span className="tabular-nums">{categoryButtonLabel}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-600" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
                 </svg>
               </button>
@@ -1142,11 +1081,10 @@ export function MarketplaceGrid({
                   role="menu"
                   aria-orientation="vertical"
                   aria-labelledby="category-dropdown-button"
-                  className="absolute right-0 top-full mt-1.5 z-30 max-h-80 w-72 overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-2 shadow-2xl space-y-1 text-neutral-900"
+                  className="animate-fadeIn absolute left-0 top-full z-30 mt-1.5 max-h-80 w-[min(18rem,calc(100vw-2.5rem))] space-y-1 overflow-y-auto rounded-2xl border border-neutral-200/80 bg-white p-2 text-neutral-950 shadow-[0_12px_32px_rgba(15,23,42,0.14)] sm:left-auto sm:right-0"
                 >
-                  {/* Header bar with Select All and Clear */}
                   <div className="flex items-center justify-between px-2 py-1 text-xs">
-                    <span className="font-semibold text-neutral-900">
+                    <span className="font-semibold tabular-nums text-neutral-950">
                       {selectedCategories.length === 0
                         ? `Categories (${categoryCounts.categories.length})`
                         : `${selectedCategories.length} Selected`}
@@ -1158,27 +1096,26 @@ export function MarketplaceGrid({
                           setSelectedCategories(categoryCounts.categories.map((c) => c.name));
                           setCurrentPage(1);
                         }}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 transition font-medium"
+                        className="rounded px-1 py-0.5 text-xs font-semibold text-blue-700 transition-colors hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                       >
                         Select All
                       </button>
-                      <span className="text-neutral-600">|</span>
+                      <span className="text-neutral-300" aria-hidden="true">|</span>
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedCategories([]);
                           setCurrentPage(1);
                         }}
-                        className="text-xs text-neutral-400 hover:text-white transition"
+                        className="rounded px-1 py-0.5 text-xs font-medium text-neutral-600 transition-colors hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                       >
                         Clear
                       </button>
                     </div>
                   </div>
 
-                  <div className="border-b border-neutral-100 my-1" />
+                  <div className="my-1 border-b border-neutral-100" />
 
-                  {/* Scrollable list of category items with checkboxes */}
                   <div className="space-y-0.5">
                     {categoryCounts.categories.map((cat) => {
                       const isChecked = selectedCategories.length === 0
@@ -1188,16 +1125,16 @@ export function MarketplaceGrid({
                       return (
                         <label
                           key={cat.name}
-                          className="hover:bg-neutral-50 rounded-lg px-2 py-1.5 flex items-center gap-2 cursor-pointer transition select-none"
+                          className="flex cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-neutral-50"
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleToggleCategory(cat.name)}
-                            className="rounded border-neutral-300 bg-white text-neutral-900 focus:ring-neutral-900 h-3.5 w-3.5 cursor-pointer"
+                            className="h-3.5 w-3.5 cursor-pointer rounded border-neutral-300 bg-white text-neutral-950 focus-visible:ring-2 focus-visible:ring-neutral-950"
                           />
-                          <span className="flex-1 text-xs text-neutral-800 truncate">{cat.name}</span>
-                          <span className="rounded-full bg-neutral-100 border border-neutral-200/80 px-1.5 py-0.5 text-[10px] text-neutral-600 font-mono">
+                          <span className="flex-1 truncate text-xs text-neutral-800">{cat.name}</span>
+                          <span className="rounded-full border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-neutral-700">
                             {cat.count}
                           </span>
                         </label>
@@ -1209,15 +1146,16 @@ export function MarketplaceGrid({
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span>Sort:</span>
+              <label htmlFor="marketplace-sort" className="text-neutral-600">Sort:</label>
               <select
+                id="marketplace-sort"
                 aria-label="Sort connectors"
                 value={sortOption}
                 onChange={(e) => {
                   setSortOption(e.target.value as "featured" | "alpha" | "tools");
                   setCurrentPage(1);
                 }}
-                className="rounded-xl border border-neutral-200 bg-white px-2.5 py-1.5 text-xs text-neutral-800 hover:border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 shadow-sm"
+                className="h-9 rounded-xl border border-neutral-200 bg-white px-2.5 text-xs font-medium text-neutral-800 transition-colors duration-150 ease-out-quart hover:border-neutral-300 focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/20"
               >
                 <option value="featured">Featured / Popular</option>
                 <option value="alpha">Alphabetical (A-Z)</option>
@@ -1225,8 +1163,8 @@ export function MarketplaceGrid({
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 border-l border-neutral-200 pl-3">
-              <span>Per page:</span>
+            <div className="flex items-center gap-1.5 border-l border-neutral-200 pl-2.5">
+              <span className="text-neutral-600">Per page:</span>
               {[24, 48, 96].map((size) => (
                 <button
                   key={size}
@@ -1235,10 +1173,10 @@ export function MarketplaceGrid({
                     setPageSize(size);
                     setCurrentPage(1);
                   }}
-                  className={`rounded px-2 py-0.5 text-xs font-medium transition ${
+                  className={`inline-flex h-8 min-w-[2.25rem] items-center justify-center rounded-full px-2 text-xs tabular-nums transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${
                     pageSize === size
-                      ? "bg-neutral-950 text-white font-semibold shadow-sm"
-                      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/80 hover:text-neutral-900"
+                      ? "bg-neutral-950 font-semibold text-white"
+                      : "border border-neutral-200 bg-white font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-950"
                   }`}
                 >
                   {size}
@@ -1248,11 +1186,11 @@ export function MarketplaceGrid({
           </div>
         </div>
 
-        {/* Row 3: Active Category Filter Badges (Shown only when filtering by specific categories) */}
+        {/* Row 3: Active Category Filter Badges */}
         {!isAllCategories && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-neutral-100 text-xs">
-            <span className="text-neutral-400">Active filter:</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand-light">
+          <div className="flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3 text-xs">
+            <span className="text-neutral-600">Active filter:</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium tabular-nums text-blue-800">
               <span>
                 Filtered by {selectedCategories.length}{" "}
                 {selectedCategories.length === 1
@@ -1265,7 +1203,7 @@ export function MarketplaceGrid({
                   setSelectedCategories([]);
                   setCurrentPage(1);
                 }}
-                className="ml-1 rounded-full p-0.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-900 transition inline-flex items-center justify-center"
+                className="ml-0.5 inline-flex items-center justify-center rounded-full p-0.5 text-blue-700 transition-colors hover:bg-blue-100 hover:text-blue-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                 title="Clear category filter"
                 aria-label="Clear category filter"
               >
@@ -1281,7 +1219,7 @@ export function MarketplaceGrid({
                 setSelectedCategories([]);
                 setCurrentPage(1);
               }}
-              className="text-[11px] text-neutral-400 hover:text-white underline underline-offset-2 ml-1"
+              className="rounded px-1.5 py-0.5 text-xs font-medium text-neutral-600 underline underline-offset-2 transition-colors hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
             >
               Clear
             </button>
@@ -1290,17 +1228,17 @@ export function MarketplaceGrid({
       </div>
 
       {/* Results Header / Pagination Top */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-400">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-600">
+        <div className="tabular-nums">
           Showing{" "}
-          <strong className="text-white">
+          <strong className="font-semibold text-neutral-950">
             {totalFiltered === 0 ? 0 : (safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, totalFiltered)}
           </strong>{" "}
-          of <strong className="text-white">{totalFiltered.toLocaleString()}</strong> connectors
+          of <strong className="font-semibold text-neutral-950">{totalFiltered.toLocaleString()}</strong> connectors
           {!isAllCategories && (
             <span>
               {" "}in{" "}
-              <strong className="text-neutral-200">
+              <strong className="font-semibold text-neutral-900">
                 {selectedCategories.length === 1
                   ? selectedCategories[0]
                   : `${selectedCategories.length} categories`}
@@ -1310,23 +1248,23 @@ export function MarketplaceGrid({
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 tabular-nums">
             <button
               type="button"
               disabled={safePage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
+              className="inline-flex h-8 items-center rounded-full border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
             >
               &larr; Prev
             </button>
-            <span className="text-neutral-500">
-              Page <strong className="text-neutral-900 font-semibold">{safePage}</strong> of {totalPages}
+            <span className="text-neutral-600">
+              Page <strong className="font-semibold text-neutral-950">{safePage}</strong> of {totalPages}
             </span>
             <button
               type="button"
               disabled={safePage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
+              className="inline-flex h-8 items-center rounded-full border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
             >
               Next &rarr;
             </button>
@@ -1334,121 +1272,103 @@ export function MarketplaceGrid({
         )}
       </div>
 
-      {/* Grid of Clean Minimal Cards (Showing ONLY Name, Badges, Description, Status Pill, and Connect Button) */}
+      {/* Grid of Connectors */}
       {paginatedApps.length === 0 ? (
-        <Card>
-          <Empty>
-            No connectors match your current filters.
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setSelectedCategories([]);
-                  setProviderFilter("all");
-                  setStatusFilter("all");
-                  setCurrentPage(1);
-                }}
-                className={btnGhostCls}
-              >
-                Reset All Filters
-              </button>
-            </div>
-          </Empty>
+        <Card className="text-center">
+          <Empty>No connectors match your current filters.</Empty>
+          <div className="pb-4">
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setSelectedCategories([]);
+                setProviderFilter("all");
+                setStatusFilter("all");
+                setCurrentPage(1);
+              }}
+              className={btnGhostCls}
+            >
+              Reset All Filters
+            </button>
+          </div>
         </Card>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2" id="marketplace-results">
+        <div className="grid gap-4 lg:grid-cols-2" id="marketplace-results">
           {paginatedApps.map((app) => {
             const isBusy = busyApp === app.key;
             const isFastMcp = app.provider === "fastmcp";
-            const avatarStyle = getAvatarStyles(app);
+            const avatarTone = getAvatarTone(app);
             const initials = getAppInitials(app.name, app.key);
 
             return (
               <div
                 key={app.key}
-                className="group relative flex flex-col justify-between rounded-3xl border border-neutral-200/70 bg-white p-6 transition-all duration-200 hover:border-neutral-300 hover:shadow-md"
+                className="flex flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 transition-colors duration-150 ease-out-quart hover:border-neutral-300"
               >
-                <div className="space-y-3.5">
-                  {/* Card Header with Avatar, Title, Provider badge, and Status Pill */}
+                <div className="space-y-3">
+                  {/* Card Header with Monogram, Title, Metadata Line, and Status */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      {/* Avatar / Brand Initial Badge */}
+                    <div className="flex min-w-0 items-start gap-3">
                       <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-gradient-to-br font-bold shadow-xs text-xs tracking-tight ${avatarStyle.bg}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-bold tracking-tight ${avatarTone}`}
                       >
                         {initials}
                       </div>
 
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-semibold text-neutral-900 tracking-tight transition">
-                            {app.name}
-                          </h3>
-                          <Badge variant="secondary" className="text-[11px] font-normal py-0">
-                            {app.category}
-                          </Badge>
-                        </div>
-
-                        {/* Provider Badge */}
-                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                          {isFastMcp ? (
-                            <Badge variant="warning" className="text-[11px] font-medium py-0.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                              Industrial FastMCP
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="text-[11px] font-medium py-0.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-                              composio.dev
-                            </Badge>
-                          )}
+                      <div className="min-w-0 space-y-1">
+                        <h3 className="truncate text-base font-semibold tracking-tight text-neutral-950">
+                          {app.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-600">
+                          <span className="inline-flex items-center gap-1.5 font-medium text-neutral-700">
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${isFastMcp ? "bg-amber-600" : "bg-blue-600"}`}
+                              aria-hidden="true"
+                            />
+                            {isFastMcp ? "Industrial FastMCP" : "composio.dev"}
+                          </span>
+                          <span className="text-neutral-300" aria-hidden="true">/</span>
+                          <span className="truncate">{app.category}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Status Pill: Connected with pulsing indicator dot or Available */}
                     <div className="shrink-0">
                       {app.connected ? (
-                        <Badge variant="success" className="px-2.5 py-1 text-xs">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
+                        <Badge variant="success">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
                           Connected
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="px-2.5 py-1 text-xs text-neutral-500">
+                        <Badge variant="outline" className="text-neutral-600">
                           Available
                         </Badge>
                       )}
                     </div>
                   </div>
 
-                  {/* Description ONLY - minimal and clean */}
-                  <p className="text-sm text-neutral-500 leading-relaxed">{app.description}</p>
+                  <p className="text-sm leading-relaxed text-neutral-600">{app.description}</p>
                 </div>
 
-                {/* Card Actions Footer:
-                    - Disconnected card: EXACTLY ONE CONNECT BUTTON (opens Configuration Modal)
-                    - Connected card: Reconfigure, Test Action, Disconnect */}
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-4">
-                  <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-                    <span>Auth: {(app.auth_schemes || []).join(" / ")}</span>
+                {/* Card Footer */}
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-3.5">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-600">
+                    <span className="font-mono text-[11px]">Auth: {(app.auth_schemes || []).join(" / ")}</span>
                     {app.docs_url && (
                       <>
-                        <span>·</span>
+                        <span className="text-neutral-300" aria-hidden="true">&middot;</span>
                         <a
                           href={app.docs_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-neutral-400 hover:text-white"
+                          className="inline-flex items-center gap-1 rounded font-medium text-neutral-700 underline-offset-2 transition-colors hover:text-neutral-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                         >
-                          <span className="inline-flex items-center gap-1">
-                            Specs
-                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                              <polyline points="15 3 21 3 21 9"></polyline>
-                              <line x1="10" y1="14" x2="21" y2="3"></line>
-                            </svg>
-                          </span>
+                          <span>Specs</span>
+                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                          </svg>
                         </a>
                       </>
                     )}
@@ -1456,7 +1376,7 @@ export function MarketplaceGrid({
 
                   {canManage ? (
                     app.connected ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
@@ -1489,21 +1409,13 @@ export function MarketplaceGrid({
                         size="sm"
                         disabled={isBusy}
                         onClick={() => setConfigModalApp(app)}
-                        className="shadow-sm"
                       >
-                        {isBusy ? (
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-2 w-2 rounded-full bg-white animate-ping" />
-                            Connecting...
-                          </span>
-                        ) : (
-                          "Connect"
-                        )}
+                        {isBusy ? "Connecting..." : "Connect"}
                       </Button>
                     )
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 font-medium">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-500" aria-hidden="true">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-700">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-600" aria-hidden="true">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
@@ -1517,15 +1429,15 @@ export function MarketplaceGrid({
         </div>
       )}
 
-      {/* Bottom Full Pagination Controls */}
+      {/* Bottom Pagination Controls */}
       {totalPages > 1 && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200/60 pt-4 text-xs">
-          <div className="text-neutral-500">
-            Showing Page <strong className="text-neutral-900 font-semibold">{safePage}</strong> of{" "}
-            <strong className="text-neutral-900 font-semibold">{totalPages}</strong> ({totalFiltered.toLocaleString()} matching connectors)
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-neutral-200 pt-4 text-xs">
+          <div className="tabular-nums text-neutral-600">
+            Showing Page <strong className="font-semibold text-neutral-950">{safePage}</strong> of{" "}
+            <strong className="font-semibold text-neutral-950">{totalPages}</strong> ({totalFiltered.toLocaleString()} matching connectors)
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 tabular-nums">
             <button
               type="button"
               disabled={safePage <= 1}
@@ -1533,7 +1445,7 @@ export function MarketplaceGrid({
                 setCurrentPage(1);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
+              className="inline-flex h-8 items-center rounded-full border border-neutral-200 bg-white px-3 font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
             >
               &laquo; First
             </button>
@@ -1544,7 +1456,7 @@ export function MarketplaceGrid({
                 setCurrentPage((p) => Math.max(1, p - 1));
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
+              className="inline-flex h-8 items-center rounded-full border border-neutral-200 bg-white px-3 font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
             >
               &lsaquo; Prev
             </button>
@@ -1567,10 +1479,10 @@ export function MarketplaceGrid({
                     setCurrentPage(page);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className={`min-w-[28px] rounded-full px-2.5 py-1 text-center font-medium transition ${
+                  className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-full px-2.5 text-center transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${
                     safePage === page
-                      ? "bg-neutral-950 text-white font-semibold shadow-sm"
-                      : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 shadow-sm"
+                      ? "bg-neutral-950 font-semibold text-white"
+                      : "border border-neutral-200 bg-white font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-950"
                   }`}
                 >
                   {page}
@@ -1585,7 +1497,7 @@ export function MarketplaceGrid({
                 setCurrentPage((p) => Math.min(totalPages, p + 1));
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
+              className="inline-flex h-8 items-center rounded-full border border-neutral-200 bg-white px-3 font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
             >
               Next &rsaquo;
             </button>
@@ -1596,7 +1508,7 @@ export function MarketplaceGrid({
                 setCurrentPage(totalPages);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-30 disabled:pointer-events-none transition"
+              className="inline-flex h-8 items-center rounded-full border border-neutral-200 bg-white px-3 font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
             >
               Last ({totalPages}) &raquo;
             </button>
@@ -1613,115 +1525,18 @@ export function MarketplaceGrid({
       />
 
       {/* Tool Execution Result Modal */}
-      {executionModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm duration-200"
-          onClick={() => setExecutionModal(null)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
-                    Action Execution Output
-                  </h3>
-                </div>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  {executionModal.app.name} &middot;{" "}
-                  <code className="text-sky-700 font-mono font-semibold">{executionModal.tool.name}</code>
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setExecutionModal(null)}
-                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition"
-                aria-label="Close modal"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                {executionModal.statusCode === 200 ? "200 OK &middot; Executed" : `${executionModal.statusCode} Error`}
-              </span>
-
-              <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">
-                Latency: {executionModal.latencyMs} ms
-              </span>
-
-              <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs text-neutral-600 font-medium">
-                Provider: {executionModal.app.provider === "fastmcp" ? "Industrial FastMCP" : "composio.dev"}
-              </span>
-
-              <span className="ml-auto text-xs text-neutral-400">
-                {executionModal.timestamp}
-              </span>
-            </div>
-
-            <div className="flex-1 min-h-0 flex flex-col space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-neutral-500">
-                <span className="font-medium">Structured JSON Response:</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyJson(executionModal.result)}
-                  className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition flex items-center gap-1.5 shadow-sm"
-                >
-                  {copiedJson ? (
-                    <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-600" aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      <span className="text-emerald-700 font-medium">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3" aria-hidden="true">
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                      </svg>
-                      <span>Copy JSON</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <pre className="flex-1 overflow-auto rounded-2xl border border-neutral-800 bg-neutral-900 p-4 font-mono text-xs text-emerald-400 leading-relaxed shadow-inner">
-                {JSON.stringify(executionModal.result, null, 2)}
-              </pre>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-neutral-100 pt-4">
-              <button
-                type="button"
-                onClick={() => handleRunIndividualTool(executionModal.app, executionModal.tool)}
-                className={btnCls}
-              >
-                Re-Run Action
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setExecutionModal(null)}
-                className={btnGhostCls}
-              >
-                Close Output
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExecutionResultModal
+        data={executionModal}
+        title="Action Execution Output"
+        copiedJson={copiedJson}
+        onCopyJson={handleCopyJson}
+        onRerun={
+          executionModal
+            ? () => handleRunIndividualTool(executionModal.app, executionModal.tool)
+            : undefined
+        }
+        onClose={() => setExecutionModal(null)}
+      />
     </div>
   );
 }

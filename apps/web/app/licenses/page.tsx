@@ -1,6 +1,7 @@
 // apps/web/app/licenses/page.tsx
 import React from "react";
-import { Card, PageHeader } from "@/components/ui/kit";
+import Link from "next/link";
+import { Badge, Card, PageHeader, btnGhostCls } from "@/components/ui/kit";
 import { requireMe } from "@/lib/server";
 
 export const metadata = { title: "Open source licences" };
@@ -21,20 +22,27 @@ export default async function Licenses() {
   await requireMe();
   return (
     <div className="space-y-6">
-      <PageHeader title="Open source licences" subtitle="This product is built on the following open source software" />
+      <PageHeader title="Open source licences" subtitle="This product is built on the following open source software">
+        <Link href="/settings" className={btnGhostCls}>
+          Back to Settings
+        </Link>
+      </PageHeader>
       <Card>
         <ul className="divide-y divide-neutral-100 text-sm">
           {ITEMS.map(([n, l, d]) => (
-            <li key={n} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
-              <span>
-                <b className="font-medium">{n}</b> <span className="text-neutral-500">{d}</span>
+            <li key={n} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-1 last:pb-1">
+              <span className="min-w-0">
+                <strong className="font-semibold text-neutral-950">{n}</strong>{" "}
+                <span className="text-neutral-600">{d}</span>
               </span>
-              <span className="text-xs text-neutral-400">{l}</span>
+              <Badge variant="secondary" className="shrink-0 font-mono text-[11px]">
+                {l}
+              </Badge>
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-xs text-neutral-500">
-          Full notices are in THIRD_PARTY_NOTICES.md in the source package.
+        <p className="mt-4 border-t border-neutral-100 pt-3 text-xs text-neutral-600">
+          Full notices are in <code className="font-mono text-neutral-800">THIRD_PARTY_NOTICES.md</code> in the source package.
         </p>
       </Card>
     </div>

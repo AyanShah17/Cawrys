@@ -1,7 +1,9 @@
 // apps/web/app/documents/[id]/page.tsx
+import React from "react";
+import Link from "next/link";
 import { getMe, serverGet } from "@/lib/server";
 import { RunPlaybook } from "@/components/run-playbook";
-import { Card, PageHeader, Pill } from "@/components/ui/kit";
+import { Card, Empty, Notice, PageHeader, Pill, btnCls, btnGhostCls, tableCls, tdCls, thCls } from "@/components/ui/kit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,17 @@ type Doc = {
   decision: { summary?: string; proposed_actions?: { action: string; risk: string }[]; open_questions?: string[] } | null;
 };
 
+function formatFieldValue(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 export default async function DocumentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let doc: Doc | null = null;
@@ -26,32 +39,46 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
   try {
     doc = await serverGet<Doc>("intelligence", `/v1/documents/${encodeURIComponent(id)}`);
     playbooks = (await serverGet<{ name: string }[]>("execution", "/v1/playbooks")).map((p) => p.name);
-  } catch (e: any) {
-    err = e.message;
+  } catch (e: unknown) {
+    err = e instanceof Error ? e.message : "Failed to load document";
   }
 
   if (!doc) {
-    return <main className="mx-auto max-w-4xl px-6 py-10 text-sm text-rose-600 font-medium">{err ?? "Not found"}</main>;
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Document unavailable">
+          <Link href="/documents" className={btnGhostCls}>Back to Documents</Link>
+        </PageHeader>
+        <Notice tone="bad">{err ?? "Document not found."}</Notice>
+      </div>
+    );
   }
 
   const issues = doc.validation?.issues ?? [];
+  const fieldEntries = Object.entries(doc.fields ?? {});
+  const confidenceText = doc.confidence !== null && doc.confidence !== undefined
+    ? `${(doc.confidence * 100).toFixed(0)}%`
+    : "-";
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 px-4 py-6">
+    <div className="space-y-6">
       <PageHeader
         title={doc.filename}
-        subtitle={`${doc.doc_type ?? "Technical Document"} · Status: ${doc.status} · Confidence: ${doc.confidence ? (doc.confidence * 100).toFixed(0) + "%" : "-"}`}
+        subtitle={`${doc.doc_type ?? "Technical Document"} · Status: ${doc.status} · Confidence: ${confidenceText}`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Pill value={doc.status} />
+          <Link href="/documents" className={btnGhostCls}>
+            All Documents
+          </Link>
           <a
             href={`/api/intelligence/v1/documents/${encodeURIComponent(doc.id)}/file`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-white px-3 py-1 text-xs font-medium border border-neutral-700 shadow-sm transition-colors select-none"
+            className={btnCls}
             title="Download or view original uploaded file"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
@@ -62,26 +89,52 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
       </PageHeader>
 
       <Card title="Extracted Engineering Fields">
-        <table className="w-full text-left text-xs border-collapse">
-          <tbody>
-            {Object.entries(doc.fields ?? {}).map(([k, v]) => (
-              <tr key={k} className="border-t border-neutral-100">
-                <td className="py-2.5 font-medium text-neutral-500 w-1/3">{k}</td>
-                <td className="py-2.5 font-mono text-neutral-900">{String(v)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {fieldEntries.length === 0 ? (
+          <Empty>No extracted fields recorded for this document.</Empty>
+        ) : (
+          <div className="-mx-1 overflow-x-auto px-1">
+            <table className={tableCls}>
+              <thead>
+                <tr>
+                  <th className={`${thCls} w-1/3`}>Field</th>
+                  <th className={thCls}>Extracted Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fieldEntries.map(([k, v]) => {
+                  const formatted = formatFieldValue(v);
+                  const isLong = formatted.length > 400 || formatted.includes("\n");
+                  return (
+                    <tr key={k} className="align-top transition-colors duration-150 ease-out-quart hover:bg-neutral-50/80">
+                      <td className={`${tdCls} w-1/3 font-medium text-neutral-700`}>{k}</td>
+                      <td className={`${tdCls} min-w-0 font-mono text-xs text-neutral-950`}>
+                        {isLong ? (
+                          <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-neutral-200 bg-neutral-50 p-3 font-mono text-xs leading-relaxed text-neutral-900">
+                            {formatted}
+                          </pre>
+                        ) : (
+                          <span className="break-words">{formatted}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       <Card title="Validation & Safety Checks">
         {issues.length === 0 ? (
-          <p className="text-xs text-emerald-700 font-medium">All validation checks passed with zero safety violations.</p>
+          <p className="text-sm font-medium text-emerald-800">
+            All validation checks passed with zero safety violations.
+          </p>
         ) : (
-          <ul className="space-y-1.5 text-xs text-amber-800">
+          <ul className="space-y-2 text-xs text-amber-900">
             {issues.map((i, n) => (
-              <li key={n} className="p-2 rounded-xl bg-amber-50 border border-amber-200">
-                <strong>{i.type}</strong>: {JSON.stringify(i.fields ?? i.field)}
+              <li key={n} className="rounded-xl border border-amber-200 bg-amber-50 p-3 leading-relaxed">
+                <strong className="font-semibold">{i.type}</strong>: {JSON.stringify(i.fields ?? i.field)}
               </li>
             ))}
           </ul>
@@ -89,18 +142,22 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
       </Card>
 
       <Card title="Proposed Reasoning & Decision">
-        <p className="text-xs text-neutral-800 leading-relaxed">{doc.decision?.summary || "No automated summary generated."}</p>
+        <p className="text-sm leading-relaxed text-neutral-800">
+          {doc.decision?.summary || "No automated summary generated."}
+        </p>
         {(doc.decision?.proposed_actions ?? []).length > 0 && (
-          <div className="mt-3 space-y-1">
-            <div className="text-xs font-semibold text-neutral-700">Proposed Actions:</div>
-            <ul className="space-y-1 text-xs text-neutral-600">
+          <div className="mt-4 space-y-2 border-t border-neutral-100 pt-3.5">
+            <div className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-600">
+              Proposed Actions
+            </div>
+            <ul className="divide-y divide-neutral-100 text-xs text-neutral-800">
               {(doc.decision?.proposed_actions ?? []).map((a, n) => (
-                <li key={n} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-900" />
-                  <span>{a.action}</span>
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-mono border border-neutral-200 text-neutral-700">
-                    {a.risk} risk
+                <li key={n} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                  <span className="flex items-center gap-2 font-medium text-neutral-900">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-950" aria-hidden="true" />
+                    <span>{a.action}</span>
                   </span>
+                  <Pill value={a.risk} />
                 </li>
               ))}
             </ul>
@@ -110,15 +167,15 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
 
       <Card title="Execute Playbook">
         {!me || me.role === "viewer" ? (
-          <p className="text-xs text-neutral-500">Viewers cannot run execution playbooks.</p>
+          <p className="text-sm text-neutral-600">Viewers cannot run execution playbooks.</p>
         ) : doc.extraction_id && !doc.validation?.needs_review ? (
           <RunPlaybook extractionId={doc.extraction_id} playbooks={playbooks} />
         ) : (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <Notice tone="warn">
             Resolve validation issues before triggering shop floor execution.
-          </p>
+          </Notice>
         )}
       </Card>
-    </main>
+    </div>
   );
 }

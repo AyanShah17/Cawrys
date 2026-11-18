@@ -3,86 +3,25 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { API, del, getJSON, post } from "@/lib/api";
-import { Badge, Button, Card, Empty, Notice, btnCls, btnGhostCls, inputCls } from "@/components/ui/kit";
+import { Badge, Button, Card, Empty, Notice, btnCls, inputCls } from "@/components/ui/kit";
 import type {
   ExecutionModalData,
   MarketplaceApp,
   MarketplaceCatalog,
   MarketplaceConnection,
-  MarketplaceTool,
 } from "./marketplace-grid";
 import {
+  ExecutionResultModal,
   MarketplaceConfigModal,
+  getAppInitials,
+  getAvatarTone,
   type ConnectPayload,
 } from "./marketplace-config-modal";
-
-function getAppInitials(name: string, key: string): string {
-  if (key === "sap_s4hana") return "SAP";
-  if (key === "siemens_xcelerator") return "SX";
-  if (key === "rockwell_factorytalk") return "RA";
-  if (key === "dassault_3dexperience") return "3DS";
-  if (key === "ptc_windchill") return "PTC";
-  if (key === "oracle_scm") return "ORA";
-
-  const clean = name.replace(/[^a-zA-Z0-9\s]/g, "").trim();
-  const words = clean.split(/\s+/).filter(Boolean);
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase();
-  }
-  return key.slice(0, 2).toUpperCase();
-}
-
-function getAvatarStyles(app: MarketplaceApp) {
-  if (app.provider === "fastmcp") {
-    return {
-      bg: "from-amber-500/20 to-orange-600/30 border-amber-500/30 text-amber-800",
-      indicator: "bg-amber-400",
-    };
-  }
-  const cat = (app.category || "").toLowerCase();
-  if (cat.includes("developer") || cat.includes("devops")) {
-    return {
-      bg: "from-emerald-500/20 to-teal-600/30 border-emerald-500/30 text-emerald-800",
-      indicator: "bg-emerald-400",
-    };
-  }
-  if (cat.includes("crm") || cat.includes("sales")) {
-    return {
-      bg: "from-rose-500/20 to-orange-600/30 border-rose-500/30 text-rose-800",
-      indicator: "bg-rose-400",
-    };
-  }
-  if (cat.includes("finance") || cat.includes("accounting") || cat.includes("billing")) {
-    return {
-      bg: "from-green-500/20 to-emerald-600/30 border-green-500/30 text-green-800",
-      indicator: "bg-green-400",
-    };
-  }
-  if (cat.includes("communication") || cat.includes("social")) {
-    return {
-      bg: "from-purple-500/20 to-violet-600/30 border-purple-500/30 text-purple-800",
-      indicator: "bg-purple-400",
-    };
-  }
-  if (cat.includes("support") || cat.includes("ticketing")) {
-    return {
-      bg: "from-amber-500/20 to-yellow-600/30 border-yellow-500/30 text-amber-800",
-      indicator: "bg-yellow-400",
-    };
-  }
-  return {
-    bg: "from-indigo-500/20 to-blue-600/30 border-indigo-500/30 text-indigo-800",
-    indicator: "bg-indigo-400",
-  };
-}
 
 export function ConnectorsView({
   initial,
   role,
-  brandName,
+  brandName: _brandName,
 }: {
   initial: MarketplaceCatalog | null;
   role: string;
@@ -99,13 +38,11 @@ export function ConnectorsView({
     detail?: string;
   } | null>(null);
 
-  // Execution result modal
   const [executionModal, setExecutionModal] = useState<ExecutionModalData | null>(null);
   const [copiedJson, setCopiedJson] = useState(false);
 
   const canManage = role === "admin";
 
-  // Refresh data
   const refresh = useCallback(async () => {
     try {
       const fresh = await getJSON<MarketplaceCatalog>(`${API.execution}/v1/marketplace/apps?status=connected`);
@@ -123,7 +60,6 @@ export function ConnectorsView({
     }
   }, [initial, refresh]);
 
-  // Connected apps only
   const connectedApps = useMemo(() => {
     if (!catalog?.apps) return [];
     return catalog.apps.filter((a) => a.connected);
@@ -149,7 +85,6 @@ export function ConnectorsView({
     };
   }, [catalog, connectedApps]);
 
-  // Connect / Reconfigure handler
   async function handleSaveConfig(payload: ConnectPayload) {
     const res = await post<{
       ok?: boolean;
@@ -164,7 +99,7 @@ export function ConnectorsView({
     setBanner({
       ok: true,
       title: `Saved configuration for ${payload.app_key}`,
-      detail: `Settings updated successfully.`,
+      detail: "Settings updated successfully.",
     });
 
     if (res.redirect_url) {
@@ -178,7 +113,6 @@ export function ConnectorsView({
     await refresh();
   }
 
-  // Disconnect handler
   async function handleDisconnect(app: MarketplaceApp) {
     setBusyApp(app.key);
     setBanner(null);
@@ -187,21 +121,21 @@ export function ConnectorsView({
       setBanner({
         ok: true,
         title: `Disconnected ${app.name}`,
-        detail: `Connection and credentials unlinked.`,
+        detail: "Connection and credentials unlinked.",
       });
       await refresh();
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Disconnect request failed";
       setBanner({
         ok: false,
         title: `Failed to disconnect ${app.name}`,
-        detail: e?.message || "Disconnect request failed",
+        detail: msg,
       });
     } finally {
       setBusyApp(null);
     }
   }
 
-  // Test action
   async function handleTestConnection(app: MarketplaceApp) {
     const tool = app.tools[0] || { name: `${app.key}_test_action` };
     setBusyApp(app.key);
@@ -237,18 +171,19 @@ export function ConnectorsView({
         title: `Test Connection: ${app.name} (${latencyMs}ms)`,
         detail: JSON.stringify(resultObj, null, 2),
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       const latencyMs = Math.max(1, Math.round(performance.now() - startTime));
+      const msg = e instanceof Error ? e.message : "Execution failed";
       setBanner({
         ok: false,
         title: `Test connection failed for ${app.name}`,
-        detail: e?.message || "Execution failed",
+        detail: msg,
       });
       setExecutionModal({
         isOpen: true,
         app,
         tool,
-        result: { error: e?.message || "Execution failed", status: "error" },
+        result: { error: msg, status: "error" },
         latencyMs,
         statusCode: 500,
         timestamp: new Date().toLocaleTimeString(),
@@ -258,7 +193,7 @@ export function ConnectorsView({
     }
   }
 
-  function handleCopyJson(data: any) {
+  function handleCopyJson(data: unknown) {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(JSON.stringify(data, null, 2));
       setCopiedJson(true);
@@ -269,22 +204,22 @@ export function ConnectorsView({
   return (
     <div className="space-y-6">
       {/* Top Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200/60 pb-4">
+      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-4">
         <Link
           href="/marketplace"
-          className="flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition"
+          className="inline-flex h-8 items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 text-xs font-medium text-neutral-700 transition-colors duration-150 ease-out-quart hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
         >
           <span>All Toolkits</span>
-          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500 border border-neutral-200">
+          <span className="rounded-full border border-neutral-200 bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-neutral-700">
             {counts.total.toLocaleString()}
           </span>
         </Link>
         <Link
           href="/connectors"
-          className="flex items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-neutral-800"
+          className="inline-flex h-8 items-center gap-2 rounded-full bg-neutral-950 px-3.5 text-xs font-semibold text-white transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
         >
           <span>Connected Connectors</span>
-          <span className="rounded-full bg-neutral-800 text-white px-2 py-0.5 text-[10px] font-bold">
+          <span className="rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-white">
             {counts.connected}
           </span>
         </Link>
@@ -294,10 +229,10 @@ export function ConnectorsView({
       {banner && (
         <Notice tone={banner.ok ? "info" : "bad"}>
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="font-medium text-neutral-900">{banner.title}</div>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-neutral-950">{banner.title}</div>
               {banner.detail && (
-                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-700 opacity-90 max-h-36 overflow-y-auto">
+                <pre className="mt-1.5 max-h-36 overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono text-xs text-neutral-800">
                   {banner.detail}
                 </pre>
               )}
@@ -305,7 +240,7 @@ export function ConnectorsView({
             <button
               type="button"
               onClick={() => setBanner(null)}
-              className="text-xs text-neutral-400 hover:text-neutral-700 shrink-0 p-1"
+              className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-neutral-600 transition-colors hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
             >
               Dismiss
             </button>
@@ -316,20 +251,21 @@ export function ConnectorsView({
       {/* Search & Header Stats */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-neutral-900">Active Connected Toolkits</h2>
-          <p className="text-xs text-neutral-500">
-            {connectedApps.length} toolkits configured and ready for automated playbook execution.
+          <h2 className="text-base font-semibold tracking-tight text-neutral-950">Active Connected Toolkits</h2>
+          <p className="mt-0.5 text-xs tabular-nums text-neutral-600">
+            {connectedApps.length} {connectedApps.length === 1 ? "toolkit" : "toolkits"} configured and ready for automated playbook execution.
           </p>
         </div>
 
         {connectedApps.length > 0 && (
-          <div className="w-full max-w-xs">
+          <div className="w-full sm:max-w-xs">
             <input
               type="search"
               placeholder="Filter connected toolkits..."
+              aria-label="Filter connected toolkits"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`${inputCls} py-1.5 text-xs`}
+              className={inputCls}
             />
           </div>
         )}
@@ -337,138 +273,123 @@ export function ConnectorsView({
 
       {/* List of Connected Connectors */}
       {connectedApps.length === 0 ? (
-        <Card className="p-8 text-center">
-          <Empty>
-            <div className="space-y-3">
-              <div className="flex justify-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-100 text-neutral-500">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden="true">
-                    <path d="M12 22v-5" />
-                    <path d="M9 8V2" />
-                    <path d="M15 2v6" />
-                    <path d="M18 8v5a6 6 0 0 1-12 0V8c0-.6.4-1 1-1h10c.6 0 1 .4 1 1z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="text-base font-semibold text-neutral-900">No Connected Toolkits Yet</div>
-              <p className="text-xs text-neutral-500 max-w-md mx-auto">
-                Configure and connect SaaS toolkits from Composio (1,640+) or Industrial FastMCP enterprise servers to start automating workflows.
-              </p>
-              <div className="pt-2">
-                <Link
-                  href="/marketplace"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-lg hover:bg-indigo-500 transition"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    Browse Marketplace
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                  </span>
-                </Link>
+        <Card className="p-8 text-center sm:p-10">
+          <div className="mx-auto max-w-md space-y-3">
+            <div className="flex justify-center">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100 text-neutral-700">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
+                  <path d="M12 22v-5" />
+                  <path d="M9 8V2" />
+                  <path d="M15 2v6" />
+                  <path d="M18 8v5a6 6 0 0 1-12 0V8c0-.6.4-1 1-1h10c.6 0 1 .4 1 1z" />
+                </svg>
               </div>
             </div>
-          </Empty>
+            <h3 className="text-base font-semibold tracking-tight text-neutral-950">No Connected Toolkits Yet</h3>
+            <p className="text-xs leading-relaxed text-neutral-600">
+              Configure and connect SaaS toolkits from Composio (1,640+) or Industrial FastMCP enterprise servers to start automating workflows.
+            </p>
+            <div className="pt-2">
+              <Link href="/marketplace" className={btnCls}>
+                <span>Browse Marketplace</span>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </Link>
+            </div>
+          </div>
         </Card>
       ) : filteredConnected.length === 0 ? (
         <Card>
           <Empty>No connected toolkits match &quot;{search}&quot;.</Empty>
         </Card>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {filteredConnected.map((app) => {
             const isBusy = busyApp === app.key;
             const isFastMcp = app.provider === "fastmcp";
-            const avatarStyle = getAvatarStyles(app);
+            const avatarTone = getAvatarTone(app);
             const initials = getAppInitials(app.name, app.key);
-            const cfg = (app.connection?.config as Record<string, any>) || {};
+            const cfg = (app.connection?.config as Record<string, unknown>) || {};
+            const baseUrlText = typeof cfg.base_url === "string" && cfg.base_url ? cfg.base_url : "Default Endpoint";
 
             return (
               <div
                 key={app.key}
-                className="group relative flex flex-col justify-between rounded-3xl border border-neutral-200/70 bg-white p-6 transition-all duration-200 hover:border-neutral-300 hover:shadow-md"
+                className="flex flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 transition-colors duration-150 ease-out-quart hover:border-neutral-300 sm:p-6"
               >
                 <div className="space-y-4">
                   {/* Header */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
                       <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-gradient-to-br font-bold shadow-xs text-xs tracking-tight ${avatarStyle.bg}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xs font-bold tracking-tight ${avatarTone}`}
                       >
                         {initials}
                       </div>
 
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-semibold text-neutral-900 tracking-tight">
-                            {app.name}
-                          </h3>
-                          <Badge variant="secondary" className="text-[11px] font-normal py-0">
-                            {app.category}
-                          </Badge>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                          {isFastMcp ? (
-                            <Badge variant="warning" className="text-[11px] font-medium py-0.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                              Industrial FastMCP
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="text-[11px] font-medium py-0.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-                              composio.dev
-                            </Badge>
-                          )}
+                      <div className="min-w-0 space-y-1">
+                        <h3 className="truncate text-base font-semibold tracking-tight text-neutral-950">
+                          {app.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-600">
+                          <span className="inline-flex items-center gap-1.5 font-medium text-neutral-700">
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${isFastMcp ? "bg-amber-600" : "bg-blue-600"}`}
+                              aria-hidden="true"
+                            />
+                            {isFastMcp ? "Industrial FastMCP" : "composio.dev"}
+                          </span>
+                          <span className="text-neutral-300" aria-hidden="true">/</span>
+                          <span className="truncate">{app.category}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Connected Pill */}
-                    <Badge variant="success" className="px-2.5 py-1 text-xs">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <Badge variant="success" className="shrink-0">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
                       Connected
                     </Badge>
                   </div>
 
                   {/* Description */}
-                  <p className="text-sm text-neutral-500 leading-relaxed">{app.description}</p>
+                  <p className="text-sm leading-relaxed text-neutral-600">{app.description}</p>
 
-                  {/* Configured Parameters Summary */}
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 space-y-2 text-xs">
-                    <div className="font-semibold text-neutral-700 uppercase tracking-wider text-[11px]">
+                  {/* Configured Parameters Summary (flat divider, no nested card-in-card) */}
+                  <div className="space-y-2.5 border-t border-neutral-100 pt-3.5 text-xs">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-neutral-600">
                       Configuration Settings
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div>
-                        <span className="text-neutral-500">API Key Configured:</span>{" "}
-                        <span className="text-neutral-800 font-mono">
+                    <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <dt className="text-neutral-600">API Key Configured</dt>
+                        <dd className="mt-0.5 font-mono text-neutral-900">
                           {cfg.has_api_key || cfg.api_key_configured || cfg.api_key ? "Yes (Active)" : "OAuth Managed"}
-                        </span>
+                        </dd>
                       </div>
-                      <div>
-                        <span className="text-neutral-500">Account Alias:</span>{" "}
-                        <span className="text-neutral-800 font-mono">
+                      <div className="min-w-0">
+                        <dt className="text-neutral-600">Account Alias</dt>
+                        <dd className="mt-0.5 truncate font-mono text-neutral-900">
                           {app.connection?.entity_id || "default"}
-                        </span>
+                        </dd>
                       </div>
-                      <div>
-                        <span className="text-neutral-500">Base URL:</span>{" "}
-                        <span className="text-neutral-800 font-mono truncate block" title={cfg.base_url || "Default"}>
-                          {cfg.base_url || "Default Endpoint"}
-                        </span>
+                      <div className="min-w-0">
+                        <dt className="text-neutral-600">Base URL</dt>
+                        <dd className="mt-0.5 truncate font-mono text-neutral-900" title={baseUrlText}>
+                          {baseUrlText}
+                        </dd>
                       </div>
-                      <div>
-                        <span className="text-neutral-500">Custom OAuth:</span>{" "}
-                        <span className="text-neutral-800 font-mono">
+                      <div className="min-w-0">
+                        <dt className="text-neutral-600">Custom OAuth</dt>
+                        <dd className="mt-0.5 font-mono text-neutral-900">
                           {cfg.has_custom_oauth ? "Enabled" : "Standard"}
-                        </span>
+                        </dd>
                       </div>
-                    </div>
+                    </dl>
 
                     {app.connection?.created_at && (
-                      <div className="pt-1 border-t border-neutral-200 text-[10px] text-neutral-500">
+                      <div className="pt-1 text-xs tabular-nums text-neutral-600">
                         Connected: {new Date(app.connection.created_at).toLocaleString()}
                         {app.connection.connected_by && ` by ${app.connection.connected_by}`}
                       </div>
@@ -477,13 +398,13 @@ export function ConnectorsView({
                 </div>
 
                 {/* Actions */}
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200/60 pt-4">
-                  <div className="text-[11px] text-neutral-500">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-3.5">
+                  <div className="text-xs tabular-nums text-neutral-600">
                     {app.tools?.length || 0} registered actions
                   </div>
 
                   {canManage ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -511,7 +432,7 @@ export function ConnectorsView({
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         type="button"
                         size="sm"
@@ -521,8 +442,8 @@ export function ConnectorsView({
                       >
                         {isBusy ? "Testing..." : "Test Connection"}
                       </Button>
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 font-medium">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-500" aria-hidden="true">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-700">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-600" aria-hidden="true">
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         </svg>
@@ -546,87 +467,13 @@ export function ConnectorsView({
       />
 
       {/* Execution Output Modal */}
-      {executionModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm duration-200"
-          onClick={() => setExecutionModal(null)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <h3 className="text-lg font-semibold tracking-tight text-neutral-900">Test Connection Result</h3>
-                </div>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  {executionModal.app.name} &middot; Latency: <span className="font-mono text-emerald-600 font-semibold">{executionModal.latencyMs}ms</span>
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setExecutionModal(null)}
-                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition"
-                aria-label="Close modal"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex-1 min-h-0 flex flex-col space-y-2">
-              <div className="flex items-center justify-between text-xs text-neutral-500">
-                <span className="font-medium">Output Payload</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleCopyJson(executionModal.result)}
-                  className="h-7 text-xs flex items-center gap-1.5 shadow-sm"
-                >
-                  {copiedJson ? (
-                    <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-3 w-3 text-emerald-600" aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      <span className="text-emerald-700 font-medium">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3" aria-hidden="true">
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                      </svg>
-                      <span>Copy JSON</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-              <pre className="flex-1 overflow-auto rounded-2xl border border-neutral-800 bg-neutral-900 p-4 font-mono text-xs text-emerald-400 leading-relaxed shadow-inner">
-                {JSON.stringify(executionModal.result, null, 2)}
-              </pre>
-            </div>
-
-            <div className="flex items-center justify-end border-t border-neutral-100 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setExecutionModal(null)}
-              >
-                Close Output
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExecutionResultModal
+        data={executionModal}
+        title="Test Connection Result"
+        copiedJson={copiedJson}
+        onCopyJson={handleCopyJson}
+        onClose={() => setExecutionModal(null)}
+      />
     </div>
   );
 }
