@@ -140,12 +140,12 @@ function formatRelativeShort(ts?: string): string {
   return `${Math.floor(days / 7)}w`;
 }
 
-function formatProviderShortName(providerId: string, fullName?: string): string {
+export function formatProviderShortName(providerId: string, fullName?: string): string {
   if (PROVIDER_SHORT_NAMES[providerId]) return PROVIDER_SHORT_NAMES[providerId];
   return fullName || providerId;
 }
 
-function formatModelShortName(modelId: string): string {
+export function formatModelShortName(modelId: string): string {
   if (!modelId) return "default";
   const parts = modelId.split("/");
   return parts[parts.length - 1] || modelId;
@@ -206,8 +206,12 @@ export function ChatInterface({
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
   // Check URL query parameters for ?configure_ai=1 or ?litellm=1 (non-engineers only)
+  // and collapse sidebar by default on narrow viewports so mobile chat stays unobstructed
   useEffect(() => {
     if (typeof window !== "undefined") {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
       const sp = new URLSearchParams(window.location.search);
       if ((sp.get("configure_ai") === "1" || sp.get("litellm") === "1") && !isEngineer) {
         setIsModelMenuOpen(true);
@@ -830,17 +834,31 @@ export function ChatInterface({
   }, [sessions, sessionId, messages]);
 
   return (
-    <div className="flex h-full w-full gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3.5 md:p-4 lg:p-5 overflow-hidden bg-[#f4f5f8]">
+    <div className="relative flex h-full w-full gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3.5 md:p-4 lg:p-5 overflow-hidden bg-[var(--surface-canvas)]">
+      {/* Mobile Sidebar Scrim */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-neutral-950/35 backdrop-blur-[2px] md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Left Conversation History Sidebar */}
       {sidebarOpen && (
-        <aside className="flex w-64 shrink-0 flex-col rounded-2xl md:rounded-3xl bg-[#111113] text-neutral-200 border border-neutral-800/90 p-3.5 shadow-xl select-none overflow-hidden">
+        <aside className="fixed inset-y-2 left-2 z-40 flex w-64 shrink-0 flex-col rounded-2xl bg-neutral-950 text-neutral-200 border border-neutral-800 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.28)] md:static md:z-auto md:shadow-none select-none overflow-hidden">
           {/* Top Action: + New Conversation */}
           <button
             type="button"
-            onClick={() => handleNewChat()}
-            className="w-full rounded-xl border border-neutral-800 bg-neutral-900/70 hover:bg-neutral-800/90 hover:border-neutral-700 px-3.5 py-2.5 text-xs font-medium text-white flex items-center gap-2.5 transition-colors shrink-0"
+            onClick={() => {
+              handleNewChat();
+              if (typeof window !== "undefined" && window.innerWidth < 768) {
+                setSidebarOpen(false);
+              }
+            }}
+            className="h-9 w-full rounded-xl border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 hover:border-neutral-700 px-3 text-xs font-medium text-white flex items-center gap-2 transition-[background-color,border-color,transform] duration-150 ease-out-quart active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 shrink-0"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-300 shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-300 shrink-0" aria-hidden="true">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -849,7 +867,7 @@ export function ChatInterface({
 
           {/* Conversations Section Header */}
           <div className="mt-4 mb-2 flex items-center justify-between px-1.5 shrink-0">
-            <span className="text-[11px] font-medium tracking-wide text-neutral-400">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-neutral-400">
               Conversations
             </span>
             <button
@@ -857,13 +875,14 @@ export function ChatInterface({
               onClick={() => setShowFilterInput((v) => !v)}
               title="Filter conversations"
               aria-label="Filter conversations"
-              className={`rounded-lg p-1 transition-colors ${
+              aria-pressed={showFilterInput}
+              className={`h-6 w-6 flex items-center justify-center rounded-lg transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                 showFilterInput || sessionFilter
                   ? "bg-neutral-800 text-white"
                   : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
               }`}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5" aria-hidden="true">
                 <line x1="4" y1="6" x2="20" y2="6" />
                 <line x1="7" y1="12" x2="17" y2="12" />
                 <line x1="10" y1="18" x2="14" y2="18" />
@@ -872,21 +891,22 @@ export function ChatInterface({
           </div>
 
           {showFilterInput && (
-            <div className="mb-2 px-1 shrink-0">
+            <div className="mb-2 px-0.5 shrink-0">
               <input
                 type="text"
                 value={sessionFilter}
                 onChange={(e) => setSessionFilter(e.target.value)}
                 placeholder="Filter conversations..."
-                className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-600 focus:outline-none"
+                aria-label="Filter conversations by title"
+                className="h-8 w-full rounded-xl border border-neutral-800 bg-neutral-900 px-2.5 text-xs text-neutral-100 placeholder:text-neutral-400 focus:border-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
               />
             </div>
           )}
 
           {/* Flat Conversations List */}
-          <div className="flex-1 overflow-y-auto no-scrollbar space-y-1 pr-0.5">
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-0.5">
             {filteredSessions.length === 0 ? (
-              <div className="px-2.5 py-6 text-center text-[11px] text-neutral-400">
+              <div className="px-2.5 py-6 text-center text-xs text-neutral-400">
                 {sessionFilter.trim() ? "No matching conversations" : "No conversations yet"}
               </div>
             ) : (
@@ -895,25 +915,33 @@ export function ChatInterface({
                 return (
                   <div
                     key={sess.session_id}
-                    onClick={() => handleSelectSession(sess)}
+                    onClick={() => {
+                      handleSelectSession(sess);
+                      if (typeof window !== "undefined" && window.innerWidth < 768) {
+                        setSidebarOpen(false);
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         handleSelectSession(sess);
+                        if (typeof window !== "undefined" && window.innerWidth < 768) {
+                          setSidebarOpen(false);
+                        }
                       }
                     }}
-                    className={`group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                    className={`group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs cursor-pointer transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                       isActiveSession
-                        ? "bg-neutral-800/90 border border-neutral-700/80 text-white font-medium shadow-xs"
+                        ? "bg-neutral-800 border border-neutral-700 text-white font-medium"
                         : "border border-transparent text-neutral-300 hover:bg-neutral-900 hover:text-white"
                     }`}
                     title={sess.title}
                   >
                     <span className="truncate min-w-0 flex-1">{sess.title}</span>
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[10px] text-neutral-400 tabular-nums">
+                      <span className="text-[11px] text-neutral-400 tabular-nums">
                         {formatRelativeShort(sess.updated_at)}
                       </span>
                       <button
@@ -921,9 +949,9 @@ export function ChatInterface({
                         onClick={(e) => handleDeleteSession(sess.session_id, e)}
                         title="Delete conversation"
                         aria-label={`Delete ${sess.title}`}
-                        className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded text-neutral-400 hover:bg-neutral-700 hover:text-white transition-colors"
+                        className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 flex h-5 w-5 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-700 hover:text-white transition-all duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-2.5 w-2.5">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-2.5 w-2.5" aria-hidden="true">
                           <line x1="18" y1="6" x2="6" y2="18" />
                           <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
@@ -938,24 +966,25 @@ export function ChatInterface({
       )}
 
       {/* Main Chat Canvas Card */}
-      <div className="flex-1 min-w-0 flex flex-col rounded-2xl md:rounded-3xl border border-neutral-200/80 bg-white/95 backdrop-blur-sm shadow-sm relative overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col rounded-2xl border border-neutral-200 bg-white relative overflow-hidden">
         {/* Compact Header Bar */}
-        <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-4 pr-32 py-2.5 shrink-0 bg-white/70">
+        <div className="flex items-center justify-between gap-2 border-b border-neutral-200/70 px-3.5 sm:px-4 pr-32 sm:pr-36 h-12 shrink-0 bg-white">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={() => setSidebarOpen((v) => !v)}
               title={sidebarOpen ? "Hide conversation sidebar" : "Show conversation sidebar"}
               aria-label="Toggle conversation sidebar"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors shrink-0"
+              aria-expanded={sidebarOpen}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950 active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 shrink-0"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-4 w-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-4 w-4" aria-hidden="true">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <line x1="9" y1="3" x2="9" y2="21" />
               </svg>
             </button>
-            <div className="flex items-center gap-1.5 text-xs text-neutral-500 min-w-0">
-              <span className="truncate font-medium text-neutral-900">{activeSessionTitle}</span>
+            <div className="flex items-center gap-1.5 text-xs text-neutral-600 min-w-0">
+              <span className="truncate font-semibold tracking-tight text-neutral-950">{activeSessionTitle}</span>
             </div>
           </div>
 
@@ -963,11 +992,11 @@ export function ChatInterface({
             {hasOverrides && (
               <Link
                 href="/"
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 transition shadow-xs"
+                className="inline-flex h-7 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1"
               >
-                <IconBolt className="h-3 w-3 text-emerald-600" />
+                <IconBolt className="h-3 w-3 text-emerald-700" />
                 <span>Synced:</span>
-                <span className="font-semibold text-neutral-900">
+                <span className="font-semibold text-emerald-950">
                   {overrides.production_target || overrides.oee || "Active"}
                 </span>
               </Link>
@@ -975,7 +1004,7 @@ export function ChatInterface({
             <button
               type="button"
               onClick={() => handleNewChat()}
-              className="md:hidden inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100"
+              className="md:hidden inline-flex h-7 items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 text-[11px] font-medium text-neutral-800 hover:bg-neutral-50 hover:border-neutral-300 active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
             >
               New
             </button>
@@ -983,20 +1012,20 @@ export function ChatInterface({
         </div>
 
         {/* Conversation Feed */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar px-5 py-5">
-          <div className={`max-w-3xl mx-auto w-full ${isChatEmpty ? "min-h-[62vh] flex flex-col items-center justify-center" : "space-y-6"}`}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar px-4 sm:px-6 py-6">
+          <div className={`max-w-3xl mx-auto w-full ${isChatEmpty ? "min-h-[60vh] flex flex-col items-center justify-center" : "space-y-6"}`}>
           {isChatEmpty ? (
-            <div className="py-8 space-y-6 animate-fadeIn">
-              <div className="text-center space-y-3.5">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-950 text-white shadow-sm">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+            <div className="py-8 animate-fadeIn">
+              <div className="text-center space-y-3.5 max-w-lg mx-auto">
+                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-neutral-950 text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                   </svg>
                 </div>
-                <h1 className="text-2xl sm:text-[1.75rem] leading-[1.2] font-bold tracking-[-0.025em] text-neutral-950">
+                <h1 className="text-2xl sm:text-[1.75rem] leading-[1.18] font-semibold tracking-[-0.025em] text-neutral-950">
                   Cawrys Industrial Intelligence
                 </h1>
-                <p className="text-sm text-neutral-600 max-w-lg mx-auto leading-relaxed">
+                <p className="text-sm text-neutral-600 max-w-md mx-auto leading-relaxed tabular-nums">
                   Autonomous plant orchestration, CAD engineering analysis, and live telemetry execution across{" "}
                   {docsCount} workspace file{docsCount === 1 ? "" : "s"} and {activeToolCount} active connectors.
                 </p>
@@ -1015,31 +1044,31 @@ export function ChatInterface({
                 <div
                   key={m.id}
                   id={`msg-${m.id}`}
-                  className={`flex gap-3.5 ${isUser ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
                 >
                   {!isUser && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm mt-0.5">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white mt-0.5">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                       </svg>
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[85%] rounded-2xl p-5 text-sm leading-relaxed ${
+                    className={`max-w-[85%] rounded-2xl text-sm leading-relaxed ${
                       isUser
-                        ? "bg-neutral-950 text-white rounded-tr-sm shadow-sm"
-                        : "bg-[#fcfcfd] border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.03)] text-neutral-950 rounded-tl-sm"
+                        ? "bg-neutral-950 text-white rounded-tr-sm px-4 py-3.5"
+                        : "bg-[var(--surface-elevated)] border border-neutral-200 text-neutral-950 rounded-tl-sm px-5 py-4"
                     }`}
                   >
                     {isUser && userAttached && userAttached.length > 0 && (
-                      <div className="mb-2 flex flex-wrap gap-1.5 pb-2 border-b border-neutral-700">
+                      <div className="mb-2.5 flex flex-wrap gap-1.5 pb-2 border-b border-neutral-800">
                         {userAttached.map((f) => (
                           <span
                             key={f.id}
-                            className="inline-flex items-center gap-1 rounded-md bg-neutral-800 px-2 py-0.5 text-[11px] font-mono text-neutral-200"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 border border-neutral-800 px-2 py-0.5 text-[11px] font-mono text-neutral-200"
                           >
-                            <IconFile className="h-3 w-3" />
+                            <IconFile className="h-3 w-3 text-neutral-300" />
                             <span>{f.filename}</span>
                           </span>
                         ))}
@@ -1050,18 +1079,18 @@ export function ChatInterface({
 
                     {!isUser && (
                       <div className="space-y-3">
-                        <div className="prose prose-sm max-w-none leading-relaxed text-neutral-900">
+                        <div className="max-w-none leading-relaxed text-neutral-900">
                           <MarkdownPreview content={m.content} />
                         </div>
 
                         {m.metadata?.playbook_mutated && (
-                          <div className="mt-2 flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs text-neutral-800">
-                            <span className="font-semibold text-neutral-900">
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-xs text-neutral-800">
+                            <span className="font-semibold text-neutral-950">
                               Playbook Pipeline Updated
                             </span>
                             <Link
                               href="/playbooks"
-                              className="inline-flex items-center gap-1 rounded-full bg-neutral-950 px-3 py-1 font-semibold text-white hover:bg-neutral-800 transition"
+                              className="inline-flex h-7 items-center gap-1 rounded-full bg-neutral-950 px-3 text-[11px] font-medium text-white hover:bg-neutral-800 active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1"
                             >
                               Open Canvas &rarr;
                             </Link>
@@ -1069,10 +1098,10 @@ export function ChatInterface({
                         )}
 
                         {m.dashboard_mutated && (
-                          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900">
-                            <div className="flex items-center justify-between">
+                          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs text-emerald-950">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
+                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white shrink-0">
                                   <IconCheck className="h-3 w-3 stroke-[3]" />
                                 </span>
                                 <span className="font-semibold text-emerald-950">
@@ -1081,35 +1110,35 @@ export function ChatInterface({
                               </div>
                               <Link
                                 href="/"
-                                className="inline-flex items-center gap-1 rounded-full bg-emerald-100 hover:bg-emerald-200 px-3 py-1 font-semibold text-emerald-900 transition"
+                                className="inline-flex h-7 items-center gap-1 rounded-full border border-emerald-200 bg-white px-3 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1"
                               >
                                 Open Dashboard &rarr;
                               </Link>
                             </div>
                             {m.overrides && (
-                              <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-emerald-200 pt-2 text-[11px] text-emerald-800">
+                              <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-emerald-200/80 pt-2.5 text-[11px] text-emerald-900 tabular-nums">
                                 {m.overrides.production_target && (
                                   <div>
-                                    <span className="text-emerald-700">Target: </span>
-                                    <b>{m.overrides.production_target}</b>
+                                    <span className="text-emerald-800">Target: </span>
+                                    <strong className="font-semibold text-emerald-950">{m.overrides.production_target}</strong>
                                   </div>
                                 )}
                                 {m.overrides.risk_level && (
                                   <div>
-                                    <span className="text-emerald-700">Risk Level: </span>
-                                    <b>{m.overrides.risk_level}</b>
+                                    <span className="text-emerald-800">Risk Level: </span>
+                                    <strong className="font-semibold text-emerald-950">{m.overrides.risk_level}</strong>
                                   </div>
                                 )}
                                 {m.overrides.oee && (
                                   <div>
-                                    <span className="text-emerald-700">OEE: </span>
-                                    <b>{m.overrides.oee}</b>
+                                    <span className="text-emerald-800">OEE: </span>
+                                    <strong className="font-semibold text-emerald-950">{m.overrides.oee}</strong>
                                   </div>
                                 )}
                                 {m.overrides.operational_status && (
                                   <div>
-                                    <span className="text-emerald-700">Status: </span>
-                                    <b>{m.overrides.operational_status}</b>
+                                    <span className="text-emerald-800">Status: </span>
+                                    <strong className="font-semibold text-emerald-950">{m.overrides.operational_status}</strong>
                                   </div>
                                 )}
                               </div>
@@ -1118,27 +1147,37 @@ export function ChatInterface({
                         )}
 
                         {toolCall && (
-                          <div className="mt-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3.5 text-xs text-neutral-900">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="rounded bg-neutral-200 px-1.5 py-0.5 font-mono text-[11px] text-neutral-800 font-bold">
-                                  {toolCall.connector.toUpperCase()}
+                          <div className="mt-3 overflow-hidden rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900">
+                            <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-neutral-50/70">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="rounded-md border border-neutral-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.04em] text-neutral-700 shrink-0">
+                                  {toolCall.connector}
                                 </span>
-                                <span className="font-semibold text-neutral-900">
-                                  {toolCall.app} &middot; {toolCall.tool}
+                                <span className="font-semibold text-neutral-950 truncate">
+                                  {toolCall.app}
+                                </span>
+                                <span className="text-neutral-400" aria-hidden="true">/</span>
+                                <span className="font-mono text-[11px] text-neutral-600 truncate">
+                                  {toolCall.tool}
                                 </span>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => toggleToolDetails(m.id)}
-                                className="text-[11px] text-neutral-600 hover:text-neutral-900 underline font-medium"
+                                aria-expanded={Boolean(showToolDetails[m.id])}
+                                className="inline-flex h-7 items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 text-[11px] font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-950 active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 shrink-0"
                               >
-                                {showToolDetails[m.id] ? "Hide payload" : "Inspect payload"}
+                                <span>{showToolDetails[m.id] ? "Hide payload" : "Inspect payload"}</span>
+                                <IconChevronDown
+                                  className={`h-3 w-3 text-neutral-500 transition-transform duration-150 ease-out-quart ${
+                                    showToolDetails[m.id] ? "rotate-180" : ""
+                                  }`}
+                                />
                               </button>
                             </div>
 
                             {showToolDetails[m.id] && (
-                              <pre className="mt-2 overflow-x-auto rounded-xl bg-neutral-900 p-2.5 font-mono text-[11px] text-neutral-200">
+                              <pre className="border-t border-neutral-200 overflow-x-auto no-scrollbar bg-neutral-950 p-3.5 font-mono text-[11px] leading-relaxed text-neutral-200">
                                 {JSON.stringify(
                                   {
                                     params: toolCall.params,
@@ -1156,44 +1195,44 @@ export function ChatInterface({
 
                     {isUser ? (
                       timeStr ? (
-                        <div className="mt-1.5 text-[10px] text-neutral-300 text-right tabular-nums">{timeStr}</div>
+                        <div className="mt-1.5 text-[11px] text-neutral-300 text-right tabular-nums">{timeStr}</div>
                       ) : null
                     ) : (
-                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-1.5 text-[10px] text-neutral-600">
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200/70 pt-2 text-[11px] text-neutral-600">
                         <div className="flex flex-wrap items-center gap-1.5 font-mono">
-                          <span className="flex items-center gap-1 text-neutral-900 font-medium">
-                            <span className="h-1.5 w-1.5 rounded-full bg-neutral-950" />
-                            via {formatModelShortName(m.metadata?.model || modelConfig.model)}
+                          <span className="flex items-center gap-1.5 text-neutral-900 font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-neutral-950 shrink-0" />
+                            <span>via {formatModelShortName(m.metadata?.model || modelConfig.model)}</span>
                           </span>
                           {m.metadata?.live_ai ? (
-                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-800 border border-emerald-200">
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200 font-sans">
                               Live AI
                             </span>
                           ) : (
-                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] text-neutral-700 border border-neutral-200">
+                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-700 border border-neutral-200 font-sans">
                               Context Engine
                             </span>
                           )}
                           {m.metadata?.latency_ms !== undefined && (
                             <>
-                              <span className="text-neutral-500">&middot;</span>
-                              <span className="tabular-nums">{m.metadata.latency_ms}ms</span>
+                              <span className="text-neutral-400" aria-hidden="true">&middot;</span>
+                              <span className="tabular-nums text-neutral-600">{m.metadata.latency_ms}ms</span>
                             </>
                           )}
                           {m.metadata?.provider && (
                             <>
-                              <span className="text-neutral-500">&middot;</span>
-                              <span className="capitalize">{m.metadata.provider}</span>
+                              <span className="text-neutral-400" aria-hidden="true">&middot;</span>
+                              <span className="capitalize text-neutral-600">{m.metadata.provider}</span>
                             </>
                           )}
                         </div>
-                        {timeStr && <span className="tabular-nums">{timeStr}</span>}
+                        {timeStr && <span className="tabular-nums text-neutral-600">{timeStr}</span>}
                       </div>
                     )}
                   </div>
 
                   {isUser && (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-900 font-bold text-xs uppercase shadow-sm mt-0.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 border border-neutral-300/60 text-neutral-900 font-semibold text-xs uppercase mt-0.5">
                       {role[0]}
                     </div>
                   )}
@@ -1204,14 +1243,14 @@ export function ChatInterface({
 
           {loading && (
             <div className="flex gap-3 justify-start items-center">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-sm">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 animate-spin">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 animate-spin" aria-hidden="true">
                   <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="10" />
                 </svg>
               </div>
-              <div className="rounded-2xl rounded-tl-none border border-neutral-200/80 bg-white p-3 text-xs text-neutral-700 flex items-center gap-2 shadow-sm">
-                <span className="h-2 w-2 rounded-full bg-neutral-950 animate-ping" />
-                Synthesizing agent response &amp; evaluating operational tools...
+              <div className="rounded-2xl rounded-tl-sm border border-neutral-200 bg-[var(--surface-elevated)] px-4 py-3 text-xs font-medium text-neutral-700 flex items-center gap-2.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                <span>Synthesizing agent response &amp; evaluating operational tools...</span>
               </div>
             </div>
           )}
@@ -1234,13 +1273,13 @@ export function ChatInterface({
                 onClick={() => scrollToMessage(m.id)}
                 title={`${m.role === "user" ? "You" : "Assistant"}: ${preview}`}
                 aria-label={`Jump to message ${idx + 1}`}
-                className="group p-0.5 flex items-center justify-center"
+                className="group p-0.5 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
               >
                 {isLast ? (
-                  <span className="block h-2 w-2 rounded-full bg-neutral-900 group-hover:scale-125 transition-transform" />
+                  <span className="block h-2 w-2 rounded-full bg-neutral-950 group-hover:scale-125 transition-transform duration-150 ease-out-quart" />
                 ) : (
                   <span
-                    className={`block h-[3px] rounded-full transition-all group-hover:w-3.5 group-hover:bg-neutral-800 ${
+                    className={`block h-[3px] rounded-full transition-all duration-150 ease-out-quart group-hover:w-3.5 group-hover:bg-neutral-800 ${
                       m.role === "user" ? "w-2 bg-neutral-400" : "w-2.5 bg-neutral-300"
                     }`}
                   />
@@ -1252,15 +1291,15 @@ export function ChatInterface({
       )}
 
       {/* Floating Bottom Input Composer */}
-      <div className="relative z-20 pt-2 pb-4 px-5 max-w-3xl mx-auto w-full shrink-0">
-        <div className="rounded-3xl border border-neutral-200/90 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.05)] px-4 py-3 transition-shadow duration-150 focus-within:border-neutral-300 focus-within:shadow-[0_4px_18px_rgba(15,23,42,0.08)]">
+      <div className="relative z-20 pt-2 pb-4 px-4 sm:px-6 max-w-3xl mx-auto w-full shrink-0">
+        <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 transition-colors duration-150 ease-out-quart focus-within:border-neutral-400">
           {/* Top Attachment Preview Chips */}
           {attachedFiles.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pb-2.5 mb-2.5 border-b border-neutral-100">
+            <div className="flex flex-wrap items-center gap-2 pb-2.5 mb-2.5 border-b border-neutral-200/70">
               {attachedFiles.map((f) => (
                 <div
                   key={f.id}
-                  className="group relative flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50/80 px-2.5 py-1.5 text-xs text-neutral-900"
+                  className="group relative flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900"
                 >
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700">
                     <IconFile className="h-3.5 w-3.5" />
@@ -1270,7 +1309,7 @@ export function ChatInterface({
                       {f.filename}
                     </div>
                     {f.doc_type && (
-                      <div className="text-[10px] uppercase text-neutral-600 leading-tight">
+                      <div className="text-[10px] uppercase tracking-[0.04em] text-neutral-600 leading-tight">
                         {f.doc_type}
                       </div>
                     )}
@@ -1280,9 +1319,9 @@ export function ChatInterface({
                     onClick={() => removeAttachedFile(f.id)}
                     aria-label={`Remove ${f.filename}`}
                     title="Remove attachment"
-                    className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-200 hover:text-neutral-950 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
+                    className="ml-0.5 flex h-5 w-5 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-200 hover:text-neutral-950 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-2.5 w-2.5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-2.5 w-2.5" aria-hidden="true">
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
@@ -1300,12 +1339,13 @@ export function ChatInterface({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask anything, upload files or images, or run operational commands..."
+            aria-label="Message input"
             className="w-full resize-none bg-transparent text-sm text-neutral-950 placeholder:text-neutral-500 focus:outline-none leading-relaxed max-h-44"
           />
 
           {/* Bottom Bar Below Input Area */}
           <div className="flex items-center justify-between gap-2 pt-2">
-            {/* Left Side: + Button & Small Model Capsule */}
+            {/* Left Side: + Button, Persistence Capsule & Model-Name-Only Capsule */}
             <div className="flex items-center gap-1.5 relative min-w-0">
               {/* + Add / Attach Button & Popover */}
               <div ref={addMenuRef} className="relative shrink-0">
@@ -1316,14 +1356,15 @@ export function ChatInterface({
                     setIsAddMenuOpen((v) => !v);
                   }}
                   aria-label="Add files"
+                  aria-expanded={isAddMenuOpen}
                   title="Upload files or images"
-                  className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
+                  className={`h-8 w-8 rounded-full flex items-center justify-center active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 ${
                     isAddMenuOpen
                       ? "bg-neutral-100 text-neutral-950"
                       : "text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100"
                   }`}
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
@@ -1338,16 +1379,16 @@ export function ChatInterface({
                 />
 
                 {isAddMenuOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 w-60 rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-xl z-40">
+                  <div className="absolute bottom-full left-0 mb-2 w-60 rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)] animate-fadeIn z-40">
                     {canUpload ? (
                       <div>
                         <button
                           type="button"
                           disabled={uploadingFile}
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-medium text-neutral-900 hover:bg-neutral-100 transition-colors disabled:opacity-50"
+                          className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-medium text-neutral-950 hover:bg-neutral-100 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 disabled:opacity-50"
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-600 shrink-0">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-600 shrink-0" aria-hidden="true">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="17 8 12 3 7 8" />
                             <line x1="12" y1="3" x2="12" y2="15" />
@@ -1373,17 +1414,17 @@ export function ChatInterface({
                 onClick={togglePersistence}
                 disabled={persistenceLoading}
                 title={`Active: ${persistenceMode === "neon" ? "Neon" : "Local"}. Click to switch persistence`}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-800 bg-neutral-100 hover:bg-neutral-200/80 hover:text-neutral-950 border border-neutral-200/80 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 select-none shrink-0 disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-neutral-800 bg-neutral-50 hover:bg-neutral-100 hover:text-neutral-950 border border-neutral-200 hover:border-neutral-300 active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 select-none shrink-0 disabled:opacity-50"
               >
-                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${persistenceMode === "neon" ? "bg-indigo-600" : "bg-emerald-600"}`} />
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${persistenceMode === "neon" ? "bg-blue-600" : "bg-emerald-600"}`} />
                 <span>{persistenceMode === "neon" ? "Neon" : "Local"}</span>
               </button>
 
-              {/* Small Model Capsule */}
+              {/* Small Model Capsule (Displays ONLY Model Name) */}
               <div ref={modelMenuRef} className="relative min-w-0">
                 {isEngineer ? (
                   <div
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-700 select-none cursor-default max-w-full"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium text-neutral-700 select-none cursor-default max-w-full"
                     title="Configured by Administrator. Contact system admin to change model."
                   >
                     <span className="truncate max-w-[230px]">
@@ -1397,8 +1438,9 @@ export function ChatInterface({
                       setIsAddMenuOpen(false);
                       setIsModelMenuOpen((v) => !v);
                     }}
+                    aria-expanded={isModelMenuOpen}
                     title="Select AI model"
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 select-none max-w-full ${
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 select-none max-w-full ${
                       isModelMenuOpen
                         ? "bg-neutral-100 text-neutral-950"
                         : "text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100"
@@ -1408,7 +1450,7 @@ export function ChatInterface({
                       {activeModelShort}
                     </span>
                     <IconChevronDown
-                      className={`h-3.5 w-3.5 text-neutral-400 shrink-0 transition-transform ${
+                      className={`h-3.5 w-3.5 text-neutral-500 shrink-0 transition-transform duration-150 ease-out-quart ${
                         isModelMenuOpen ? "rotate-180" : ""
                       }`}
                     />
@@ -1417,16 +1459,17 @@ export function ChatInterface({
 
                 {/* Compact Model Picker Popover */}
                 {!isEngineer && isModelMenuOpen && (
-                  <div className="absolute bottom-full left-0 mb-2 w-72 rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl z-40 space-y-2">
+                  <div className="absolute bottom-full left-0 mb-2 w-72 rounded-2xl border border-neutral-200 bg-white p-2 shadow-[0_12px_32px_rgba(15,23,42,0.14)] animate-fadeIn z-40 space-y-2">
                     <div className="relative">
-                      <IconSearch className="absolute left-2.5 top-2 h-3.5 w-3.5 text-neutral-400" />
+                      <IconSearch className="absolute left-2.5 top-2 h-3.5 w-3.5 text-neutral-500" />
                       <input
                         type="text"
                         value={modelSearch}
                         onChange={(e) => setModelSearch(e.target.value)}
                         placeholder="Search models..."
+                        aria-label="Search models"
                         autoFocus
-                        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-8 pr-2.5 py-1.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
+                        className="h-8 w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-8 pr-2.5 text-xs text-neutral-950 placeholder:text-neutral-500 focus:border-neutral-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/15"
                       />
                     </div>
 
@@ -1440,10 +1483,10 @@ export function ChatInterface({
                               key={pid}
                               type="button"
                               onClick={() => setActiveProviderTab(pid)}
-                              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                              className={`shrink-0 h-7 rounded-full px-2.5 text-[11px] font-medium transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                                 active
                                   ? "bg-neutral-950 text-white"
-                                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
+                                  : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-950"
                               }`}
                             >
                               {formatProviderShortName(pid, pInfo?.name)}
@@ -1453,13 +1496,13 @@ export function ChatInterface({
                       </div>
                     )}
 
-                    <div className="max-h-52 overflow-y-auto space-y-0.5 pr-0.5">
+                    <div className="max-h-52 overflow-y-auto no-scrollbar space-y-0.5 pr-0.5">
                       {isFetchingModels && modelOptions.length === 0 ? (
-                        <div className="px-2.5 py-3 text-xs text-neutral-400 text-center">
+                        <div className="px-2.5 py-3 text-xs text-neutral-500 text-center">
                           Loading models...
                         </div>
                       ) : modelOptions.length === 0 ? (
-                        <div className="px-2.5 py-3 text-xs text-neutral-400 text-center">
+                        <div className="px-2.5 py-3 text-xs text-neutral-500 text-center">
                           No matching models found
                         </div>
                       ) : (
@@ -1472,7 +1515,7 @@ export function ChatInterface({
                               key={`${item.providerId}:${item.modelId}`}
                               type="button"
                               onClick={() => handleQuickSelectModel(item.providerId, item.modelId)}
-                              className={`w-full flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs transition-colors ${
+                              className={`w-full flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                                 isCurrent
                                   ? "bg-neutral-950 text-white"
                                   : "text-neutral-800 hover:bg-neutral-100"
@@ -1485,7 +1528,7 @@ export function ChatInterface({
                                 {modelSearch.trim() && (
                                   <div
                                     className={`text-[10px] ${
-                                      isCurrent ? "text-neutral-300" : "text-neutral-400"
+                                      isCurrent ? "text-neutral-300" : "text-neutral-500"
                                     }`}
                                   >
                                     {item.providerLabel}
@@ -1501,10 +1544,10 @@ export function ChatInterface({
                       )}
                     </div>
 
-                    <div className="border-t border-neutral-100 pt-1.5">
+                    <div className="border-t border-neutral-200/70 pt-1.5">
                       <Link
                         href="/settings"
-                        className="block rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                        className="block rounded-xl px-2.5 py-1.5 text-[11px] font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                       >
                         API keys &amp; advanced setup in Settings &rarr;
                       </Link>
@@ -1520,15 +1563,15 @@ export function ChatInterface({
                 type="button"
                 onClick={() => handleSend()}
                 disabled={(!input.trim() && attachedFiles.length === 0) || loading}
-                className="h-8 w-8 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white flex items-center justify-center shadow-sm active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                className="h-8 w-8 rounded-full bg-neutral-950 hover:bg-neutral-800 text-white flex items-center justify-center active:scale-[0.98] transition-[background-color,transform,opacity] duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
                 aria-label="Send message"
               >
                 {loading ? (
-                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <circle cx="12" cy="12" r="10" strokeWidth="3" strokeDasharray="30" strokeDashoffset="10" />
                   </svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4" aria-hidden="true">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
                 )}

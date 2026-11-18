@@ -566,8 +566,9 @@ export function LiteLLMModal({
     }
   }, [isOpen, currentConfig]);
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click and support Escape key closing
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
       if (
         providerDropdownRef.current &&
@@ -582,9 +583,22 @@ export function LiteLLMModal({
         setIsModelDropdownOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (isProviderDropdownOpen || isModelDropdownOpen) {
+        setIsProviderDropdownOpen(false);
+        setIsModelDropdownOpen(false);
+        return;
+      }
+      onClose();
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, isProviderDropdownOpen, isModelDropdownOpen, onClose]);
 
   const currentProviderInfo: LiteLLMProviderInfo =
     providerList[provider] ||
@@ -752,36 +766,41 @@ export function LiteLLMModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/40 backdrop-blur-md"
+      aria-labelledby="litellm-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl rounded-3xl border border-neutral-200/80 bg-white p-6 shadow-2xl space-y-5 max-h-[92vh] flex flex-col overflow-y-auto text-neutral-900"
+        className="relative w-full max-w-xl rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.16)] animate-fadeIn space-y-5 max-h-[92vh] flex flex-col overflow-y-auto no-scrollbar text-neutral-950"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-50 text-neutral-900 shadow-sm">
-              <ProviderBrandIcon provider={provider} className="h-6 w-6 text-neutral-900" />
+        <div className="flex items-start justify-between gap-4 border-b border-neutral-200/70 pb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-950">
+              <ProviderBrandIcon provider={provider} className="h-5 w-5 text-neutral-950" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3
+                  id="litellm-modal-title"
+                  className="text-lg font-semibold tracking-[-0.02em] text-neutral-950"
+                >
                   LiteLLM AI Provider &amp; Model
                 </h3>
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-[11px]">
                   Universal Gateway
                 </Badge>
               </div>
-              <p className="text-xs text-neutral-500 mt-0.5">
+              <p className="text-xs text-neutral-600 mt-0.5 leading-relaxed">
                 Route agent reasoning, tool execution, and context to your choice of foundation model.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition"
+            className="h-8 w-8 shrink-0 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950 active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1"
             aria-label="Close modal"
           >
             <IconClose className="h-4 w-4" />
@@ -790,14 +809,14 @@ export function LiteLLMModal({
 
         {/* Feedback Alert */}
         {isEngineer && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-amber-600 shrink-0 mt-0.5">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-950 flex items-start gap-2.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" aria-hidden="true">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
             <div>
               <span className="font-semibold text-amber-950">Configured by Administrator</span>
-              <p className="mt-0.5 text-neutral-700 leading-relaxed">
+              <p className="mt-0.5 text-amber-900 leading-relaxed">
                 On-site engineers have view-only access to AI model configuration. AI provider, model selection, API key, and base URL are managed by your administrator.
               </p>
             </div>
@@ -806,16 +825,16 @@ export function LiteLLMModal({
 
         {statusMessage && (
           <div
-            className={`rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-2 ${
+            className={`rounded-xl px-3.5 py-2.5 text-xs flex items-center gap-2 border ${
               statusMessage.type === "success"
-                ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
-                : "bg-rose-50 border border-rose-200 text-rose-800"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border-rose-200 text-rose-800"
             }`}
           >
             {statusMessage.type === "success" ? (
-              <IconCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+              <IconCheck className="h-4 w-4 text-emerald-700 shrink-0" />
             ) : (
-              <IconAlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+              <IconAlertTriangle className="h-4 w-4 text-rose-700 shrink-0" />
             )}
             <span>{statusMessage.text}</span>
           </div>
@@ -824,9 +843,9 @@ export function LiteLLMModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Searchable Provider Selector */}
           <div className="space-y-1.5" ref={providerDropdownRef}>
-            <label className="text-xs font-semibold text-neutral-700 flex items-center justify-between">
+            <label className="text-xs font-semibold text-neutral-800 flex items-center justify-between gap-2">
               <span>AI Provider</span>
-              <span className="text-[11px] font-normal text-neutral-400">
+              <span className="text-[11px] font-medium text-neutral-600">
                 {currentProviderInfo.badge}
               </span>
             </label>
@@ -837,45 +856,56 @@ export function LiteLLMModal({
                 type="button"
                 disabled={isEngineer}
                 onClick={() => !isEngineer && setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-                className={`w-full flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-900 shadow-xs transition ${
-                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-neutral-300 focus:border-neutral-900 focus:outline-none"
+                aria-expanded={isProviderDropdownOpen}
+                className={`h-9 w-full flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50/70 px-3 text-sm text-neutral-950 transition-colors duration-150 ease-out-quart ${
+                  isEngineer
+                    ? "cursor-not-allowed opacity-60"
+                    : "hover:border-neutral-300 hover:bg-white focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/15"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <ProviderBrandIcon provider={currentProviderInfo.id} className="h-4 w-4 text-neutral-900 shrink-0" />
-                  <span className="font-semibold text-neutral-900 truncate">{currentProviderInfo.name}</span>
-                  <span className="text-neutral-400 text-xs font-mono">({currentProviderInfo.id})</span>
+                  <ProviderBrandIcon provider={currentProviderInfo.id} className="h-4 w-4 text-neutral-950 shrink-0" />
+                  <span className="font-semibold text-neutral-950 truncate text-xs sm:text-sm">
+                    {currentProviderInfo.name}
+                  </span>
+                  <span className="text-neutral-500 text-xs font-mono shrink-0">
+                    ({currentProviderInfo.id})
+                  </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {currentProviderInfo.env_api_key_set && (
-                    <Badge variant="success" className="text-[9px] py-0 px-1.5">
+                    <Badge variant="success" className="text-[10px] py-0 px-1.5">
                       Env Ready
                     </Badge>
                   )}
-                  <IconChevronDown className={`h-4 w-4 text-neutral-400 transition-transform ${isProviderDropdownOpen ? "rotate-180" : ""}`} />
+                  <IconChevronDown
+                    className={`h-4 w-4 text-neutral-500 transition-transform duration-150 ease-out-quart ${
+                      isProviderDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </div>
               </button>
 
               {/* Provider Dropdown Panel */}
               {isProviderDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl border border-neutral-200 bg-white p-2 shadow-2xl space-y-2 max-h-72 flex flex-col text-neutral-900">
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl border border-neutral-200 bg-white p-2 shadow-[0_12px_32px_rgba(15,23,42,0.14)] animate-fadeIn space-y-2 max-h-72 flex flex-col text-neutral-950">
                   {/* Search Input */}
                   <div className="relative">
-                    <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-neutral-400" />
+                    <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-neutral-500" />
                     <Input
                       type="text"
                       placeholder="Search providers (e.g. Gemini, OpenAI, Groq, Ollama)..."
                       value={providerSearch}
                       onChange={(e) => setProviderSearch(e.target.value)}
-                      className="pl-8 text-xs h-8 bg-neutral-50 border-neutral-200"
+                      className="pl-8 text-xs h-8 bg-neutral-50 border-neutral-200 placeholder:text-neutral-500"
                       autoFocus
                     />
                   </div>
 
                   {/* Provider List */}
-                  <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                  <div className="flex-1 overflow-y-auto no-scrollbar space-y-0.5 pr-0.5">
                     {filteredProviders.length === 0 ? (
-                      <div className="p-3 text-center text-xs text-neutral-500">
+                      <div className="p-3 text-center text-xs text-neutral-600">
                         No AI providers match &ldquo;{providerSearch}&rdquo;
                       </div>
                     ) : (
@@ -886,33 +916,44 @@ export function LiteLLMModal({
                             key={p.id}
                             type="button"
                             onClick={() => handleSelectProvider(p.id)}
-                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs transition ${
+                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                               isSelected
                                 ? "bg-neutral-950 text-white font-medium"
                                 : "text-neutral-800 hover:bg-neutral-100"
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <ProviderBrandIcon provider={p.id} className={`h-4 w-4 shrink-0 ${isSelected ? "text-white" : "text-neutral-900"}`} />
+                              <ProviderBrandIcon
+                                provider={p.id}
+                                className={`h-4 w-4 shrink-0 ${isSelected ? "text-white" : "text-neutral-950"}`}
+                              />
                               <div className="min-w-0">
                                 <div className="font-semibold truncate flex items-center gap-1.5">
                                   <span>{p.name}</span>
                                   {isSelected && <IconCheck className="h-3 w-3 text-white shrink-0" />}
                                 </div>
-                                <div className={`text-[10px] truncate ${isSelected ? "text-neutral-300" : "text-neutral-500"}`}>{p.description}</div>
+                                <div className={`text-[11px] truncate ${isSelected ? "text-neutral-300" : "text-neutral-600"}`}>
+                                  {p.description}
+                                </div>
                               </div>
                             </div>
                             <div className="shrink-0 ml-2 text-right">
                               {p.env_api_key_set ? (
-                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 border border-emerald-200">
+                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200">
                                   Configured
                                 </span>
                               ) : p.requires_key === false ? (
-                                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] text-neutral-600">
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] border ${
+                                    isSelected
+                                      ? "bg-white/15 text-white border-white/20"
+                                      : "bg-neutral-100 text-neutral-700 border-neutral-200"
+                                  }`}
+                                >
                                   No Key
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-neutral-400 font-mono">
+                                <span className={`text-[11px] font-mono ${isSelected ? "text-neutral-300" : "text-neutral-500"}`}>
                                   {p.id}
                                 </span>
                               )}
@@ -925,25 +966,25 @@ export function LiteLLMModal({
                 </div>
               )}
             </div>
-            <p className="text-[11px] text-neutral-500">{currentProviderInfo.description}</p>
+            <p className="text-[11px] text-neutral-600 leading-relaxed">{currentProviderInfo.description}</p>
           </div>
 
           {/* Searchable Model Selector */}
           <div className="space-y-1.5" ref={modelDropdownRef}>
             <div className="flex items-center justify-between text-xs">
-              <label className="font-semibold text-neutral-700">
+              <label className="font-semibold text-neutral-800">
                 Model Selector
               </label>
-              <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+              <div className="flex items-center gap-1.5 text-[11px] text-neutral-600 tabular-nums">
                 {isFetchingModels ? (
                   <span className="flex items-center gap-1 text-neutral-900">
-                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                       <circle cx="12" cy="12" r="10" strokeDasharray="30" strokeDashoffset="10" />
                     </svg>
                     <span>Fetching models...</span>
                   </span>
                 ) : (
-                  <span className="font-mono text-neutral-400">
+                  <span className="font-mono text-neutral-600">
                     {availableModels.length} models available
                   </span>
                 )}
@@ -956,38 +997,45 @@ export function LiteLLMModal({
                 type="button"
                 disabled={isEngineer}
                 onClick={() => !isEngineer && setIsModelDropdownOpen(!isModelDropdownOpen)}
-                className={`w-full flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-900 shadow-xs transition ${
-                  isEngineer ? "cursor-not-allowed opacity-70" : "hover:border-neutral-300 focus:border-neutral-900 focus:outline-none"
+                aria-expanded={isModelDropdownOpen}
+                className={`h-9 w-full flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50/70 px-3 text-sm text-neutral-950 transition-colors duration-150 ease-out-quart ${
+                  isEngineer
+                    ? "cursor-not-allowed opacity-60"
+                    : "hover:border-neutral-300 hover:bg-white focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/15"
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono text-xs font-semibold text-neutral-900 truncate">
+                  <span className="font-mono text-xs font-semibold text-neutral-950 truncate">
                     {isCustomModel ? (customModel || "Custom model string") : model}
                   </span>
                 </div>
-                <IconChevronDown className={`h-4 w-4 text-neutral-400 transition-transform ${isModelDropdownOpen ? "rotate-180" : ""}`} />
+                <IconChevronDown
+                  className={`h-4 w-4 text-neutral-500 transition-transform duration-150 ease-out-quart shrink-0 ${
+                    isModelDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
 
               {/* Model Dropdown Panel */}
               {!isEngineer && isModelDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl border border-neutral-200 bg-white p-2 shadow-2xl space-y-2 max-h-72 flex flex-col text-neutral-900">
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl border border-neutral-200 bg-white p-2 shadow-[0_12px_32px_rgba(15,23,42,0.14)] animate-fadeIn space-y-2 max-h-72 flex flex-col text-neutral-950">
                   {/* Search Input */}
                   <div className="relative">
-                    <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-neutral-400" />
+                    <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-neutral-500" />
                     <Input
                       type="text"
                       placeholder="Search models (e.g. gpt-4o, claude-3-5, gemini-2.5, llama)..."
                       value={modelSearch}
                       onChange={(e) => setModelSearch(e.target.value)}
-                      className="pl-8 text-xs h-8 bg-neutral-50 border-neutral-200"
+                      className="pl-8 text-xs h-8 bg-neutral-50 border-neutral-200 placeholder:text-neutral-500"
                       autoFocus
                     />
                   </div>
 
                   {/* Models List */}
-                  <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                  <div className="flex-1 overflow-y-auto no-scrollbar space-y-0.5 pr-0.5">
                     {filteredModels.length === 0 ? (
-                      <div className="p-3 text-center text-xs text-neutral-500">
+                      <div className="p-3 text-center text-xs text-neutral-600">
                         No models match &ldquo;{modelSearch}&rdquo;
                       </div>
                     ) : (
@@ -999,18 +1047,24 @@ export function LiteLLMModal({
                             key={m}
                             type="button"
                             onClick={() => handleSelectModel(m)}
-                            className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs transition ${
+                            className={`w-full flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                               isSelected
                                 ? "bg-neutral-950 text-white font-medium"
                                 : "text-neutral-800 hover:bg-neutral-100"
                             }`}
                           >
-                            <span className="font-mono text-xs truncate flex items-center gap-1.5">
-                              <span>{m}</span>
+                            <span className="font-mono text-xs truncate flex items-center gap-1.5 min-w-0">
+                              <span className="truncate">{m}</span>
                               {isSelected && <IconCheck className="h-3 w-3 text-white shrink-0" />}
                             </span>
                             {isDefault && (
-                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] font-semibold text-neutral-700 border border-neutral-200 shrink-0">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border shrink-0 ${
+                                  isSelected
+                                    ? "bg-white/15 text-white border-white/25"
+                                    : "bg-neutral-100 text-neutral-700 border-neutral-200"
+                                }`}
+                              >
                                 Default
                               </span>
                             )}
@@ -1020,11 +1074,11 @@ export function LiteLLMModal({
                     )}
 
                     {/* Custom Model Option */}
-                    <div className="border-t border-neutral-100 pt-1 mt-1">
+                    <div className="border-t border-neutral-200/70 pt-1.5 mt-1">
                       <button
                         type="button"
                         onClick={() => handleSelectModel("__custom__")}
-                        className={`w-full flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition ${
+                        className={`w-full flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                           isCustomModel
                             ? "bg-neutral-950 text-white font-medium"
                             : "text-neutral-900 hover:bg-neutral-100"
@@ -1048,9 +1102,9 @@ export function LiteLLMModal({
                   placeholder={`e.g. ${provider}/custom-model-name or hosted_vllm/...`}
                   value={customModel}
                   onChange={(e) => setCustomModel(e.target.value)}
-                  className="font-mono text-xs"
+                  className="font-mono text-xs placeholder:text-neutral-500"
                 />
-                <p className="text-[10px] text-neutral-400 mt-1">
+                <p className="text-[11px] text-neutral-600 mt-1">
                   Type any valid LiteLLM model identifier supported by your endpoint.
                 </p>
               </div>
@@ -1059,18 +1113,18 @@ export function LiteLLMModal({
 
           {/* API Key Input */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <label className="text-xs font-semibold text-neutral-700">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <label className="text-xs font-semibold text-neutral-800">
                   {currentProviderInfo.name} API Key
                 </label>
                 {currentProviderInfo.env_api_key_set && (
-                  <Badge variant="success" className="text-[9px] py-0 px-1.5">
+                  <Badge variant="success" className="text-[10px] py-0 px-1.5">
                     Pre-configured in Environment
                   </Badge>
                 )}
                 {isEngineer && (
-                  <Badge variant="warning" className="text-[9px] py-0 px-1.5">
+                  <Badge variant="warning" className="text-[10px] py-0 px-1.5">
                     Configured by Administrator
                   </Badge>
                 )}
@@ -1079,7 +1133,7 @@ export function LiteLLMModal({
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
-                  className="text-[11px] text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition"
+                  className="text-[11px] font-medium text-neutral-600 hover:text-neutral-950 flex items-center gap-1 transition-colors duration-150 ease-out-quart rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                 >
                   {showApiKey ? (
                     <>
@@ -1108,13 +1162,15 @@ export function LiteLLMModal({
                 }
                 value={isEngineer ? "••••••••••••••••" : apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className={`font-mono text-xs pr-10 ${isEngineer ? "cursor-not-allowed opacity-70 bg-neutral-100" : ""}`}
+                className={`font-mono text-xs pr-10 placeholder:text-neutral-500 ${
+                  isEngineer ? "cursor-not-allowed opacity-70 bg-neutral-100" : ""
+                }`}
               />
               {!isEngineer && (
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-2.5 top-2.5 text-neutral-400 hover:text-neutral-700"
+                  className="absolute right-2.5 top-2.5 text-neutral-500 hover:text-neutral-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                   tabIndex={-1}
                   aria-label={showApiKey ? "Hide API key" : "Show API key"}
                 >
@@ -1126,7 +1182,7 @@ export function LiteLLMModal({
                 </button>
               )}
             </div>
-            <p className="text-[11px] text-neutral-500">
+            <p className="text-[11px] text-neutral-600 leading-relaxed">
               {isEngineer
                 ? "Credential secured and managed centrally by system administrator."
                 : "Stored securely per tenant session for direct LiteLLM model routing."}
@@ -1135,15 +1191,15 @@ export function LiteLLMModal({
 
           {/* Custom Base URL (Optional) */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-neutral-700">
-                Custom Base URL <span className="font-normal text-neutral-400">(Optional)</span>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-neutral-800">
+                Custom Base URL <span className="font-normal text-neutral-500">(Optional)</span>
               </label>
               {!isEngineer && currentProviderInfo.defaultBaseUrl && (
                 <button
                   type="button"
                   onClick={() => setBaseUrl(currentProviderInfo.defaultBaseUrl || "")}
-                  className="text-[10px] text-neutral-900 hover:underline font-mono"
+                  className="text-[11px] text-blue-700 hover:text-blue-900 hover:underline font-mono rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                 >
                   Set default: {currentProviderInfo.defaultBaseUrl}
                 </button>
@@ -1159,15 +1215,17 @@ export function LiteLLMModal({
               }
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              className={`font-mono text-xs ${isEngineer ? "cursor-not-allowed opacity-70 bg-neutral-100" : ""}`}
+              className={`font-mono text-xs placeholder:text-neutral-500 ${
+                isEngineer ? "cursor-not-allowed opacity-70 bg-neutral-100" : ""
+              }`}
             />
-            <p className="text-[11px] text-neutral-500">
+            <p className="text-[11px] text-neutral-600 leading-relaxed">
               Useful for self-hosted Ollama, vLLM, Azure endpoints, or corporate LiteLLM proxy gateways.
             </p>
           </div>
 
           {/* Modal Actions */}
-          <div className="flex items-center justify-end gap-2.5 border-t border-neutral-100 pt-4">
+          <div className="flex items-center justify-end gap-2.5 border-t border-neutral-200/70 pt-4">
             {isEngineer ? (
               <Button
                 type="button"
@@ -1194,11 +1252,11 @@ export function LiteLLMModal({
                   variant="default"
                   size="sm"
                   disabled={isSubmitting}
-                  className="gap-1.5 bg-neutral-950 hover:bg-neutral-800 text-white"
+                  className="gap-1.5"
                 >
                   {isSubmitting ? (
                     <>
-                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                         <circle cx="12" cy="12" r="10" strokeDasharray="30" strokeDashoffset="10" />
                       </svg>
                       <span>Applying...</span>

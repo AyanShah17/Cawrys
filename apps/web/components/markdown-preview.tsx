@@ -287,7 +287,7 @@ export function renderInlineMarkdown(
               title={tokenTitle}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors break-words"
+              className="font-medium text-blue-700 hover:text-blue-900 underline underline-offset-[0.18em] decoration-blue-600/40 hover:decoration-blue-800 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 rounded-sm break-words"
             >
               {renderInlineMarkdown(tokenText, `${key}-lnk`, depth + 1, false)}
             </a>
@@ -298,7 +298,7 @@ export function renderInlineMarkdown(
               key={key}
               href={effectiveUrl}
               title={tokenTitle}
-              className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors break-words"
+              className="font-medium text-blue-700 hover:text-blue-900 underline underline-offset-[0.18em] decoration-blue-600/40 hover:decoration-blue-800 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 rounded-sm break-words"
             >
               {renderInlineMarkdown(tokenText, `${key}-lnk`, depth + 1, false)}
             </Link>
@@ -316,7 +316,7 @@ export function renderInlineMarkdown(
             href={effectiveUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors break-all"
+            className="font-medium text-blue-700 hover:text-blue-900 underline underline-offset-[0.18em] decoration-blue-600/40 hover:decoration-blue-800 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 rounded-sm break-all"
           >
             {match.data.text || tokenUrl}
           </a>
@@ -381,27 +381,28 @@ function CodeContainer({ code, language }: { code: string; language?: string }) 
   };
 
   return (
-    <div className="my-2.5 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 shadow-sm">
-      <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-3.5 py-1.5 text-[11px] font-mono text-neutral-400">
-        <span className="font-semibold uppercase tracking-wider text-neutral-300">
+    <div className="my-3 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950">
+      <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-3.5 py-2 text-[11px] font-mono text-neutral-300">
+        <span className="font-medium uppercase tracking-[0.06em] text-neutral-300">
           {language || "code"}
         </span>
         <button
           type="button"
           onClick={handleCopy}
-          className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 transition-colors"
+          aria-label="Copy code snippet"
+          className="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] text-neutral-300 hover:bg-neutral-800 hover:text-white active:scale-[0.98] transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
         >
           {copied ? (
             <>
               <IconCheck className="h-3 w-3 text-emerald-400" />
-              <span className="text-emerald-400 font-medium">Copied!</span>
+              <span className="text-emerald-400 font-medium">Copied</span>
             </>
           ) : (
             <span>Copy</span>
           )}
         </button>
       </div>
-      <pre className="overflow-x-auto p-3.5 font-mono text-xs leading-relaxed text-emerald-400 selection:bg-emerald-900/40">
+      <pre className="overflow-x-auto no-scrollbar p-3.5 font-mono text-xs leading-relaxed text-neutral-100 selection:bg-blue-500/30">
         <code>{code}</code>
       </pre>
     </div>
@@ -563,15 +564,15 @@ export function renderChatMarkdown(content: string): React.ReactNode {
       nodes.push(
         <div
           key={keyIdx++}
-          className="my-3 overflow-x-auto rounded-xl border border-neutral-200/80 bg-white shadow-xs"
+          className="my-3.5 overflow-x-auto no-scrollbar rounded-xl border border-neutral-200 bg-white"
         >
-          <table className="min-w-full divide-y divide-neutral-200 text-xs text-neutral-800 border-collapse">
-            <thead className="bg-neutral-100/80 text-neutral-900 font-semibold">
+          <table className="min-w-full divide-y divide-neutral-200 text-[13px] text-neutral-800 border-collapse tabular-nums">
+            <thead className="bg-neutral-50 text-[11px] font-semibold uppercase tracking-[0.05em] text-neutral-600">
               <tr>
                 {headers.map((h, colIdx) => (
                   <th
                     key={colIdx}
-                    className="px-3.5 py-2.5 text-neutral-950 font-semibold border-r last:border-r-0 border-neutral-200/60"
+                    className="px-3.5 py-2.5 font-semibold text-neutral-700 whitespace-nowrap"
                     style={{ textAlign: alignments[colIdx] || "left" }}
                   >
                     {renderInlineMarkdown(h, `th-${keyIdx}-${colIdx}`)}
@@ -583,16 +584,12 @@ export function renderChatMarkdown(content: string): React.ReactNode {
               {rows.map((row, rowIdx) => (
                 <tr
                   key={rowIdx}
-                  className={
-                    rowIdx % 2 === 0
-                      ? "bg-white hover:bg-neutral-50/60 transition-colors"
-                      : "bg-neutral-50/40 hover:bg-neutral-50 transition-colors"
-                  }
+                  className="hover:bg-neutral-50/80 transition-colors duration-150 ease-out-quart"
                 >
                   {headers.map((_, colIdx) => (
                     <td
                       key={colIdx}
-                      className="px-3.5 py-2 text-neutral-700 border-r last:border-r-0 border-neutral-200/50"
+                      className="px-3.5 py-2.5 text-neutral-800"
                       style={{ textAlign: alignments[colIdx] || "left" }}
                     >
                       {renderInlineMarkdown(row[colIdx] || "", `td-${keyIdx}-${rowIdx}-${colIdx}`)}
@@ -631,11 +628,11 @@ export function renderChatMarkdown(content: string): React.ReactNode {
         }
       }
       nodes.push(
-        <ul key={keyIdx++} className="my-2 space-y-1.5 pl-0 list-none">
+        <ul key={keyIdx++} className="my-2.5 space-y-1.5 pl-0 list-none">
           {tasks.map((task, tIdx) => (
             <li
               key={tIdx}
-              className={`flex items-start gap-2.5 text-xs text-neutral-800 ${
+              className={`flex items-start gap-2.5 text-sm leading-relaxed text-neutral-800 ${
                 task.indent >= 4 ? "ml-6" : task.indent >= 2 ? "ml-3" : ""
               }`}
             >
@@ -644,12 +641,12 @@ export function renderChatMarkdown(content: string): React.ReactNode {
                 checked={task.checked}
                 readOnly
                 disabled
-                className="mt-0.5 h-3.5 w-3.5 rounded border-neutral-300 text-neutral-900 accent-neutral-950 cursor-default shrink-0"
+                className="mt-1 h-3.5 w-3.5 rounded border-neutral-300 text-neutral-900 accent-neutral-950 cursor-default shrink-0"
               />
               <span
                 className={
                   task.checked
-                     ? "line-through text-neutral-400"
+                    ? "line-through text-neutral-400"
                     : "text-neutral-800"
                 }
               >
@@ -667,15 +664,15 @@ export function renderChatMarkdown(content: string): React.ReactNode {
     if (headingMatch) {
       const level = headingMatch[1].length;
       const headingText = (headingMatch[2] || "").replace(/\s+#+\s*$/, "");
-      let headingCls = "font-bold text-neutral-950";
+      let headingCls = "font-semibold text-neutral-950 leading-snug";
       if (level === 1) {
-        headingCls += " text-base mt-4 mb-2 border-b border-neutral-200 pb-1.5";
+        headingCls += " text-[17px] tracking-[-0.02em] mt-5 mb-2 border-b border-neutral-200 pb-1.5";
       } else if (level === 2) {
-        headingCls += " text-[15px] mt-3.5 mb-1.5 border-b border-neutral-100 pb-1";
+        headingCls += " text-[15px] tracking-[-0.015em] mt-4 mb-1.5 border-b border-neutral-200/70 pb-1";
       } else if (level === 3) {
-        headingCls += " text-sm mt-3 mb-1 text-neutral-900";
+        headingCls += " text-sm tracking-[-0.01em] mt-3.5 mb-1 text-neutral-900";
       } else {
-        headingCls += " text-xs uppercase tracking-wide mt-2.5 mb-1 text-neutral-800 font-semibold";
+        headingCls += " text-xs uppercase tracking-[0.06em] mt-3 mb-1 text-neutral-700";
       }
 
       nodes.push(
@@ -689,7 +686,7 @@ export function renderChatMarkdown(content: string): React.ReactNode {
 
     // 5. Horizontal rule
     if (/^(?:-[ \t]*){3,}$|^(?:\*[ \t]*){3,}$|^(?:_[ \t]*){3,}$/.test(line.trim())) {
-      nodes.push(<hr key={keyIdx++} className="my-3 border-neutral-200" />);
+      nodes.push(<hr key={keyIdx++} className="my-4 border-neutral-200" />);
       i++;
       continue;
     }
@@ -704,7 +701,7 @@ export function renderChatMarkdown(content: string): React.ReactNode {
       nodes.push(
         <blockquote
           key={keyIdx++}
-          className="my-2 border-l-4 border-neutral-300 bg-neutral-50/60 pl-3 py-1.5 text-xs text-neutral-700 italic space-y-1 rounded-r"
+          className="my-2.5 border-l border-neutral-300 pl-3.5 py-0.5 text-[13px] text-neutral-700 leading-relaxed space-y-1"
         >
           {quoteLines.map((ql, qIdx) => (
             <div key={qIdx}>{renderInlineMarkdown(ql, `bq-${keyIdx}-${qIdx}`)}</div>
@@ -744,7 +741,7 @@ export function renderChatMarkdown(content: string): React.ReactNode {
         }
       }
       nodes.push(
-        <ul key={keyIdx++} className="my-2 list-disc pl-5 space-y-1 text-xs text-neutral-800 leading-relaxed">
+        <ul key={keyIdx++} className="my-2.5 list-disc pl-5 space-y-1.5 text-sm text-neutral-800 leading-relaxed">
           {items.map((item, li) => (
             <li
               key={li}
@@ -799,7 +796,7 @@ export function renderChatMarkdown(content: string): React.ReactNode {
         }
       }
       nodes.push(
-        <ol key={keyIdx++} start={startNumber > 1 ? startNumber : undefined} className="my-2 list-decimal pl-5 space-y-1 text-xs text-neutral-800 leading-relaxed">
+        <ol key={keyIdx++} start={startNumber > 1 ? startNumber : undefined} className="my-2.5 list-decimal pl-5 space-y-1.5 text-sm text-neutral-800 leading-relaxed">
           {items.map((item, li) => (
             <li key={li}>
               {item.isTask ? (
@@ -809,7 +806,7 @@ export function renderChatMarkdown(content: string): React.ReactNode {
                     checked={item.checked}
                     readOnly
                     disabled
-                    className="mt-0.5 h-3.5 w-3.5 rounded border-neutral-300 text-neutral-900 accent-neutral-950 cursor-default shrink-0"
+                    className="mt-1 h-3.5 w-3.5 rounded border-neutral-300 text-neutral-900 accent-neutral-950 cursor-default shrink-0"
                   />
                   <span className={item.checked ? "line-through text-neutral-400" : "text-neutral-800"}>
                     {renderInlineMarkdown(item.text, `ol-task-${keyIdx}-${li}`)}
@@ -843,7 +840,7 @@ export function renderChatMarkdown(content: string): React.ReactNode {
     }
 
     nodes.push(
-      <p key={keyIdx++} className="my-1.5 leading-relaxed text-neutral-900 text-sm">
+      <p key={keyIdx++} className="my-2 leading-relaxed text-neutral-900 text-sm">
         {renderInlineMarkdown(pLines.join(" "), `p-${keyIdx}`)}
       </p>
     );
