@@ -4,8 +4,15 @@ const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)"],
+        mono: ["var(--font-mono)"],
+      },
       colors: {
         brand: "rgb(var(--brand) / <alpha-value>)",
+      },
+      transitionTimingFunction: {
+        "out-quart": "cubic-bezier(0.22, 1, 0.36, 1)",
       },
       animation: { spotlight: "spotlight 2s ease .75s 1 forwards" },
       keyframes: {

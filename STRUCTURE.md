@@ -12,7 +12,8 @@ This index maps every folder, source file, class, function, route, and MCP tool 
 | **Top Navbar & AI Mode Corner Floating Action Button (FAB)** | `apps/web/components/top-nav.tsx` | `TopNav` (`L16`), AI Mode Corner FAB (`L84-L178`), Dashboard Top Navbar (`L180-L360`) |
 | **Full-Page Chat vs Scrollable Page Layout Wrapper** | `apps/web/components/layout-wrapper.tsx` | `LayoutWrapper` (`L9-L43`; locks `/chat` to `h-screen w-screen`, keeps `/connectors`, `/marketplace`, `/settings`, and dashboard routes scrollable) |
 | **App Mode State (`ai` vs `dashboard`)** | `apps/web/lib/mode-context.tsx` | `ModeProvider` (`L29`), `useAppMode` (`L116`) |
-| **Global Styles & Invisible Scrollbars** | `apps/web/app/globals.css` | Cross-browser invisible scrollbars (`L15-L24`) |
+| **Design System Tokens, Typography, Reduced Motion & Invisible Scrollbars** | `apps/web/app/globals.css`, `apps/web/tailwind.config.ts`, `DESIGN.md` | OKLCH tokens & reduced-motion (`globals.css` `L5-L49`), invisible scrollbars (`L51-L58`), font/easing extensions (`tailwind.config.ts`), design spec (`DESIGN.md`) |
+| **Shared Design Kit (`PageHeader`, `Card`, `Stat`, `Pill`, Inputs, Buttons)** | `apps/web/components/ui/kit.tsx` | `PageHeader` (`L15`), `Card` (`L35`), `Stat` (`L64`), `Pill` (`L132`), `Notice` (`L149`), `inputCls`/`btnCls`/`btnGhostCls` (`L193-L198`) |
 | **GFM Markdown Renderer** | `apps/web/components/markdown-preview.tsx` | `renderInlineMarkdown` (`L230`), `CodeContainer` (`L368`), `renderChatMarkdown` (`L481`), `MarkdownPreview` (`L855`) |
 | **Playbook DAG Canvas & Execution Manager** | `apps/web/components/playbooks-manager.tsx` | `extractInputVars` (`L66`), `getStepLiveState` (`L84`), `PlaybooksManager` (`L113`) |
 | **Marketplace 1,640+ Toolkit Grid & Category Filter** | `apps/web/components/marketplace-grid.tsx` | `MarketplaceGrid` (`L316`), `handleToggleCategory` (`L502`), `handleSaveConfigAndConnect` (`L615`), `handleRunIndividualTool` (`L737`) |
@@ -37,8 +38,10 @@ This index maps every folder, source file, class, function, route, and MCP tool 
 
 ## 2. Complete Directory & Symbol Index
 
-### Root Configuration & Docs (9 files)
 
+### Root Configuration & Docs (11 files)
+
+- **`DESIGN.md`** (60 lines)
 - **`Makefile`** (44 lines)
 - **`PROJECT.md`** (94 lines)
 - **`README.md`** (91 lines)
@@ -48,6 +51,7 @@ This index maps every folder, source file, class, function, route, and MCP tool 
 - **`hello.ts`** (3 lines): `hello` (L1)
 - **`neon.ts`** (33 lines)
 - **`package.json`** (19 lines)
+- **`skills-lock.json`** (12 lines)
 
 
 ### Frontend (`apps/web`) (66 files)
@@ -58,9 +62,9 @@ This index maps every folder, source file, class, function, route, and MCP tool 
 - **`apps/web/next.config.mjs`** (11 lines)
 - **`apps/web/package.json`** (28 lines)
 - **`apps/web/postcss.config.mjs`** (1 lines)
-- **`apps/web/tailwind.config.ts`** (21 lines)
+- **`apps/web/tailwind.config.ts`** (28 lines)
 - **`apps/web/tsconfig.json`** (10 lines)
-- **`apps/web/app/globals.css`** (24 lines)
+- **`apps/web/app/globals.css`** (61 lines)
 - **`apps/web/app/layout.tsx`** (41 lines): `generateMetadata` (L10), `RootLayout` (L19)
 - **`apps/web/app/page.tsx`** (468 lines): `dynamic` (L22), `metadata` (L23), `Dashboard` (L27)
 - **`apps/web/app/api/[service]/[...path]/route.ts`** (73 lines): `handle` (L6)

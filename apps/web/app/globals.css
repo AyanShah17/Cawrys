@@ -4,12 +4,49 @@
 
 :root {
   color-scheme: light;
+  --font-sans: "Plus Jakarta Sans", "Geist", "Inter Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", "SF Mono", ui-monospace, monospace;
+  --surface-canvas: oklch(0.968 0.004 260);
+  --surface-card: oklch(1 0 0);
+  --surface-elevated: oklch(0.992 0.002 260);
+  --surface-obsidian: oklch(0.175 0.006 260);
+  --ink-primary: oklch(0.18 0.014 260);
+  --ink-secondary: oklch(0.41 0.012 260);
+  --ink-muted: oklch(0.49 0.01 260);
+  --border-subtle: oklch(0.9 0.006 260);
+  --border-strong: oklch(0.81 0.008 260);
+  --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 body {
-  background: #f4f5f8;
-  color: #0f172a;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  background: var(--surface-canvas);
+  color: var(--ink-primary);
+  caret-color: var(--ink-primary);
   min-height: 100vh;
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+::selection {
+  background: oklch(0.22 0.015 260 / 0.14);
+  color: var(--ink-primary);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Invisible scrollbar across entire app */

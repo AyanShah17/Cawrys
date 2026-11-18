@@ -886,7 +886,7 @@ export function ChatInterface({
           {/* Flat Conversations List */}
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-1 pr-0.5">
             {filteredSessions.length === 0 ? (
-              <div className="px-2.5 py-6 text-center text-[11px] text-neutral-500">
+              <div className="px-2.5 py-6 text-center text-[11px] text-neutral-400">
                 {sessionFilter.trim() ? "No matching conversations" : "No conversations yet"}
               </div>
             ) : (
@@ -904,7 +904,7 @@ export function ChatInterface({
                         handleSelectSession(sess);
                       }
                     }}
-                    className={`group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs cursor-pointer transition-colors ${
+                    className={`group flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                       isActiveSession
                         ? "bg-neutral-800/90 border border-neutral-700/80 text-white font-medium shadow-xs"
                         : "border border-transparent text-neutral-300 hover:bg-neutral-900 hover:text-white"
@@ -913,7 +913,7 @@ export function ChatInterface({
                   >
                     <span className="truncate min-w-0 flex-1">{sess.title}</span>
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[10px] text-neutral-500 tabular-nums">
+                      <span className="text-[10px] text-neutral-400 tabular-nums">
                         {formatRelativeShort(sess.updated_at)}
                       </span>
                       <button
@@ -921,7 +921,7 @@ export function ChatInterface({
                         onClick={(e) => handleDeleteSession(sess.session_id, e)}
                         title="Delete conversation"
                         aria-label={`Delete ${sess.title}`}
-                        className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded text-neutral-500 hover:bg-neutral-700 hover:text-white transition-colors"
+                        className="hidden group-hover:flex h-4 w-4 items-center justify-center rounded text-neutral-400 hover:bg-neutral-700 hover:text-white transition-colors"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-2.5 w-2.5">
                           <line x1="18" y1="6" x2="6" y2="18" />
@@ -984,19 +984,19 @@ export function ChatInterface({
 
         {/* Conversation Feed */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar px-5 py-5">
-          <div className="max-w-3xl mx-auto w-full space-y-6">
+          <div className={`max-w-3xl mx-auto w-full ${isChatEmpty ? "min-h-[62vh] flex flex-col items-center justify-center" : "space-y-6"}`}>
           {isChatEmpty ? (
-            <div className="pt-10 pb-4 space-y-8 animate-fadeIn">
-              <div className="text-center space-y-3">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-950 text-white shadow-md">
+            <div className="py-8 space-y-6 animate-fadeIn">
+              <div className="text-center space-y-3.5">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-950 text-white shadow-sm">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                   </svg>
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+                <h1 className="text-2xl sm:text-[1.75rem] leading-[1.2] font-bold tracking-[-0.025em] text-neutral-950">
                   Cawrys Industrial Intelligence
                 </h1>
-                <p className="text-sm text-neutral-500 max-w-lg mx-auto leading-relaxed">
+                <p className="text-sm text-neutral-600 max-w-lg mx-auto leading-relaxed">
                   Autonomous plant orchestration, CAD engineering analysis, and live telemetry execution across{" "}
                   {docsCount} workspace file{docsCount === 1 ? "" : "s"} and {activeToolCount} active connectors.
                 </p>
@@ -1028,8 +1028,8 @@ export function ChatInterface({
                   <div
                     className={`max-w-[85%] rounded-2xl p-5 text-sm leading-relaxed ${
                       isUser
-                        ? "bg-neutral-950 text-white rounded-tr-none shadow-sm"
-                        : "bg-white rounded-2xl p-5 border border-neutral-200/60 shadow-sm text-neutral-900 rounded-tl-none"
+                        ? "bg-neutral-950 text-white rounded-tr-sm shadow-sm"
+                        : "bg-[#fcfcfd] border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.03)] text-neutral-950 rounded-tl-sm"
                     }`}
                   >
                     {isUser && userAttached && userAttached.length > 0 && (
@@ -1156,38 +1156,38 @@ export function ChatInterface({
 
                     {isUser ? (
                       timeStr ? (
-                        <div className="mt-1.5 text-[10px] text-neutral-400 text-right">{timeStr}</div>
+                        <div className="mt-1.5 text-[10px] text-neutral-300 text-right tabular-nums">{timeStr}</div>
                       ) : null
                     ) : (
-                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-1.5 text-[10px] text-neutral-500">
+                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-1.5 text-[10px] text-neutral-600">
                         <div className="flex flex-wrap items-center gap-1.5 font-mono">
-                          <span className="flex items-center gap-1 text-neutral-800 font-medium">
+                          <span className="flex items-center gap-1 text-neutral-900 font-medium">
                             <span className="h-1.5 w-1.5 rounded-full bg-neutral-950" />
                             via {formatModelShortName(m.metadata?.model || modelConfig.model)}
                           </span>
                           {m.metadata?.live_ai ? (
-                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700 border border-emerald-200">
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-800 border border-emerald-200">
                               Live AI
                             </span>
                           ) : (
-                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] text-neutral-600 border border-neutral-200">
+                            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[9px] text-neutral-700 border border-neutral-200">
                               Context Engine
                             </span>
                           )}
                           {m.metadata?.latency_ms !== undefined && (
                             <>
-                              <span className="text-neutral-400">&middot;</span>
-                              <span>{m.metadata.latency_ms}ms</span>
+                              <span className="text-neutral-500">&middot;</span>
+                              <span className="tabular-nums">{m.metadata.latency_ms}ms</span>
                             </>
                           )}
                           {m.metadata?.provider && (
                             <>
-                              <span className="text-neutral-400">&middot;</span>
+                              <span className="text-neutral-500">&middot;</span>
                               <span className="capitalize">{m.metadata.provider}</span>
                             </>
                           )}
                         </div>
-                        {timeStr && <span>{timeStr}</span>}
+                        {timeStr && <span className="tabular-nums">{timeStr}</span>}
                       </div>
                     )}
                   </div>
@@ -1253,24 +1253,24 @@ export function ChatInterface({
 
       {/* Floating Bottom Input Composer */}
       <div className="relative z-20 pt-2 pb-4 px-5 max-w-3xl mx-auto w-full shrink-0">
-        <div className="rounded-3xl border border-neutral-200/90 bg-white shadow-md px-4 py-3 transition-all focus-within:border-neutral-300 focus-within:shadow-lg">
+        <div className="rounded-3xl border border-neutral-200/90 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.05)] px-4 py-3 transition-shadow duration-150 focus-within:border-neutral-300 focus-within:shadow-[0_4px_18px_rgba(15,23,42,0.08)]">
           {/* Top Attachment Preview Chips */}
           {attachedFiles.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 pb-2.5 mb-2.5 border-b border-neutral-100">
               {attachedFiles.map((f) => (
                 <div
                   key={f.id}
-                  className="group relative flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50/80 px-2.5 py-1.5 text-xs text-neutral-800"
+                  className="group relative flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50/80 px-2.5 py-1.5 text-xs text-neutral-900"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700">
                     <IconFile className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0">
-                    <div className="max-w-[160px] truncate font-medium text-neutral-900 leading-tight">
+                    <div className="max-w-[160px] truncate font-medium text-neutral-950 leading-tight">
                       {f.filename}
                     </div>
                     {f.doc_type && (
-                      <div className="text-[10px] uppercase text-neutral-400 leading-tight">
+                      <div className="text-[10px] uppercase text-neutral-600 leading-tight">
                         {f.doc_type}
                       </div>
                     )}
@@ -1280,7 +1280,7 @@ export function ChatInterface({
                     onClick={() => removeAttachedFile(f.id)}
                     aria-label={`Remove ${f.filename}`}
                     title="Remove attachment"
-                    className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-200 hover:text-neutral-900 transition-colors"
+                    className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-200 hover:text-neutral-950 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-2.5 w-2.5">
                       <line x1="18" y1="6" x2="6" y2="18" />
@@ -1300,7 +1300,7 @@ export function ChatInterface({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask anything, upload files or images, or run operational commands..."
-            className="w-full resize-none bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none leading-relaxed max-h-44"
+            className="w-full resize-none bg-transparent text-sm text-neutral-950 placeholder:text-neutral-500 focus:outline-none leading-relaxed max-h-44"
           />
 
           {/* Bottom Bar Below Input Area */}
@@ -1317,10 +1317,10 @@ export function ChatInterface({
                   }}
                   aria-label="Add files"
                   title="Upload files or images"
-                  className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${
+                  className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 ${
                     isAddMenuOpen
-                      ? "bg-neutral-100 text-neutral-900"
-                      : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
+                      ? "bg-neutral-100 text-neutral-950"
+                      : "text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100"
                   }`}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
@@ -1355,11 +1355,11 @@ export function ChatInterface({
                           <span>{uploadingFile ? "Uploading..." : "Upload files or images"}</span>
                         </button>
                         {uploadError && (
-                          <p className="px-2.5 pt-1 text-[11px] text-rose-600">{uploadError}</p>
+                          <p className="px-2.5 pt-1 text-[11px] text-rose-700">{uploadError}</p>
                         )}
                       </div>
                     ) : (
-                      <div className="px-2.5 py-2 text-xs text-neutral-500">
+                      <div className="px-2.5 py-2 text-xs text-neutral-600">
                         File upload restricted for your role
                       </div>
                     )}
@@ -1373,9 +1373,9 @@ export function ChatInterface({
                 onClick={togglePersistence}
                 disabled={persistenceLoading}
                 title={`Active: ${persistenceMode === "neon" ? "Neon" : "Local"}. Click to switch persistence`}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200/80 hover:text-neutral-950 border border-neutral-200/80 transition-colors select-none shrink-0 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-800 bg-neutral-100 hover:bg-neutral-200/80 hover:text-neutral-950 border border-neutral-200/80 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 select-none shrink-0 disabled:opacity-50"
               >
-                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${persistenceMode === "neon" ? "bg-cyan-500" : "bg-emerald-500"}`} />
+                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${persistenceMode === "neon" ? "bg-indigo-600" : "bg-emerald-600"}`} />
                 <span>{persistenceMode === "neon" ? "Neon" : "Local"}</span>
               </button>
 
@@ -1383,7 +1383,7 @@ export function ChatInterface({
               <div ref={modelMenuRef} className="relative min-w-0">
                 {isEngineer ? (
                   <div
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-600 select-none cursor-default max-w-full"
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-700 select-none cursor-default max-w-full"
                     title="Configured by Administrator. Contact system admin to change model."
                   >
                     <span className="truncate max-w-[230px]">
@@ -1398,10 +1398,10 @@ export function ChatInterface({
                       setIsModelMenuOpen((v) => !v);
                     }}
                     title="Select AI model"
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors select-none max-w-full ${
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 select-none max-w-full ${
                       isModelMenuOpen
-                        ? "bg-neutral-100 text-neutral-900"
-                        : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
+                        ? "bg-neutral-100 text-neutral-950"
+                        : "text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100"
                     }`}
                   >
                     <span className="truncate max-w-[230px]">

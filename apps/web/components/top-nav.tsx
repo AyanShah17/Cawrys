@@ -90,7 +90,7 @@ export function TopNav({ brand, email, role }: TopNavProps) {
             onClick={() => setIsFabOpen((v) => !v)}
             title={isFabOpen ? "Close menu" : "Navigation menu"}
             aria-label="Navigation menu"
-            className="h-9 px-3.5 rounded-full bg-neutral-950 text-white border border-neutral-800 shadow-2xl hover:bg-neutral-900 active:scale-95 transition-all flex items-center gap-2 select-none"
+            className="h-9 px-3.5 rounded-full bg-neutral-950 text-white border border-neutral-800 shadow-2xl hover:bg-neutral-900 active:scale-95 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 flex items-center gap-2 select-none"
           >
             <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
             <span className="text-xs font-semibold">AI Mode</span>
@@ -99,7 +99,7 @@ export function TopNav({ brand, email, role }: TopNavProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-150 ${
+              className={`h-3.5 w-3.5 text-neutral-300 transition-transform duration-150 ${
                 isFabOpen ? "rotate-180" : ""
               }`}
             >
@@ -116,10 +116,10 @@ export function TopNav({ brand, email, role }: TopNavProps) {
                   toggleMode();
                   setIsFabOpen(false);
                 }}
-                className="w-full rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 px-3 py-2 text-xs font-medium flex items-center justify-between text-neutral-200 hover:text-white transition-colors"
+                className="w-full rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 px-3 py-2 text-xs font-medium flex items-center justify-between text-neutral-200 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               >
                 <span className="flex items-center gap-2">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-400">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-300">
                     <rect x="3" y="3" width="7" height="9" />
                     <rect x="14" y="3" width="7" height="5" />
                     <rect x="14" y="12" width="7" height="9" />
@@ -127,7 +127,7 @@ export function TopNav({ brand, email, role }: TopNavProps) {
                   </svg>
                   <span>Switch to Dashboard</span>
                 </span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-500">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3 text-neutral-400">
                   <path d="M7 16V4M7 4L3 8M7 4l4 4" />
                   <path d="M17 8v12m0 0l4-4m-4 4l-4-4" />
                 </svg>
@@ -144,10 +144,10 @@ export function TopNav({ brand, email, role }: TopNavProps) {
                       key={tab.href}
                       href={tab.href}
                       onClick={() => setIsFabOpen(false)}
-                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-colors ${
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                         active
                           ? "bg-white text-black font-semibold shadow-xs"
-                          : "text-neutral-400 hover:bg-neutral-900 hover:text-white"
+                          : "text-neutral-300 hover:bg-neutral-900 hover:text-white"
                       }`}
                     >
                       <span>{tab.label}</span>
@@ -160,12 +160,12 @@ export function TopNav({ brand, email, role }: TopNavProps) {
               <div className="h-[1px] bg-neutral-800 my-1" />
 
               {/* User Identity & Logout */}
-              <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-neutral-400">
+              <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-neutral-300">
                 <span className="truncate max-w-[150px]">{email}</span>
                 <button
                   type="button"
                   onClick={signOut}
-                  className="text-red-400 hover:text-red-300 transition-colors font-medium"
+                  className="text-rose-400 hover:text-rose-300 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 rounded"
                 >
                   Logout
                 </button>
@@ -229,10 +229,10 @@ export function TopNav({ brand, email, role }: TopNavProps) {
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className={`rounded-full px-3.5 py-1.5 text-xs transition-all duration-150 shrink-0 whitespace-nowrap ${
+                  className={`rounded-full px-3.5 py-1.5 text-xs transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 shrink-0 whitespace-nowrap ${
                     active
                       ? "bg-white text-black font-semibold shadow-sm"
-                      : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                      : "text-neutral-300 hover:text-white hover:bg-neutral-900"
                   }`}
                 >
                   {tab.label}

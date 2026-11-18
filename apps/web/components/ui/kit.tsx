@@ -22,10 +22,10 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-neutral-200/60 pb-4">
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-neutral-200/70 pb-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
+        <h1 className="text-[1.625rem] leading-[1.2] font-bold tracking-[-0.025em] text-neutral-950">{title}</h1>
+        {subtitle && <p className="mt-1.5 text-sm text-neutral-600 leading-relaxed max-w-2xl">{subtitle}</p>}
       </div>
       {children && <div className="flex items-center gap-2">{children}</div>}
     </header>
@@ -46,13 +46,13 @@ export function Card({
   return (
     <section
       className={cn(
-        "rounded-3xl border border-neutral-200/60 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md",
+        "rounded-3xl border border-neutral-200/80 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-200 ease-out-quart",
         className
       )}
     >
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between border-b border-neutral-100 pb-3">
-          {title && <h2 className="text-sm font-semibold tracking-tight text-neutral-900">{title}</h2>}
+          {title && <h2 className="text-sm font-semibold tracking-tight text-neutral-950">{title}</h2>}
           {action}
         </div>
       )}
@@ -78,55 +78,55 @@ export function Stat({
 }) {
   const color =
     tone === "warn"
-      ? "text-amber-600"
+      ? "text-amber-700"
       : tone === "good"
-      ? "text-emerald-600"
+      ? "text-emerald-700"
       : tone === "bad"
-      ? "text-rose-600"
-      : "text-neutral-900";
+      ? "text-rose-700"
+      : "text-neutral-950";
 
   const isPositive = trendPositive !== undefined ? trendPositive : trend ? trend.startsWith("+") : false;
 
   return (
-    <div className="group relative rounded-3xl border border-neutral-200/60 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-neutral-300">
+    <div className="group relative rounded-3xl border border-neutral-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors duration-200 ease-out-quart hover:border-neutral-300">
       <div className="flex items-center justify-between gap-1">
-        <div className="text-xs font-medium text-neutral-500 truncate">{l}</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-600 truncate">{l}</div>
         {trend && (
           <span
             className={cn(
               "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums shrink-0",
               isPositive
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-rose-50 text-rose-700 border border-rose-200"
+                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                : "bg-rose-50 text-rose-800 border border-rose-200"
             )}
           >
             <span>{trend}</span>
           </span>
         )}
       </div>
-      <div className={cn("mt-2 text-2xl font-bold tracking-tight tabular-nums", color)}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-neutral-400 font-normal">{hint}</div>}
+      <div className={cn("mt-2 text-[1.75rem] leading-tight font-bold tracking-[-0.02em] tabular-nums", color)}>{value}</div>
+      {hint && <div className="mt-1 text-xs text-neutral-500 font-normal">{hint}</div>}
     </div>
   );
 }
 
 const TONES: Record<string, string> = {
-  ready: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  succeeded: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  low: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  ok: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  active: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  needs_review: "bg-amber-50 text-amber-700 border-amber-200",
-  awaiting_approval: "bg-amber-50 text-amber-700 border-amber-200",
-  medium: "bg-amber-50 text-amber-700 border-amber-200",
-  failed: "bg-rose-50 text-rose-700 border-rose-200",
-  rejected: "bg-rose-50 text-rose-700 border-rose-200",
-  high: "bg-rose-50 text-rose-700 border-rose-200",
-  disabled: "bg-rose-50 text-rose-700 border-rose-200",
-  down: "bg-rose-50 text-rose-700 border-rose-200",
-  extracting: "bg-sky-50 text-sky-700 border-sky-200",
-  running: "bg-sky-50 text-sky-700 border-sky-200",
-  pending: "bg-sky-50 text-sky-700 border-sky-200",
+  ready: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  succeeded: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  low: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  ok: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  active: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  needs_review: "bg-amber-50 text-amber-800 border-amber-200",
+  awaiting_approval: "bg-amber-50 text-amber-800 border-amber-200",
+  medium: "bg-amber-50 text-amber-800 border-amber-200",
+  failed: "bg-rose-50 text-rose-800 border-rose-200",
+  rejected: "bg-rose-50 text-rose-800 border-rose-200",
+  high: "bg-rose-50 text-rose-800 border-rose-200",
+  disabled: "bg-rose-50 text-rose-800 border-rose-200",
+  down: "bg-rose-50 text-rose-800 border-rose-200",
+  extracting: "bg-sky-50 text-sky-800 border-sky-200",
+  running: "bg-sky-50 text-sky-800 border-sky-200",
+  pending: "bg-sky-50 text-sky-800 border-sky-200",
 };
 
 export function Pill({ value }: { value: string }) {
@@ -188,11 +188,11 @@ export function Notice({
 }
 
 export const tableCls = "w-full text-left text-sm border-collapse";
-export const thCls = "pb-3 text-xs font-semibold uppercase tracking-wider text-neutral-500";
+export const thCls = "pb-3 text-xs font-semibold uppercase tracking-[0.06em] text-neutral-600";
 export const tdCls = "border-t border-neutral-100 py-3 pr-3 text-neutral-800 transition-colors";
 export const inputCls =
-  "w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 shadow-sm transition-all duration-150 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2 text-sm text-neutral-950 placeholder:text-neutral-500 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors duration-150 ease-out focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/20 disabled:cursor-not-allowed disabled:opacity-50";
 export const btnCls =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors duration-150 ease-out hover:bg-neutral-800 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none";
 export const btnGhostCls =
-  "inline-flex items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm transition-all duration-150 hover:bg-neutral-50 hover:text-neutral-900 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-800 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors duration-150 ease-out hover:bg-neutral-50 hover:text-neutral-950 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none";

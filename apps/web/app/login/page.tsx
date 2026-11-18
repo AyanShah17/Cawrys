@@ -41,17 +41,17 @@ export default function Login() {
           <div className="h-12 w-12 rounded-full bg-neutral-950 text-white flex items-center justify-center font-black tracking-widest text-sm shadow-md border border-neutral-800 mb-3">
             TIX
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+          <h1 className="text-2xl font-bold tracking-[-0.025em] text-neutral-950">
             Sign in to Cawrys
           </h1>
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1.5 text-xs text-neutral-600">
             Access your enterprise industrial workspace.
           </p>
         </div>
 
         <div className="space-y-3.5">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-neutral-700">Work Email</label>
+            <label className="mb-1 block text-xs font-semibold text-neutral-800">Work Email</label>
             <input
               type="email"
               required
@@ -59,12 +59,12 @@ export default function Login() {
               placeholder="admin@cawrys.local"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 transition-colors"
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-sm text-neutral-950 placeholder:text-neutral-500 focus:bg-white focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/20 transition-colors"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-neutral-700">Password</label>
+            <label className="mb-1 block text-xs font-semibold text-neutral-800">Password</label>
             <input
               type="password"
               required
@@ -72,7 +72,7 @@ export default function Login() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 transition-colors"
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-sm text-neutral-950 placeholder:text-neutral-500 focus:bg-white focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/20 transition-colors"
             />
           </div>
         </div>
@@ -86,35 +86,35 @@ export default function Login() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-full bg-neutral-950 hover:bg-neutral-800 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50"
+          className="w-full rounded-full bg-neutral-950 hover:bg-neutral-800 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:opacity-50"
         >
           {busy ? "Signing in..." : "Sign in"}
         </button>
 
-        <div className="rounded-2xl border border-neutral-200/70 bg-neutral-50 p-3.5 text-xs text-neutral-600">
-          <div className="flex items-center justify-between text-[11px] font-medium text-neutral-700">
+        <div className="rounded-2xl border border-neutral-200/80 bg-neutral-50 p-3.5 text-xs text-neutral-700">
+          <div className="flex items-center justify-between text-[11px] font-medium text-neutral-800">
             <span>Demo Roles</span>
-            <span className="text-[10px] text-neutral-400">One-click fill</span>
+            <span className="text-[11px] text-neutral-600">One-click fill</span>
           </div>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             <button
               type="button"
               onClick={() => fillDemo("admin@cawrys.local")}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition shadow-xs"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 shadow-xs"
             >
               admin
             </button>
             <button
               type="button"
               onClick={() => fillDemo("engineer@cawrys.local")}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition shadow-xs"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 shadow-xs"
             >
               engineer
             </button>
             <button
               type="button"
               onClick={() => fillDemo("approver@cawrys.local")}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition shadow-xs"
+              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 shadow-xs"
             >
               approver
             </button>

@@ -84,22 +84,22 @@ export default async function Dashboard() {
         </div>
       )}
 
-      {/* 1. TOP STAT CARDS IN GRID (Matching Reference Image) */}
+      {/* 1. TOP STAT CARDS IN GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Greeting & OEE Performance */}
-        <div className="bg-white rounded-3xl p-6 border border-neutral-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[170px]">
+        <div className="bg-white rounded-3xl p-6 border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors flex flex-col justify-between min-h-[170px]">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h2 className="text-3xl font-semibold tracking-tight text-neutral-900">
+              <h2 className="text-3xl font-semibold tracking-[-0.025em] text-neutral-950">
                 Hello, {userName}!
               </h2>
-              <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider mt-1">
+              <div className="text-xs font-semibold text-neutral-600 uppercase tracking-[0.06em] mt-1">
                 OEE Performance
               </div>
             </div>
             <button
               type="button"
-              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform"
+              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
               title="OEE Efficiency Action"
               aria-label="OEE Efficiency Action"
             >
@@ -110,24 +110,24 @@ export default async function Dashboard() {
             </button>
           </div>
           <div className="mt-4 flex items-baseline justify-between gap-2">
-            <div className="text-3xl font-bold tracking-tight text-neutral-900 tabular-nums">
+            <div className="text-3xl font-bold tracking-[-0.02em] text-neutral-950 tabular-nums">
               {String(oeeVal)}
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-0.5 text-xs font-semibold border border-emerald-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-0.5 text-xs font-semibold border border-emerald-200 tabular-nums">
               +6% vs target
             </span>
           </div>
         </div>
 
         {/* Card 2: Production Target */}
-        <div className="bg-white rounded-3xl p-6 border border-neutral-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[170px]">
+        <div className="bg-white rounded-3xl p-6 border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors flex flex-col justify-between min-h-[170px]">
           <div className="flex items-start justify-between gap-2">
-            <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
+            <div className="text-xs font-semibold text-neutral-600 uppercase tracking-[0.06em]">
               Production Target
             </div>
             <button
               type="button"
-              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform"
+              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
               title="Target Settings"
               aria-label="Target Settings"
             >
@@ -138,24 +138,24 @@ export default async function Dashboard() {
             </button>
           </div>
           <div className="mt-4 flex items-baseline justify-between gap-2">
-            <div className="text-3xl font-bold tracking-tight text-neutral-900 tabular-nums">
+            <div className="text-3xl font-bold tracking-[-0.02em] text-neutral-950 tabular-nums">
               {String(prodTarget)}
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-700 px-2.5 py-0.5 text-xs font-medium border border-neutral-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-800 px-2.5 py-0.5 text-xs font-medium border border-neutral-200">
               Active
             </span>
           </div>
         </div>
 
         {/* Card 3: Operational Risk */}
-        <div className="bg-white rounded-3xl p-6 border border-neutral-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[170px]">
+        <div className="bg-white rounded-3xl p-6 border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors flex flex-col justify-between min-h-[170px]">
           <div className="flex items-start justify-between gap-2">
-            <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
+            <div className="text-xs font-semibold text-neutral-600 uppercase tracking-[0.06em]">
               Risk Level
             </div>
             <button
               type="button"
-              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform"
+              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
               title="Risk Assessment"
               aria-label="Risk Assessment"
             >
@@ -165,24 +165,24 @@ export default async function Dashboard() {
             </button>
           </div>
           <div className="mt-4 flex items-baseline justify-between gap-2">
-            <div className="text-3xl font-bold tracking-tight text-neutral-900 tabular-nums">
+            <div className="text-3xl font-bold tracking-[-0.02em] text-neutral-950 tabular-nums">
               {String(riskLevel)}
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-0.5 text-xs font-semibold border border-emerald-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-0.5 text-xs font-semibold border border-emerald-200">
               {String(opStatus)}
             </span>
           </div>
         </div>
 
         {/* Card 4: Active Work Orders */}
-        <div className="bg-white rounded-3xl p-6 border border-neutral-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-h-[170px]">
+        <div className="bg-white rounded-3xl p-6 border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors flex flex-col justify-between min-h-[170px]">
           <div className="flex items-start justify-between gap-2">
-            <div className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
+            <div className="text-xs font-semibold text-neutral-600 uppercase tracking-[0.06em]">
               Active Work Orders
             </div>
             <button
               type="button"
-              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform"
+              className="h-8 w-8 rounded-full bg-neutral-950 text-white flex items-center justify-center shrink-0 shadow-sm hover:scale-105 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
               title="MES Orders"
               aria-label="MES Orders"
             >
@@ -193,32 +193,32 @@ export default async function Dashboard() {
             </button>
           </div>
           <div className="mt-4 flex items-baseline justify-between gap-2">
-            <div className="text-3xl font-bold tracking-tight text-neutral-900 tabular-nums">
+            <div className="text-3xl font-bold tracking-[-0.02em] text-neutral-950 tabular-nums">
               {num(workOrders)}
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-700 px-2.5 py-0.5 text-xs font-medium border border-neutral-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-800 px-2.5 py-0.5 text-xs font-medium border border-neutral-200">
               MES Line 4
             </span>
           </div>
         </div>
       </div>
 
-      {/* 2. TELEMETRY BAR CHART (Matching Reference Image) */}
-      <div className="bg-white rounded-3xl p-6 border border-neutral-200/60 shadow-sm">
+      {/* 2. TELEMETRY BAR CHART */}
+      <div className="bg-white rounded-3xl p-6 border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <TelemetryVelocityBarChart />
       </div>
 
       {/* 3. SECONDARY CARDS (Connected Toolkits & Ingested CAD Specs) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Secondary Card 1: Connected Toolkits & Recent Events (Matching Ventas in reference image) */}
-        <div className="bg-white rounded-3xl p-6 border border-neutral-200/60 shadow-sm flex flex-col justify-between">
+        {/* Secondary Card 1: Connected Toolkits & Recent Events */}
+        <div className="bg-white rounded-3xl p-6 border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-4">
               <div>
-                <h3 className="text-base font-semibold text-neutral-900 tracking-tight">Connected Toolkits</h3>
-                <p className="text-xs text-neutral-500">Live operational bridges & telemetry connectors</p>
+                <h3 className="text-base font-semibold text-neutral-950 tracking-tight">Connected Toolkits</h3>
+                <p className="text-xs text-neutral-600">Live operational bridges &amp; telemetry connectors</p>
               </div>
-              <Link href="/connectors" className="text-xs font-medium text-neutral-900 hover:underline">
+              <Link href="/connectors" className="text-xs font-medium text-neutral-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 rounded">
                 View all &rarr;
               </Link>
             </div>
@@ -230,15 +230,15 @@ export default async function Dashboard() {
                     SAP
                   </div>
                   <div>
-                    <div className="font-semibold text-neutral-900 text-xs">SAP S/4HANA ERP</div>
-                    <div className="text-[11px] text-neutral-500">Inventory Part 100 &middot; FastMCP Bridge</div>
+                    <div className="font-semibold text-neutral-950 text-xs">SAP S/4HANA ERP</div>
+                    <div className="text-[11px] text-neutral-600">Inventory Part 100 &middot; FastMCP Bridge</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-xs font-bold border border-emerald-200">
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-1 text-xs font-bold border border-emerald-200">
                     Synced
                   </span>
-                  <div className="text-[10px] text-neutral-400 mt-0.5">2 min ago</div>
+                  <div className="text-[10px] text-neutral-600 mt-0.5">2 min ago</div>
                 </div>
               </div>
 
@@ -248,15 +248,15 @@ export default async function Dashboard() {
                     PLM
                   </div>
                   <div>
-                    <div className="font-semibold text-neutral-900 text-xs">Siemens Teamcenter</div>
-                    <div className="text-[11px] text-neutral-500">CAD DWG-4002 Revisions</div>
+                    <div className="font-semibold text-neutral-950 text-xs">Siemens Teamcenter</div>
+                    <div className="text-[11px] text-neutral-600">CAD DWG-4002 Revisions</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-xs font-bold border border-emerald-200">
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-1 text-xs font-bold border border-emerald-200">
                     Optimal OEE
                   </span>
-                  <div className="text-[10px] text-neutral-400 mt-0.5">Active</div>
+                  <div className="text-[10px] text-neutral-600 mt-0.5">Active</div>
                 </div>
               </div>
 
@@ -266,38 +266,38 @@ export default async function Dashboard() {
                     CNC
                   </div>
                   <div>
-                    <div className="font-semibold text-neutral-900 text-xs">Industrial FastMCP Spindle</div>
-                    <div className="text-[11px] text-neutral-500">12,000 RPM &middot; Vibration 0.04 mm/s</div>
+                    <div className="font-semibold text-neutral-950 text-xs">Industrial FastMCP Spindle</div>
+                    <div className="text-[11px] text-neutral-600">12,000 RPM &middot; Vibration 0.04 mm/s</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-xs font-bold border border-emerald-200">
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 px-2.5 py-1 text-xs font-bold border border-emerald-200">
                     Optimal
                   </span>
-                  <div className="text-[10px] text-neutral-400 mt-0.5">Live telemetry</div>
+                  <div className="text-[10px] text-neutral-600 mt-0.5">Live telemetry</div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs">
-            <span className="text-neutral-500">Overall Shopfloor Health</span>
+            <span className="text-neutral-600">Overall Shopfloor Health</span>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-neutral-900">87.4% OEE Efficiency</span>
+              <span className="font-bold text-neutral-950 tabular-nums">87.4% OEE Efficiency</span>
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
             </div>
           </div>
         </div>
 
         {/* Secondary Card 2: Ingested CAD & Document Specs */}
-        <div className="bg-white rounded-3xl p-6 border border-neutral-200/60 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-6 border border-neutral-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-4">
               <div>
-                <h3 className="text-base font-semibold text-neutral-900 tracking-tight">Ingested CAD & Document Specs</h3>
-                <p className="text-xs text-neutral-500">Extracted engineering parameters & drawings</p>
+                <h3 className="text-base font-semibold text-neutral-950 tracking-tight">Ingested CAD &amp; Document Specs</h3>
+                <p className="text-xs text-neutral-600">Extracted engineering parameters &amp; drawings</p>
               </div>
-              <Link href="/documents" className="text-xs font-medium text-neutral-900 hover:underline">
+              <Link href="/documents" className="text-xs font-medium text-neutral-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 rounded">
                 Upload &rarr;
               </Link>
             </div>
