@@ -19,13 +19,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const brand = getBrand();
   const me = await getMe();
+  // Shift unconfigured indigo fallback (#6366f1 -> "99 102 241") to crisp cobalt (#2563eb -> "37 99 235")
+  const brandRgb = brand.rgb === "99 102 241" ? "37 99 235" : brand.rgb;
   return (
     <html lang="en">
       <head>
         {/* brand colour is validated to digits in lib/brand.ts, so this cannot carry markup */}
-        <style dangerouslySetInnerHTML={{ __html: `:root{--brand:${brand.rgb}}` }} />
+        <style dangerouslySetInnerHTML={{ __html: `:root{--brand:${brandRgb}}` }} />
       </head>
-      <body className="min-h-screen antialiased bg-[#f4f5f8] text-neutral-900">
+      <body className="min-h-screen antialiased bg-[var(--surface-canvas)] text-[var(--ink-primary)]">
         <ModeProvider>
           {me ? (
             <LayoutWrapper brand={brand} email={me.email} role={me.role}>

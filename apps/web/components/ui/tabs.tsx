@@ -48,7 +48,7 @@ export function TabsList({ className, children, ...props }: React.HTMLAttributes
     <div
       role="tablist"
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-full bg-neutral-100 p-1 text-neutral-500 border border-neutral-200",
+        "inline-flex h-9 items-center justify-center rounded-full bg-neutral-100 p-1 text-neutral-600 border border-neutral-200",
         className
       )}
       {...props}
@@ -81,10 +81,10 @@ export function TabsTrigger({
       disabled={disabled}
       onClick={() => ctx?.onValueChange(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-7 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50",
         isSelected
-          ? "bg-white text-neutral-900 shadow-sm font-semibold"
-          : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/50",
+          ? "bg-white text-neutral-950 font-semibold border border-neutral-200/80"
+          : "text-neutral-600 hover:text-neutral-950",
         className
       )}
       {...props}

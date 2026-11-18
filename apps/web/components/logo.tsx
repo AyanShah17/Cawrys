@@ -10,10 +10,10 @@ export function Logo({ brand }: { brand: Brand }) {
   const initial = (brand.name.match(/[A-Za-z0-9]/)?.[0] ?? "A").toUpperCase();
   return (
     <span className="flex items-center gap-2.5">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-xs font-bold text-white">
         {initial}
       </span>
-      <span className="text-base font-semibold tracking-tight">{brand.name}</span>
+      <span className="text-sm font-semibold tracking-tight">{brand.name}</span>
     </span>
   );
 }

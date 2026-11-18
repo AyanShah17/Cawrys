@@ -111,8 +111,11 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
 
   return (
     <>
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/10 bg-black/40 backdrop-blur-xl p-4 md:flex">
-        <Link href="/" className="mb-4 flex items-center px-2 py-1 transition-opacity hover:opacity-90">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-neutral-800 bg-neutral-950 p-4 text-neutral-100 md:flex">
+        <Link
+          href="/"
+          className="mb-4 flex items-center px-2 py-1 rounded-lg transition-opacity duration-150 ease-out-quart hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        >
           <Logo brand={brand} />
         </Link>
 
@@ -122,7 +125,7 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
         </div>
 
         {/* Mode Label */}
-        <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+        <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-neutral-400">
           {mode === "ai" ? "AI Workspace" : "Plant Operations"}
         </div>
 
@@ -133,16 +136,17 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
               <Link
                 key={i.href}
                 href={i.href}
-                className={`group relative flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                aria-current={isItemActive ? "page" : undefined}
+                className={`group flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                   isItemActive
-                    ? "bg-brand/15 text-white shadow-sm ring-1 ring-brand/30"
-                    : "text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-100"
+                    ? "bg-white text-neutral-950 font-semibold"
+                    : "text-neutral-300 hover:bg-neutral-900 hover:text-white"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span
-                    className={`transition-colors ${
-                      isItemActive ? "text-brand" : "text-neutral-500 group-hover:text-neutral-300"
+                    className={`transition-colors duration-150 ease-out-quart ${
+                      isItemActive ? "text-neutral-950" : "text-neutral-400 group-hover:text-neutral-200"
                     }`}
                   >
                     <Icon d={i.icon} />
@@ -150,25 +154,26 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
                   <span>{i.label}</span>
                 </div>
                 {i.badge && (
-                  <span className="rounded-full bg-brand/20 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                      isItemActive ? "bg-neutral-950 text-white" : "bg-blue-600/20 text-blue-300"
+                    }`}
+                  >
                     {i.badge}
                   </span>
-                )}
-                {isItemActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-brand" />
                 )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto border-t border-white/10 pt-4">
+        <div className="mt-auto border-t border-neutral-800 pt-4">
           <div className="flex items-center gap-3 mb-3 px-1">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand/40 to-white/10 border border-white/15 text-xs font-bold text-white shadow-inner">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 border border-neutral-700 text-xs font-bold text-white">
               {userInitial}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium text-neutral-200" title={email}>
+              <div className="truncate text-xs font-medium text-neutral-100" title={email}>
                 {email}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -181,7 +186,7 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
             variant="outline"
             size="sm"
             onClick={signOut}
-            className="w-full text-xs text-neutral-300 hover:text-white"
+            className="w-full text-xs border-neutral-700 bg-neutral-900 text-neutral-200 hover:bg-neutral-800 hover:text-white hover:border-neutral-600 focus-visible:ring-white/80 focus-visible:ring-offset-neutral-950"
           >
             Sign out
           </Button>
@@ -189,10 +194,15 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
       </aside>
 
       {/* Mobile Top Header */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07080d]/95 backdrop-blur-md md:hidden">
+      <header className="sticky top-0 z-20 border-b border-neutral-800 bg-neutral-950 text-neutral-100 md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <Logo brand={brand} />
-          <Button variant="ghost" size="sm" onClick={signOut} className="text-xs text-neutral-400">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="text-xs text-neutral-300 hover:bg-neutral-900 hover:text-white focus-visible:ring-white/80 focus-visible:ring-offset-neutral-950"
+          >
             Sign out
           </Button>
         </div>
@@ -206,10 +216,11 @@ export function Sidebar({ brand, email, role }: { brand: Brand; email: string; r
               <Link
                 key={i.href}
                 href={i.href}
-                className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition ${
+                aria-current={isItemActive ? "page" : undefined}
+                className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                   isItemActive
-                    ? "bg-brand/25 text-white ring-1 ring-brand/40"
-                    : "text-neutral-400 hover:text-white hover:bg-white/5"
+                    ? "bg-white text-neutral-950 font-semibold"
+                    : "text-neutral-300 hover:text-white hover:bg-neutral-900"
                 }`}
               >
                 {i.label}

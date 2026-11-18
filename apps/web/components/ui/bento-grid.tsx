@@ -20,12 +20,12 @@ export function BentoItem({
   return (
     <div
       className={cn(
-        "group/bento rounded-3xl border border-neutral-200/60 bg-white p-6 shadow-sm transition-all duration-200 hover:border-neutral-300 hover:shadow-md",
+        "group/bento rounded-2xl border border-neutral-200 bg-white p-6 transition-colors duration-150 ease-out-quart hover:border-neutral-300",
         className
       )}
     >
-      <div className="text-sm font-semibold tracking-tight text-neutral-900">{title}</div>
-      {description && <div className="mt-1 text-xs text-neutral-500 leading-relaxed">{description}</div>}
+      <div className="text-sm font-semibold tracking-tight text-neutral-950">{title}</div>
+      {description && <div className="mt-1 text-xs text-neutral-600 leading-relaxed">{description}</div>}
       <div className="mt-3">{children}</div>
     </div>
   );

@@ -23,8 +23,8 @@ export function ModeSwitcher({ className, size = "default" }: ModeSwitcherProps)
       title={mode === "ai" ? "Switch to Dashboard Mode" : "Switch to AI Mode"}
       aria-label={mode === "ai" ? "Switch to Dashboard Mode" : "Switch to AI Mode"}
       className={cn(
-        "relative inline-flex items-center justify-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 text-white font-semibold shadow-lg hover:bg-neutral-800 transition-all select-none",
-        isSm ? "px-3 py-1.5 text-xs" : "px-3.5 py-1.5 text-xs",
+        "relative inline-flex items-center justify-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 text-white font-semibold hover:bg-neutral-800 active:scale-[0.98] transition-[background-color,transform] duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 select-none",
+        isSm ? "h-8 px-3 text-xs" : "h-9 px-3.5 text-xs",
         isFull && "flex w-full",
         className
       )}
