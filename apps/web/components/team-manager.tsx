@@ -44,7 +44,7 @@ export function TeamManager({ users, selfEmail }: { users: UserRow[]; selfEmail:
         )
       )}
 
-      <div className="-mx-1 overflow-x-auto px-1">
+      <div className="relative -mx-1 overflow-x-auto px-1">
         <table className={tableCls}>
           <thead>
             <tr>
@@ -52,7 +52,7 @@ export function TeamManager({ users, selfEmail }: { users: UserRow[]; selfEmail:
               <th className={thCls}>Role</th>
               <th className={thCls}>Status</th>
               <th className={thCls}>Last sign-in</th>
-              <th className={`${thCls} text-right`}><span className="sr-only">Actions</span></th>
+              <th className={`${thCls} relative text-right`}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>

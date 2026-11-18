@@ -317,7 +317,7 @@ export function ConnectorsView({
             return (
               <div
                 key={app.key}
-                className="flex flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 transition-colors duration-150 ease-out-quart hover:border-neutral-300 sm:p-6"
+                className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 transition-colors duration-150 ease-out-quart hover:border-neutral-300 sm:p-6"
               >
                 <div className="space-y-4">
                   {/* Header */}

@@ -1030,7 +1030,7 @@ export function MarketplaceGrid({
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className={`${inputCls} pl-9 pr-14`}
+              className={`${inputCls} pl-9 ${search ? "pr-9" : "pr-3.5 sm:pr-20"}`}
             />
             {search ? (
               <button
@@ -1050,7 +1050,7 @@ export function MarketplaceGrid({
                 </svg>
               </button>
             ) : (
-              <div className="pointer-events-none absolute inset-y-0 right-3 hidden items-center sm:flex">
+              <div className="pointer-events-none absolute inset-y-0 right-3 hidden sm:inline-flex items-center">
                 <kbd className="rounded border border-neutral-200 bg-neutral-100 px-1.5 py-0.5 font-mono text-[10px] text-neutral-600">
                   Ctrl+K
                 </kbd>
@@ -1303,7 +1303,7 @@ export function MarketplaceGrid({
             return (
               <div
                 key={app.key}
-                className="flex flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 transition-colors duration-150 ease-out-quart hover:border-neutral-300"
+                className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 transition-colors duration-150 ease-out-quart hover:border-neutral-300"
               >
                 <div className="space-y-3">
                   {/* Card Header with Monogram, Title, Metadata Line, and Status */}

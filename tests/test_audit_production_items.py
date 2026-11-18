@@ -359,7 +359,7 @@ def test_r4_ssr_page_source_configurations():
 # ---------------------------------------------------------------------------
 
 def test_r5_avatar_badge_high_contrast_classes():
-    """Validates getAvatarStyles uses high-contrast text tones (-800) in both views."""
+    """Validates shared getAvatarTone uses high-contrast text tones (-800) without violet/indigo slop."""
     view_files = [
         "apps/web/components/connectors-view.tsx",
         "apps/web/components/marketplace-grid.tsx",
@@ -369,32 +369,38 @@ def test_r5_avatar_badge_high_contrast_classes():
         abs_path = os.path.abspath(rel_path)
         with open(abs_path, "r", encoding="utf-8") as f:
             code = f.read()
+        assert "getAvatarTone" in code, f"getAvatarTone not referenced in {rel_path}"
 
-        # Find getAvatarStyles block
-        match = re.search(r"function getAvatarStyles\([^\)]*\)\s*\{([\s\S]*?)\n\}", code)
-        assert match, f"getAvatarStyles not found in {rel_path}"
-        fn_body = match.group(1)
+    modal_path = os.path.abspath("apps/web/components/marketplace-config-modal.tsx")
+    with open(modal_path, "r", encoding="utf-8") as f:
+        modal_code = f.read()
 
-        # High-contrast tones must be present
-        assert "text-amber-800" in fn_body
-        assert "text-emerald-800" in fn_body
-        assert "text-rose-800" in fn_body
-        assert "text-green-800" in fn_body
-        assert "text-purple-800" in fn_body
-        assert "text-indigo-800" in fn_body
+    match = re.search(r"function getAvatarTone\([^\)]*\)[^{]*\{([\s\S]*?)\n\}", modal_code)
+    assert match, "getAvatarTone not found in apps/web/components/marketplace-config-modal.tsx"
+    fn_body = match.group(1)
 
-        # Low-contrast pastel tones (-300) must NOT be present
-        low_contrast_pastels = [
-            "text-amber-300",
-            "text-emerald-300",
-            "text-rose-300",
-            "text-green-300",
-            "text-purple-300",
-            "text-yellow-300",
-            "text-indigo-300",
-        ]
-        for pastel in low_contrast_pastels:
-            assert pastel not in fn_body, f"Found low-contrast class {pastel} in {rel_path}"
+    # High-contrast tones must be present
+    assert "text-amber-800" in fn_body
+    assert "text-emerald-800" in fn_body
+    assert "text-rose-800" in fn_body
+    assert "text-sky-800" in fn_body
+    assert "text-blue-800" in fn_body
+
+    # Violet/purple/indigo slop and low-contrast pastel tones (-300) must NOT be present
+    forbidden = [
+        "purple",
+        "violet",
+        "indigo",
+        "text-amber-300",
+        "text-emerald-300",
+        "text-rose-300",
+        "text-green-300",
+        "text-sky-300",
+        "text-blue-300",
+        "text-yellow-300",
+    ]
+    for token in forbidden:
+        assert token not in fn_body, f"Found forbidden token {token} in getAvatarTone"
 
 
 # ---------------------------------------------------------------------------
