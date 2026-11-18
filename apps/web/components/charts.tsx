@@ -40,83 +40,121 @@ export const DEFAULT_VELOCITY_DATA: VelocityBar[] = [
 export function TelemetryVelocityBarChart({
   data = DEFAULT_VELOCITY_DATA,
   title = "Line 2 Production Velocity",
-  maxValue = 100,
+  maxValue = 120,
 }: {
   data?: VelocityBar[];
   title?: string;
   maxValue?: number;
 }) {
-  const yTicks = [120, 100, 80, 60, 40, 20, 0];
-  const chartHeightPx = 180;
+  const peakValue = data.reduce((m, b) => (b.value > m ? b.value : m), 0);
+  const scaleMax = Math.max(maxValue, peakValue) <= 120 ? 120 : niceMax(Math.max(maxValue, peakValue));
+  const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => Math.round(scaleMax * f));
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-neutral-900 tracking-tight">{title}</h3>
-          <p className="text-xs text-neutral-500 mt-0.5">Real-time CNC spindle actuation & units completed per hour</p>
+          <h2 className="text-sm font-semibold tracking-tight text-neutral-950">{title}</h2>
+          <p className="mt-0.5 text-xs text-neutral-600">
+            Real-time CNC spindle actuation &amp; units completed per hour
+          </p>
         </div>
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-neutral-600">
           <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-neutral-950" />
-            <span className="text-neutral-600 font-medium">Peak Output (89 u/h)</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-neutral-950" aria-hidden="true" />
+            <span className="font-medium text-neutral-800 tabular-nums">
+              Peak Output ({peakValue} u/h)
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-neutral-200" />
-            <span className="text-neutral-500">Standard Run</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-neutral-300" aria-hidden="true" />
+            <span>Standard Run</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-end gap-2 sm:gap-3 overflow-x-auto pb-2 pt-6">
-        {/* Y Axis ticks */}
-        <div className="flex flex-col justify-between text-[10px] text-neutral-400 font-medium h-[180px] pr-2 border-r border-neutral-100 select-none shrink-0">
-          {yTicks.map((t) => (
-            <span key={t} className="leading-none">{t}</span>
-          ))}
-        </div>
+      <div className="overflow-x-auto pb-1">
+        <div className="min-w-[560px]">
+          <div className="flex items-stretch gap-3">
+            {/* Y-axis ticks */}
+            <div
+              className="flex h-[184px] shrink-0 flex-col justify-between pr-1 text-right text-[11px] font-medium text-neutral-600 tabular-nums select-none"
+              aria-hidden="true"
+            >
+              {yTicks.map((t) => (
+                <span key={t} className="leading-none">
+                  {t}
+                </span>
+              ))}
+            </div>
 
-        {/* Bars Container */}
-        <div className="flex-1 flex items-end justify-between gap-1.5 sm:gap-2.5 min-w-[580px] h-[180px] px-2">
-          {data.map((bar) => {
-            const heightPercent = Math.min(100, Math.max(4, (bar.value / 120) * 100));
-            return (
+            {/* Plot area with reference gridlines */}
+            <div className="relative flex-1">
               <div
-                key={bar.time}
-                className="flex-1 flex flex-col items-center justify-end h-full group relative"
+                className="pointer-events-none absolute inset-0 flex h-[184px] flex-col justify-between"
+                aria-hidden="true"
               >
-                {/* Numeric value label above bar */}
-                <span
-                  className={`text-[10px] font-semibold mb-1 tabular-nums transition-opacity ${
-                    bar.isPeak
-                      ? "text-neutral-950 font-bold scale-105"
-                      : "text-neutral-400 group-hover:text-neutral-700"
-                  }`}
-                >
-                  {bar.value}
-                </span>
-
-                {/* Vertical Bar Pill */}
-                <div className="w-full flex justify-center items-end" style={{ height: `${heightPercent}%` }}>
-                  <div
-                    className={`w-full max-w-[28px] rounded-full transition-all duration-300 ${
-                      bar.isPeak
-                        ? "bg-neutral-950 shadow-md ring-2 ring-neutral-950/20"
-                        : bar.value === 0
-                        ? "bg-neutral-100 h-1.5"
-                        : "bg-neutral-100 group-hover:bg-neutral-200/90"
-                    }`}
-                    style={{ height: "100%" }}
-                  />
-                </div>
-
-                {/* X Axis Time Label */}
-                <span className="text-[10px] text-neutral-400 font-medium mt-2 shrink-0 select-none">
-                  {bar.time}
-                </span>
+                {yTicks.map((t) => (
+                  <div key={t} className="w-full border-b border-neutral-100" />
+                ))}
               </div>
-            );
-          })}
+
+              <div className="relative flex h-[184px] items-end justify-between gap-1.5 sm:gap-2 px-1">
+                {data.map((bar) => {
+                  const isPeak = bar.isPeak || (peakValue > 0 && bar.value === peakValue);
+                  const heightPercent =
+                    bar.value === 0 ? 0 : Math.min(100, Math.max(4, (bar.value / scaleMax) * 100));
+
+                  return (
+                    <div
+                      key={bar.time}
+                      className="group relative flex h-full flex-1 flex-col items-center justify-end"
+                    >
+                      <span
+                        className={`mb-1 text-[11px] tabular-nums transition-colors duration-150 ${
+                          isPeak
+                            ? "font-bold text-neutral-950"
+                            : bar.value === 0
+                            ? "font-medium text-neutral-500"
+                            : "font-medium text-neutral-600 group-hover:text-neutral-950"
+                        }`}
+                      >
+                        {bar.value}
+                      </span>
+
+                      <div
+                        className="flex w-full items-end justify-center"
+                        style={{ height: bar.value === 0 ? "3px" : `${heightPercent}%` }}
+                      >
+                        <div
+                          title={`${bar.time}: ${bar.value} units/hr`}
+                          className={`h-full w-full max-w-[26px] rounded-full transition-colors duration-150 ease-out-quart ${
+                            isPeak
+                              ? "bg-neutral-950"
+                              : bar.value === 0
+                              ? "bg-neutral-300"
+                              : "bg-neutral-200 group-hover:bg-neutral-400"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* X-axis time labels */}
+              <div className="mt-2.5 flex items-center justify-between gap-1.5 sm:gap-2 px-1">
+                {data.map((bar) => (
+                  <span
+                    key={bar.time}
+                    className="flex-1 text-center text-[11px] font-medium text-neutral-600 tabular-nums select-none"
+                  >
+                    {bar.time}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -133,20 +171,20 @@ export function StackedBars({
   ariaLabel: string;
 }) {
   const W = 640,
-    H = 170,
-    padL = 30,
-    padB = 22,
-    padT = 6;
+    H = 176,
+    padL = 34,
+    padB = 24,
+    padT = 8;
   const totals = data.map((d) => series.reduce((s, x) => s + (Number(d[x.key]) || 0), 0));
   const max = niceMax(Math.max(0, ...totals));
   const innerW = W - padL,
     innerH = H - padB - padT;
   const slot = innerW / Math.max(1, data.length);
-  const bw = Math.max(3, slot * 0.68);
+  const bw = Math.max(4, Math.min(28, slot * 0.66));
   const sum = (k: string) => data.reduce((s, d) => s + (Number(d[k]) || 0), 0);
   const empty = totals.every((t) => t === 0);
   const ticks = [0, 0.5, 1].map((f) => Math.round(max * f));
-  const labelIdx = new Set([0, Math.floor((data.length - 1) / 2), data.length - 1]);
+  const labelIdx = new Set([0, Math.floor((data.length - 1) / 2), Math.max(0, data.length - 1)]);
 
   return (
     <div>
@@ -155,8 +193,15 @@ export function StackedBars({
           const y = padT + innerH - (t / max) * innerH;
           return (
             <g key={t}>
-              <line x1={padL} x2={W} y1={y} y2={y} stroke="#e5e7eb" strokeOpacity="0.8" />
-              <text x={padL - 6} y={y + 3} textAnchor="end" fontSize="9" fill="#9ca3af">
+              <line x1={padL} x2={W} y1={y} y2={y} stroke="#e5e7eb" />
+              <text
+                x={padL - 8}
+                y={y + 3.5}
+                textAnchor="end"
+                fontSize="10"
+                fill="#525252"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
                 {t}
               </text>
             </g>
@@ -183,8 +228,9 @@ export function StackedBars({
                   x={x + bw / 2}
                   y={H - 6}
                   textAnchor="middle"
-                  fontSize="9"
-                  fill="#9ca3af"
+                  fontSize="10"
+                  fill="#525252"
+                  style={{ fontVariantNumeric: "tabular-nums" }}
                 >
                   {String(d.label).slice(5)}
                 </text>
@@ -198,17 +244,18 @@ export function StackedBars({
             y={padT + innerH / 2}
             textAnchor="middle"
             fontSize="12"
-            fill="#9ca3af"
+            fill="#525252"
           >
             No activity in this period
           </text>
         )}
       </svg>
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-600">
         {series.map((s) => (
           <li key={s.key} className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-            {s.name} <span className="tabular-nums font-semibold text-neutral-800">{sum(s.key)}</span>
+            <span>{s.name}</span>
+            <span className="font-semibold text-neutral-950 tabular-nums">{sum(s.key)}</span>
           </li>
         ))}
       </ul>
@@ -226,7 +273,7 @@ export function Distribution({
   const total = items.reduce((s, i) => s + i.value, 0);
   return (
     <div>
-      <div role="img" aria-label={ariaLabel} className="flex h-3 overflow-hidden rounded-full bg-neutral-100">
+      <div role="img" aria-label={ariaLabel} className="flex h-2.5 overflow-hidden rounded-full bg-neutral-100">
         {total > 0 &&
           items
             .filter((i) => i.value > 0)
@@ -238,14 +285,14 @@ export function Distribution({
               />
             ))}
       </div>
-      <ul className="mt-3 space-y-1.5 text-sm">
+      <ul className="mt-3 space-y-1.5 text-xs">
         {items.map((i) => (
           <li key={i.label} className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-neutral-600 text-xs">
+            <span className="flex items-center gap-2 text-neutral-600">
               <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: i.color }} />
               {i.label}
             </span>
-            <span className="tabular-nums font-semibold text-neutral-900 text-xs">{i.value}</span>
+            <span className="font-semibold text-neutral-950 tabular-nums">{i.value}</span>
           </li>
         ))}
       </ul>
@@ -255,7 +302,7 @@ export function Distribution({
 
 export function Sparkline({
   data,
-  color = "#0f172a",
+  color = "#171717",
   width = 100,
   height = 24,
 }: {

@@ -1,5 +1,12 @@
 "use client";
 import { useState } from "react";
+import { Button, inputCls } from "@/components/ui/kit";
+
+const DEMO_ROLES = [
+  { role: "admin", email: "admin@cawrys.local" },
+  { role: "engineer", email: "engineer@cawrys.local" },
+  { role: "approver", email: "approver@cawrys.local" },
+] as const;
 
 export default function Login() {
   const [email, setEmail] = useState("admin@cawrys.local");
@@ -32,92 +39,93 @@ export default function Login() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 bg-[#f4f5f8]">
+    <main className="flex min-h-screen items-center justify-center bg-[#f4f5f8] px-4 py-8 sm:px-6">
       <form
         onSubmit={submit}
-        className="relative z-10 w-full max-w-sm space-y-5 rounded-3xl border border-neutral-200/80 bg-white p-8 shadow-xl"
+        className="w-full max-w-sm space-y-6 rounded-2xl border border-neutral-200 bg-white p-6 sm:p-8"
       >
-        <div className="flex flex-col items-center text-center">
-          <div className="h-12 w-12 rounded-full bg-neutral-950 text-white flex items-center justify-center font-black tracking-widest text-sm shadow-md border border-neutral-800 mb-3">
-            TIX
+        <div className="space-y-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-950 text-sm font-bold tracking-tight text-white">
+            C
           </div>
-          <h1 className="text-2xl font-bold tracking-[-0.025em] text-neutral-950">
+          <h1 className="text-[1.625rem] font-bold leading-[1.2] tracking-[-0.025em] text-neutral-950">
             Sign in to Cawrys
           </h1>
-          <p className="mt-1.5 text-xs text-neutral-600">
-            Access your enterprise industrial workspace.
+          <p className="text-sm leading-relaxed text-neutral-600">
+            Access your industrial operations and execution workspace.
           </p>
         </div>
 
-        <div className="space-y-3.5">
+        <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-neutral-800">Work Email</label>
+            <label htmlFor="login-email" className="mb-1.5 block text-xs font-semibold text-neutral-800">
+              Work Email
+            </label>
             <input
+              id="login-email"
               type="email"
               required
               autoComplete="username"
               placeholder="admin@cawrys.local"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-sm text-neutral-950 placeholder:text-neutral-500 focus:bg-white focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/20 transition-colors"
+              className={inputCls}
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-neutral-800">Password</label>
+            <label htmlFor="login-password" className="mb-1.5 block text-xs font-semibold text-neutral-800">
+              Password
+            </label>
             <input
+              id="login-password"
               type="password"
               required
               autoComplete="current-password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-sm text-neutral-950 placeholder:text-neutral-500 focus:bg-white focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950/20 transition-colors"
+              className={inputCls}
             />
           </div>
         </div>
 
         {err && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-medium text-rose-800">
+          <div
+            role="alert"
+            className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-800"
+          >
             {err}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-full bg-neutral-950 hover:bg-neutral-800 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={busy} size="lg" className="w-full text-sm font-semibold">
           {busy ? "Signing in..." : "Sign in"}
-        </button>
+        </Button>
 
-        <div className="rounded-2xl border border-neutral-200/80 bg-neutral-50 p-3.5 text-xs text-neutral-700">
-          <div className="flex items-center justify-between text-[11px] font-medium text-neutral-800">
-            <span>Demo Roles</span>
-            <span className="text-[11px] text-neutral-600">One-click fill</span>
+        <div className="border-t border-neutral-100 pt-5">
+          <div className="flex items-center justify-between text-xs text-neutral-600">
+            <span className="font-semibold text-neutral-800">Demo Roles</span>
+            <span>One-click fill</span>
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => fillDemo("admin@cawrys.local")}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 shadow-xs"
-            >
-              admin
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemo("engineer@cawrys.local")}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 shadow-xs"
-            >
-              engineer
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemo("approver@cawrys.local")}
-              className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-800 hover:bg-neutral-100 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 shadow-xs"
-            >
-              approver
-            </button>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {DEMO_ROLES.map((item) => {
+              const selected = email === item.email;
+              return (
+                <button
+                  key={item.role}
+                  type="button"
+                  onClick={() => fillDemo(item.email)}
+                  className={`h-8 rounded-full border px-3.5 text-xs font-medium transition-colors duration-150 ease-out-quart active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${
+                    selected
+                      ? "border-neutral-950 bg-neutral-950 text-white hover:bg-neutral-800"
+                      : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50"
+                  }`}
+                >
+                  {item.role}
+                </button>
+              );
+            })}
           </div>
         </div>
       </form>

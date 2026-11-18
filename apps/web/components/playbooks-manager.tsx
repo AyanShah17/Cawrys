@@ -5,7 +5,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { API, del, getJSON, post, put } from "@/lib/api";
 import { ago } from "@/lib/format";
-import { Button, Card, Pill, inputCls } from "@/components/ui/kit";
+import {
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Pill,
+  inputCls,
+} from "@/components/ui/kit";
 import { IconBolt, IconCheck } from "@/components/ui/icons";
 import { loadLiteLLMConfig } from "./litellm-modal";
 
@@ -620,69 +631,39 @@ export function PlaybooksManager({
       <Card
         title="Playbook Pipeline Canvas"
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            {activePlaybook && canRun && (
-              <button
-                type="button"
-                onClick={() => openRunModal(activePlaybook)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98]"
-              >
-                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polygon points="5 3 19 12 5 21 5 3" />
-                </svg>
-                <span>Run Pipeline</span>
-              </button>
-            )}
-            {canAuthor && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalError(null);
-                    setIsNewPlaybookOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-xs transition hover:bg-neutral-50 hover:text-neutral-900"
-                >
-                  <span>+ New Playbook</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalError(null);
-                    setIsRegisterToolOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-xs transition hover:bg-neutral-50 hover:text-neutral-900"
-                >
-                  <span>Register Tool</span>
-                </button>
-              </>
-            )}
-          </div>
+          activePlaybook && canRun ? (
+            <Button type="button" size="sm" onClick={() => openRunModal(activePlaybook)}>
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              <span>Run Pipeline</span>
+            </Button>
+          ) : undefined
         }
       >
         <div className="space-y-4">
           {/* Playbook Tabs + Run Telemetry Overlay Selector */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Playbooks">
               {playbooks.map((p) => {
                 const isSelected = activePlaybook?.name === p.name;
                 return (
                   <button
                     key={p.name}
                     type="button"
+                    role="tab"
+                    aria-selected={isSelected}
                     onClick={() => selectPlaybookOnCanvas(p.name)}
-                    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
+                    className={`inline-flex h-8 items-center gap-2 rounded-full border px-3.5 text-xs font-medium transition-colors duration-150 ease-out-quart active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${
                       isSelected
-                        ? "bg-neutral-950 text-white shadow-sm"
-                        : "border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                        ? "border-neutral-950 bg-neutral-950 text-white"
+                        : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50"
                     }`}
                   >
                     <span>{p.name}</span>
                     <span
-                      className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] ${
-                        isSelected
-                          ? "bg-neutral-800 text-neutral-200"
-                          : "bg-neutral-200/80 text-neutral-600"
+                      className={`font-mono text-[11px] tabular-nums ${
+                        isSelected ? "text-neutral-300" : "text-neutral-600"
                       }`}
                     >
                       v{p.version} · {p.steps.length}
@@ -694,13 +675,14 @@ export function PlaybooksManager({
 
             {activePlaybook && (
               <div className="flex flex-wrap items-center gap-2">
-                <label className="text-[11px] font-medium text-neutral-500">
-                  Execution Overlay:
+                <label htmlFor="exec-overlay-select" className="text-xs font-medium text-neutral-600">
+                  Overlay
                 </label>
                 <select
+                  id="exec-overlay-select"
                   value={selectedExecId}
                   onChange={(e) => setSelectedExecId(e.target.value)}
-                  className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-800 focus:border-neutral-400 focus:outline-none"
+                  className="h-8 rounded-full border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-800 transition-colors focus-visible:border-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
                 >
                   <option value="">Design Mode (no run overlay)</option>
                   {matchingExecutions.slice(0, 12).map((ex) => (
@@ -712,42 +694,44 @@ export function PlaybooksManager({
 
                 {canAuthor && (
                   <>
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => openInsertStep(activePlaybook.steps.length)}
                       disabled={canvasBusy}
-                      className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-100 transition disabled:opacity-50"
                     >
                       + Add Step
-                    </button>
+                    </Button>
 
                     {confirmDeletePb ? (
-                      <div className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5">
+                      <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5">
                         <button
                           type="button"
                           onClick={handleDeletePlaybook}
                           disabled={canvasBusy}
-                          className="rounded-full bg-rose-600 px-2.5 py-0.5 text-[11px] font-semibold text-white hover:bg-rose-700"
+                          className="rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-1"
                         >
                           Confirm Delete
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeletePb(false)}
-                          className="px-2 py-0.5 text-[11px] font-medium text-neutral-600 hover:text-neutral-900"
+                          className="rounded-full px-2 py-0.5 text-xs font-medium text-neutral-700 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                         >
                           Cancel
                         </button>
                       </div>
                     ) : (
-                      <button
+                      <Button
                         type="button"
+                        variant="destructive"
+                        size="sm"
                         onClick={() => setConfirmDeletePb(true)}
                         disabled={canvasBusy}
-                        className="rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 transition"
                       >
                         Delete Playbook
-                      </button>
+                      </Button>
                     )}
                   </>
                 )}
@@ -757,12 +741,16 @@ export function PlaybooksManager({
 
           {/* AI Pipeline Copilot Bar */}
           {canAuthor && (
-            <div className="rounded-2xl border border-neutral-200/90 bg-neutral-50/70 p-3.5 space-y-2.5">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="flex flex-1 items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3.5 py-2 shadow-2xs focus-within:border-neutral-400">
-                  <IconBolt className="h-4 w-4 text-neutral-800 shrink-0" />
+            <div className="space-y-2.5 rounded-xl border border-neutral-200 bg-neutral-50/70 p-3">
+              <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <IconBolt
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-700"
+                    aria-hidden="true"
+                  />
                   <input
                     type="text"
+                    aria-label="AI pipeline edit instruction"
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     onKeyDown={(e) => {
@@ -771,23 +759,23 @@ export function PlaybooksManager({
                         handleAiEditSubmit();
                       }
                     }}
-                    placeholder="Ask AI to edit pipeline: 'Add quality_check before schedule_production', 'Set quantity to 250', 'Remove last step'..."
-                    className="w-full bg-transparent text-xs text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+                    placeholder="Ask AI to edit pipeline: 'Add quality_check before schedule_production', 'Set quantity to 250'..."
+                    className={`${inputCls} pl-9 text-xs`}
                     disabled={aiBusy}
                   />
                 </div>
-                <button
+                <Button
                   type="button"
                   onClick={() => handleAiEditSubmit()}
                   disabled={aiBusy || !aiPrompt.trim()}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-neutral-950 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-neutral-800 disabled:opacity-40"
+                  className="shrink-0 text-xs font-semibold"
                 >
                   {aiBusy ? "Applying..." : "Apply AI Edit"}
-                </button>
+                </Button>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-medium text-neutral-500 mr-1">
+                <span className="mr-1 text-xs font-medium text-neutral-600">
                   Quick AI Actions:
                 </span>
                 {AI_QUICK_PROMPTS.map((q) => (
@@ -796,7 +784,7 @@ export function PlaybooksManager({
                     type="button"
                     disabled={aiBusy}
                     onClick={() => handleAiEditSubmit(q)}
-                    className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-[11px] text-neutral-700 hover:border-neutral-400 hover:text-neutral-950 transition disabled:opacity-50"
+                    className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs text-neutral-700 transition-colors duration-150 ease-out-quart hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 disabled:opacity-50"
                   >
                     {q}
                   </button>
@@ -808,20 +796,23 @@ export function PlaybooksManager({
           {/* Status Banner */}
           {canvasNotice && (
             <div
-              className={`flex items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-medium ${
+              role="status"
+              className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-xs font-medium ${
                 canvasNotice.kind === "ok"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                   : "border-rose-200 bg-rose-50 text-rose-800"
               }`}
             >
               <div className="flex items-center gap-2">
-                {canvasNotice.kind === "ok" && <IconCheck className="h-3.5 w-3.5 text-emerald-700" />}
+                {canvasNotice.kind === "ok" && (
+                  <IconCheck className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                )}
                 <span>{canvasNotice.text}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setCanvasNotice(null)}
-                className="text-[11px] opacity-70 hover:opacity-100"
+                className="rounded px-1.5 py-0.5 text-xs font-medium underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
               >
                 Dismiss
               </button>
@@ -830,57 +821,58 @@ export function PlaybooksManager({
 
           {/* Dot-Grid Visual Pipeline Canvas */}
           {!activePlaybook ? (
-            <div className="rounded-2xl border border-dashed border-neutral-300 bg-[#f8f9fb] py-12 text-center text-xs text-neutral-500">
-              No playbook selected. Create one above or ask the AI Pipeline Copilot to build a workflow.
+            <div className="rounded-xl border border-dashed border-neutral-300 bg-[#f8f9fb] py-12 text-center text-xs text-neutral-600">
+              No playbook selected. Create one below or use the AI Copilot above to build a workflow.
             </div>
           ) : (
-            <div className="rounded-2xl border border-neutral-200/80 bg-[#f8f9fb] bg-[radial-gradient(#d4d4d8_1px,transparent_1px)] [background-size:16px_16px] p-5 overflow-x-auto">
-              <div className="flex items-center gap-2 min-w-max py-2">
+            <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-[#f8f9fb] bg-[radial-gradient(#d4d4d8_1px,transparent_1px)] p-4 [background-size:16px_16px] sm:p-5">
+              <div className="flex min-w-max items-center gap-2 py-1">
                 {/* Trigger Start Node */}
-                <div className="w-48 shrink-0 rounded-2xl border border-neutral-300/80 bg-white p-3.5 shadow-sm">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="rounded-full bg-neutral-950 px-2 py-0.5 font-mono text-[10px] font-semibold text-white">
+                <div className="w-48 shrink-0 rounded-2xl border border-neutral-200 bg-white p-3.5">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="rounded-full bg-neutral-950 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wide text-white">
                       TRIGGER
                     </span>
-                    <span className="text-[10px] font-medium text-neutral-500">Inputs</span>
+                    <span className="text-[11px] font-medium text-neutral-600">Inputs</span>
                   </div>
-                  <div className="text-xs font-semibold text-neutral-900">
+                  <div className="text-xs font-semibold text-neutral-950">
                     Manual / Document Run
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1">
+                  <div className="mt-2.5 flex flex-wrap gap-1">
                     {detectedVars.length > 0 ? (
                       detectedVars.map((v) => (
                         <span
                           key={v}
-                          className="rounded-md border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-[10px] text-neutral-700"
+                          className="rounded-md border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-[11px] text-neutral-800"
                         >
                           ${v}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[10px] text-neutral-400">No $inputs required</span>
+                      <span className="text-[11px] text-neutral-600">No $inputs required</span>
                     )}
                   </div>
                 </div>
 
                 {/* Connector + Insert Slot 0 */}
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-1">
                   <div className="h-[2px] w-4 bg-neutral-300" />
                   {canAuthor && (
                     <button
                       type="button"
                       onClick={() => openInsertStep(0)}
                       title="Insert step at beginning"
-                      className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold transition ${
+                      aria-label="Insert step at beginning"
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 ${
                         insertAtIdx === 0
                           ? "border-neutral-950 bg-neutral-950 text-white"
-                          : "border-neutral-300 bg-white text-neutral-600 hover:border-neutral-950 hover:text-neutral-950"
+                          : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-950 hover:text-neutral-950"
                       }`}
                     >
                       +
                     </button>
                   )}
-                  <svg className="h-3.5 w-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <svg className="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </div>
@@ -894,16 +886,15 @@ export function PlaybooksManager({
                   const live = getStepLiveState(idx, step.tool, inspectedExec);
                   const paramEntries = Object.entries(step.params || {});
 
-                  const liveBorder =
-                    isEditing
-                      ? "border-neutral-950 ring-2 ring-neutral-950/15"
-                      : live.state === "succeeded"
-                      ? "border-emerald-300"
-                      : live.state === "awaiting_approval"
-                      ? "border-amber-300"
-                      : live.state === "rejected"
-                      ? "border-rose-300"
-                      : "border-neutral-200/90 hover:border-neutral-400";
+                  const liveBorder = isEditing
+                    ? "border-neutral-950 ring-2 ring-neutral-950/15"
+                    : live.state === "succeeded"
+                    ? "border-emerald-300"
+                    : live.state === "awaiting_approval"
+                    ? "border-amber-300"
+                    : live.state === "rejected"
+                    ? "border-rose-300"
+                    : "border-neutral-200 hover:border-neutral-400";
 
                   const liveBadgeCls =
                     live.state === "succeeded"
@@ -912,14 +903,14 @@ export function PlaybooksManager({
                       ? "border-amber-200 bg-amber-50 text-amber-800"
                       : live.state === "rejected"
                       ? "border-rose-200 bg-rose-50 text-rose-800"
-                      : "border-neutral-200 bg-neutral-100 text-neutral-700";
+                      : "border-neutral-200 bg-neutral-100 text-neutral-800";
 
                   const riskBadgeCls =
                     risk === "high"
-                      ? "bg-rose-50 text-rose-800 border-rose-200"
+                      ? "border-rose-200 bg-rose-50 text-rose-800"
                       : risk === "medium"
-                      ? "bg-amber-50 text-amber-800 border-amber-200"
-                      : "bg-neutral-100 text-neutral-700 border-neutral-200";
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-neutral-200 bg-neutral-100 text-neutral-800";
 
                   return (
                     <React.Fragment key={`${step.tool}-${idx}`}>
@@ -927,56 +918,66 @@ export function PlaybooksManager({
                         onClick={() => openStepInspector(idx)}
                         role="button"
                         tabIndex={0}
+                        aria-label={`Inspect step ${idx + 1}: ${step.tool}`}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             openStepInspector(idx);
                           }
                         }}
-                        className={`group relative w-64 shrink-0 cursor-pointer rounded-2xl border bg-white p-3.5 shadow-sm transition-all ${liveBorder}`}
+                        className={`group relative w-64 shrink-0 cursor-pointer rounded-2xl border bg-white p-3.5 transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 ${liveBorder}`}
                       >
-                        <div className="flex items-center justify-between gap-1.5 mb-2">
-                          <span className="font-mono text-[10px] font-semibold text-neutral-500">
+                        <div className="mb-2 flex items-center justify-between gap-1.5">
+                          <span className="font-mono text-[11px] font-semibold text-neutral-600 tabular-nums">
                             STEP {String(idx + 1).padStart(2, "0")}
                           </span>
                           <div className="flex items-center gap-1">
-                            <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase ${riskBadgeCls}`}>
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${riskBadgeCls}`}
+                            >
                               {risk}
                             </span>
                             {inspectedExec && (
-                              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${liveBadgeCls}`}>
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${liveBadgeCls}`}
+                              >
                                 {live.label}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        <div className="font-mono text-xs font-bold text-neutral-900 truncate" title={step.tool}>
+                        <div
+                          className="truncate font-mono text-xs font-semibold text-neutral-950"
+                          title={step.tool}
+                        >
                           {step.tool}
                         </div>
-                        <div className="text-[10px] text-neutral-500 mt-0.5">
-                          connector: <span className="font-mono text-neutral-700">{connector}</span>
+                        <div className="mt-0.5 text-[11px] text-neutral-600">
+                          connector: <span className="font-mono text-neutral-800">{connector}</span>
                         </div>
 
-                        {/* Parameter Pills */}
-                        <div className="mt-2.5 space-y-1">
+                        {/* Parameter Key-Value Table */}
+                        <div className="mt-2.5">
                           {paramEntries.length === 0 ? (
-                            <div className="text-[10px] italic text-neutral-400">Default inputs</div>
+                            <div className="text-[11px] text-neutral-600">Default inputs</div>
                           ) : (
-                            paramEntries.slice(0, 3).map(([k, v]) => (
-                              <div
-                                key={k}
-                                className="flex items-center justify-between gap-2 rounded-lg border border-neutral-100 bg-neutral-50 px-2 py-1 text-[10px]"
-                              >
-                                <span className="font-mono text-neutral-500 truncate">{k}</span>
-                                <span className="font-mono font-medium text-neutral-800 truncate max-w-[125px]">
-                                  {typeof v === "object" ? JSON.stringify(v) : String(v)}
-                                </span>
-                              </div>
-                            ))
+                            <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200/80 bg-neutral-50/70 px-2.5 py-0.5">
+                              {paramEntries.slice(0, 3).map(([k, v]) => (
+                                <div
+                                  key={k}
+                                  className="flex items-center justify-between gap-2 py-1 text-[11px]"
+                                >
+                                  <span className="truncate font-mono text-neutral-600">{k}</span>
+                                  <span className="max-w-[125px] truncate font-mono font-medium text-neutral-900 tabular-nums">
+                                    {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           )}
                           {paramEntries.length > 3 && (
-                            <div className="text-[10px] text-neutral-400">
+                            <div className="mt-1 text-[11px] text-neutral-600 tabular-nums">
                               +{paramEntries.length - 3} more param(s)
                             </div>
                           )}
@@ -985,7 +986,7 @@ export function PlaybooksManager({
                         {/* Node Quick Actions */}
                         {canAuthor && (
                           <div
-                            className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-2"
+                            className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-2.5"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="flex items-center gap-1">
@@ -993,26 +994,32 @@ export function PlaybooksManager({
                                 type="button"
                                 disabled={idx === 0 || canvasBusy}
                                 onClick={() => handleMoveStep(idx, -1)}
-                                className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-30"
+                                className="flex h-6 w-6 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 disabled:opacity-30"
                                 title="Move step left"
+                                aria-label={`Move step ${idx + 1} left`}
                               >
-                                &larr;
+                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                                </svg>
                               </button>
                               <button
                                 type="button"
                                 disabled={idx === activePlaybook.steps.length - 1 || canvasBusy}
                                 onClick={() => handleMoveStep(idx, 1)}
-                                className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-30"
+                                className="flex h-6 w-6 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 disabled:opacity-30"
                                 title="Move step right"
+                                aria-label={`Move step ${idx + 1} right`}
                               >
-                                &rarr;
+                                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                                  <path d="M5 12h14M12 5l7 7-7 7" />
+                                </svg>
                               </button>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => openStepInspector(idx)}
-                                className="rounded-md border border-neutral-200 px-2 py-0.5 text-[10px] font-medium text-neutral-800 hover:bg-neutral-100"
+                                className="rounded-md border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-800 transition-colors hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                               >
                                 Edit
                               </button>
@@ -1020,7 +1027,7 @@ export function PlaybooksManager({
                                 type="button"
                                 disabled={canvasBusy}
                                 onClick={() => handleDeleteStep(idx)}
-                                className="rounded-md border border-rose-200 px-2 py-0.5 text-[10px] font-medium text-rose-700 hover:bg-rose-50"
+                                className="rounded-md border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-medium text-rose-800 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 disabled:opacity-40"
                                 title="Delete step"
                               >
                                 Delete
@@ -1031,23 +1038,24 @@ export function PlaybooksManager({
                       </div>
 
                       {/* Edge Connector & Edge Insert Button */}
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex shrink-0 items-center gap-1">
                         <div className="h-[2px] w-4 bg-neutral-300" />
                         {canAuthor && (
                           <button
                             type="button"
                             onClick={() => openInsertStep(idx + 1)}
                             title={`Insert step after ${step.tool}`}
-                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold transition ${
+                            aria-label={`Insert step after ${step.tool}`}
+                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1 ${
                               insertAtIdx === idx + 1
                                 ? "border-neutral-950 bg-neutral-950 text-white"
-                                : "border-neutral-300 bg-white text-neutral-600 hover:border-neutral-950 hover:text-neutral-950"
+                                : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-950 hover:text-neutral-950"
                             }`}
                           >
                             +
                           </button>
                         )}
-                        <svg className="h-3.5 w-3.5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <svg className="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                           <path d="M5 12h14M13 6l6 6-6 6" />
                         </svg>
                       </div>
@@ -1056,27 +1064,28 @@ export function PlaybooksManager({
                 })}
 
                 {/* Output / Completion Node */}
-                <div className="w-48 shrink-0 rounded-2xl border border-neutral-300/80 bg-white p-3.5 shadow-sm">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-neutral-800 border border-neutral-200">
+                <div className="w-48 shrink-0 rounded-2xl border border-neutral-200 bg-white p-3.5">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="rounded-full border border-neutral-200 bg-neutral-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-neutral-800">
                       OUTPUT
                     </span>
                     {inspectedExec && <Pill value={inspectedExec.status} />}
                   </div>
-                  <div className="text-xs font-semibold text-neutral-900">
+                  <div className="text-xs font-semibold text-neutral-950">
                     Pipeline Completion
                   </div>
-                  <div className="mt-1.5 text-[11px] text-neutral-500">
+                  <div className="mt-1.5 text-[11px] leading-relaxed text-neutral-600">
                     {inspectedExec
-                      ? inspectedExec.result?.reason || `Run ${inspectedExec.id.slice(0, 8)} (${inspectedExec.status})`
+                      ? inspectedExec.result?.reason ||
+                        `Run ${inspectedExec.id.slice(0, 8)} (${inspectedExec.status})`
                       : `${activePlaybook.steps.length} configured stage(s)`}
                   </div>
                   {inspectedExec?.status === "awaiting_approval" && (
                     <Link
                       href="/approvals"
-                      className="mt-2 inline-flex items-center gap-1 rounded-full bg-neutral-950 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-neutral-800"
+                      className="mt-2.5 inline-flex h-7 items-center gap-1 rounded-full bg-neutral-950 px-3 text-[11px] font-semibold text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
                     >
-                      Approve Run &rarr;
+                      Approve Run
                     </Link>
                   )}
                 </div>
@@ -1088,38 +1097,43 @@ export function PlaybooksManager({
           {activePlaybook && (editingStepIdx !== null || insertAtIdx !== null) && (
             <form
               onSubmit={handleSaveStepInspector}
-              className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm space-y-3"
+              className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/80 pb-3">
                 <div>
-                  <h4 className="text-sm font-semibold text-neutral-900">
+                  <h3 className="text-sm font-semibold text-neutral-950">
                     {insertAtIdx !== null
                       ? `Insert New Step at Position ${insertAtIdx + 1}`
                       : `Inspect & Edit Step ${(editingStepIdx ?? 0) + 1}`}
-                  </h4>
-                  <p className="text-[11px] text-neutral-500">
-                    Assign any registered FastMCP tool or type a new tool name and JSON parameters.
+                  </h3>
+                  <p className="text-xs text-neutral-600">
+                    Assign a registered FastMCP tool or enter a custom tool identifier and JSON parameters.
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setEditingStepIdx(null);
                     setInsertAtIdx(null);
                   }}
-                  className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
                 >
                   Close Inspector
-                </button>
+                </Button>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2.5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    <label
+                      htmlFor="inspector-step-tool"
+                      className="mb-1.5 block text-xs font-semibold text-neutral-800"
+                    >
                       Step Tool
                     </label>
                     <select
+                      id="inspector-step-tool"
                       value={draftTool}
                       onChange={(e) => setDraftTool(e.target.value)}
                       disabled={!canAuthor || canvasBusy}
@@ -1136,10 +1150,14 @@ export function PlaybooksManager({
 
                   {draftTool === "__custom__" && (
                     <div>
-                      <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                      <label
+                        htmlFor="inspector-custom-tool"
+                        className="mb-1.5 block text-xs font-semibold text-neutral-800"
+                      >
                         Custom Tool Identifier
                       </label>
                       <input
+                        id="inspector-custom-tool"
                         type="text"
                         required
                         value={draftCustomTool}
@@ -1151,11 +1169,11 @@ export function PlaybooksManager({
                   )}
 
                   {editingStepIdx !== null && inspectedExec && (
-                    <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-xs">
-                      <div className="font-semibold text-neutral-800 mb-1">
+                    <div className="rounded-xl border border-neutral-200 bg-white p-3 text-xs">
+                      <div className="mb-1.5 font-semibold text-neutral-900">
                         Execution Output (Run {inspectedExec.id.slice(0, 8)})
                       </div>
-                      <pre className="max-h-32 overflow-auto font-mono text-[11px] text-neutral-700">
+                      <pre className="max-h-32 overflow-auto font-mono text-[11px] text-neutral-800">
                         {JSON.stringify(
                           getStepLiveState(
                             editingStepIdx,
@@ -1171,15 +1189,19 @@ export function PlaybooksManager({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  <label
+                    htmlFor="inspector-step-params"
+                    className="mb-1.5 block text-xs font-semibold text-neutral-800"
+                  >
                     Step Parameters (JSON Object)
                   </label>
                   <textarea
+                    id="inspector-step-params"
                     rows={5}
                     value={draftParamsJson}
                     onChange={(e) => setDraftParamsJson(e.target.value)}
                     disabled={!canAuthor || canvasBusy}
-                    className={`${inputCls} font-mono text-xs`}
+                    className={`${inputCls} h-auto py-2 font-mono text-xs`}
                   />
                 </div>
               </div>
@@ -1189,14 +1211,15 @@ export function PlaybooksManager({
                   {editingStepIdx !== null && (
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="destructive"
+                      size="sm"
                       onClick={() => handleDeleteStep(editingStepIdx)}
                       disabled={canvasBusy}
                     >
                       Delete Step
                     </Button>
                   )}
-                  <Button type="submit" disabled={canvasBusy}>
+                  <Button type="submit" size="sm" disabled={canvasBusy}>
                     {canvasBusy
                       ? "Saving..."
                       : insertAtIdx !== null
@@ -1216,97 +1239,89 @@ export function PlaybooksManager({
           title="Available Playbooks"
           action={
             canAuthor ? (
-              <div className="flex items-center gap-2">
-                <button
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
                   type="button"
+                  size="sm"
                   onClick={() => {
                     setModalError(null);
                     setIsNewPlaybookOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98]"
                 >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                   <span>New Playbook</span>
-                </button>
-
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     setModalError(null);
                     setIsRegisterToolOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 hover:text-neutral-900 active:scale-[0.98]"
                 >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                  </svg>
                   <span>Register Tool</span>
-                </button>
+                </Button>
               </div>
             ) : undefined
           }
         >
           {playbooks.length === 0 ? (
-            <div className="py-8 text-center text-xs text-neutral-400">
+            <div className="py-8 text-center text-xs text-neutral-600">
               No playbooks registered yet.
             </div>
           ) : (
-            <ul className="space-y-3.5 text-sm">
+            <ul className="divide-y divide-neutral-100 text-sm">
               {playbooks.map((p) => {
                 const isActive = activePlaybook?.name === p.name;
                 return (
                   <li
                     key={p.name}
-                    className={`group rounded-2xl border p-4 transition-all duration-200 ${
-                      isActive
-                        ? "border-neutral-900 bg-white shadow-sm"
-                        : "border-neutral-200/80 bg-neutral-50/50 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
+                    className={`py-4 first:pt-0 last:pb-0 ${
+                      isActive ? "bg-neutral-50/70 -mx-3 px-3 rounded-xl" : ""
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-neutral-900 tracking-tight">{p.name}</span>
-                        <span className="rounded-full border border-neutral-200/80 bg-neutral-100 px-2 py-0.5 font-mono text-[10px] text-neutral-600">
+                        <span className="font-semibold tracking-tight text-neutral-950">
+                          {p.name}
+                        </span>
+                        <span className="rounded-full border border-neutral-200 bg-neutral-100 px-2 py-0.5 font-mono text-[11px] font-medium text-neutral-800 tabular-nums">
                           v{p.version}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <button
+                        <Button
                           type="button"
+                          variant={isActive ? "secondary" : "outline"}
+                          size="sm"
                           onClick={() => selectPlaybookOnCanvas(p.name)}
-                          className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition"
                         >
                           {isActive ? "Active on Canvas" : "Open Canvas"}
-                        </button>
+                        </Button>
                         {canRun && (
-                          <button
-                            type="button"
-                            onClick={() => openRunModal(p)}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 py-1 text-xs font-medium text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98]"
-                          >
-                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <Button type="button" size="sm" onClick={() => openRunModal(p)}>
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
                               <polygon points="5 3 19 12 5 21 5 3" />
                             </svg>
                             <span>Run Playbook</span>
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
 
-                    {/* Steps with clean arrow icons */}
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500 font-mono">
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 font-mono text-xs text-neutral-600">
                       {p.steps.map((s, idx) => (
                         <React.Fragment key={idx}>
-                          <span className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-neutral-800 shadow-xs">
+                          <span className="rounded-md border border-neutral-200 bg-white px-2.5 py-0.5 text-neutral-800">
                             {s.tool}
                           </span>
                           {idx < p.steps.length - 1 && (
-                            <svg className="h-3 w-3 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg className="h-3 w-3 shrink-0 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                               <path d="M5 12h14M12 5l7 7-7 7" />
                             </svg>
                           )}
@@ -1324,25 +1339,20 @@ export function PlaybooksManager({
         <Card
           title="Recent Executions"
           action={
-            <button
-              type="button"
-              onClick={refreshExecutions}
-              className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 transition"
-              title="Refresh execution history"
-            >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <Button type="button" variant="ghost" size="sm" onClick={refreshExecutions}>
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
               </svg>
               <span>Refresh</span>
-            </button>
+            </Button>
           }
         >
           {executions.length === 0 ? (
-            <div className="py-8 text-center text-xs text-neutral-400">
+            <div className="py-8 text-center text-xs text-neutral-600">
               No execution runs recorded yet.
             </div>
           ) : (
-            <ul className="space-y-2.5 text-sm">
+            <ul className="divide-y divide-neutral-100 text-sm">
               {executions.slice(0, 15).map((e) => {
                 const isExpanded = expandedExecId === e.id;
                 const isCopied = copiedExecId === e.id;
@@ -1354,21 +1364,18 @@ export function PlaybooksManager({
                     : "Standard Pipeline");
 
                 return (
-                  <li
-                    key={e.id}
-                    className="rounded-2xl border border-neutral-200/70 bg-neutral-50/50 p-3.5 transition-all duration-200 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
-                  >
+                  <li key={e.id} className="py-3.5 first:pt-0 last:pb-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-neutral-900 tracking-tight text-xs">
+                        <span className="text-xs font-semibold tracking-tight text-neutral-950">
                           {playbookName}
                         </span>
-                        <span className="font-mono text-[11px] text-neutral-500">
+                        <span className="font-mono text-xs text-neutral-600 tabular-nums">
                           {e.id.slice(0, 8)}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {rawResult.playbook && (
                           <button
                             type="button"
@@ -1376,28 +1383,32 @@ export function PlaybooksManager({
                               setSelectedPlaybookName(rawResult.playbook!);
                               setSelectedExecId(e.id);
                             }}
-                            className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-neutral-700 hover:bg-neutral-100"
+                            className="h-7 rounded-full border border-neutral-200 bg-white px-2.5 text-xs font-medium text-neutral-800 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-1"
                           >
                             Trace
                           </button>
                         )}
-                        <span className="text-[11px] text-neutral-400">
+                        <span className="text-xs text-neutral-600 tabular-nums">
                           {ago(e.created_at)}
                         </span>
                         <Pill value={e.status} />
                         <button
                           type="button"
                           onClick={() => setExpandedExecId(isExpanded ? null : e.id)}
-                          className="rounded-full p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition"
+                          className="rounded-full p-1 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                           title={isExpanded ? "Collapse details" : "Expand details"}
                           aria-label={isExpanded ? "Collapse details" : "Expand details"}
+                          aria-expanded={isExpanded}
                         >
                           <svg
-                            className={`h-3.5 w-3.5 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                            className={`h-3.5 w-3.5 transition-transform duration-150 ${
+                              isExpanded ? "rotate-180" : ""
+                            }`}
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2"
+                            aria-hidden="true"
                           >
                             <path d="m6 9 6 6 6-6" />
                           </svg>
@@ -1407,24 +1418,24 @@ export function PlaybooksManager({
 
                     {/* Expandable JSON / Step Inspector */}
                     {isExpanded && (
-                      <div className="mt-3.5 space-y-3 border-t border-neutral-200/70 pt-3 text-xs">
+                      <div className="mt-3 space-y-3 border-t border-neutral-100 pt-3 text-xs">
                         {rawResult.reason && (
-                          <div className="rounded-xl border border-neutral-200 bg-white p-2.5 text-neutral-700">
-                            <span className="font-semibold text-neutral-900">Reason / Summary:</span>{" "}
+                          <div className="text-neutral-700">
+                            <span className="font-semibold text-neutral-950">Reason:</span>{" "}
                             {rawResult.reason}
                           </div>
                         )}
 
                         {rawResult.inputs && Object.keys(rawResult.inputs).length > 0 && (
-                          <div className="rounded-xl border border-neutral-200 bg-white p-3 space-y-1.5">
-                            <div className="font-semibold text-neutral-800 text-[11px] uppercase tracking-wider">
+                          <div className="space-y-1.5">
+                            <div className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-600">
                               Run Inputs
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                               {Object.entries(rawResult.inputs).map(([k, v]) => (
                                 <div key={k} className="truncate">
-                                  <span className="text-neutral-500">{k}:</span>{" "}
-                                  <span className="font-mono text-neutral-800">{String(v)}</span>
+                                  <span className="text-neutral-600">{k}:</span>{" "}
+                                  <span className="font-mono text-neutral-900">{String(v)}</span>
                                 </div>
                               ))}
                             </div>
@@ -1433,19 +1444,19 @@ export function PlaybooksManager({
 
                         {rawResult.results && rawResult.results.length > 0 && (
                           <div className="space-y-1.5">
-                            <div className="font-semibold text-neutral-800 text-[11px] uppercase tracking-wider">
+                            <div className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-600">
                               Executed Steps ({rawResult.results.length})
                             </div>
-                            <div className="space-y-1">
+                            <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-neutral-50/70">
                               {rawResult.results.map((r, i) => (
                                 <div
                                   key={i}
-                                  className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px]"
+                                  className="flex items-center justify-between px-3 py-2 text-xs"
                                 >
-                                  <span className="font-mono text-neutral-800">
+                                  <span className="font-mono text-neutral-900">
                                     Step {r.step ?? i + 1}: {r.tool}
                                   </span>
-                                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-800 font-medium border border-emerald-200">
+                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
                                     Done
                                   </span>
                                 </div>
@@ -1456,18 +1467,18 @@ export function PlaybooksManager({
 
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-neutral-700 text-[11px] uppercase tracking-wider">
+                            <span className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-600">
                               Raw Result JSON
                             </span>
                             <button
                               type="button"
                               onClick={() => handleCopyJson(e)}
-                              className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[10px] text-neutral-600 hover:bg-neutral-50 transition shadow-xs"
+                              className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950"
                             >
                               {isCopied ? "Copied" : "Copy JSON"}
                             </button>
                           </div>
-                          <pre className="max-h-48 overflow-auto rounded-2xl border border-neutral-800 bg-neutral-900 p-3 font-mono text-[11px] text-emerald-400 leading-relaxed shadow-inner">
+                          <pre className="max-h-48 overflow-auto rounded-xl bg-neutral-950 p-3 font-mono text-xs leading-relaxed text-emerald-300">
                             {JSON.stringify(e, null, 2)}
                           </pre>
                         </div>
@@ -1482,211 +1493,186 @@ export function PlaybooksManager({
       </div>
 
       {/* Run Playbook Modal */}
-      {runModalPlaybook && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm duration-200"
-          onClick={() => {
-            if (!runBusy) setRunModalPlaybook(null);
-          }}
-        >
-          <div
-            className="w-full max-w-lg rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
-                  Run Playbook: {runModalPlaybook.name}
-                </h3>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  Configure run parameters and execute tool pipeline.
-                </p>
-              </div>
+      <Dialog
+        open={Boolean(runModalPlaybook)}
+        onOpenChange={(open) => {
+          if (!open && !runBusy) setRunModalPlaybook(null);
+        }}
+      >
+        {runModalPlaybook && (
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Run Playbook: {runModalPlaybook.name}</DialogTitle>
+              <DialogDescription>
+                Configure run parameters and execute tool pipeline.
+              </DialogDescription>
+            </DialogHeader>
 
-              <button
-                type="button"
-                onClick={() => setRunModalPlaybook(null)}
-                disabled={runBusy}
-                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition disabled:opacity-40"
-                aria-label="Close modal"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            {runResult && (
-              <div>
-                {runResult.status === "succeeded" && (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Pipeline Execution Succeeded</span>
-                      <Pill value="succeeded" />
+            <div className="space-y-4">
+              {runResult && (
+                <div>
+                  {runResult.status === "succeeded" && (
+                    <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Pipeline Execution Succeeded</span>
+                        <Pill value="succeeded" />
+                      </div>
+                      <div className="font-mono text-[11px] text-emerald-800">
+                        Run ID: {runResult.execution_id}
+                      </div>
+                      <div>{runResult.reason || "All pipeline steps completed successfully."}</div>
                     </div>
-                    <div className="text-emerald-700 font-mono text-[11px]">Run ID: {runResult.execution_id}</div>
-                    <div>{runResult.reason || "All pipeline steps completed successfully."}</div>
-                  </div>
-                )}
+                  )}
 
-                {runResult.status === "awaiting_approval" && (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-medium text-amber-900 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Execution Awaiting Human Approval</span>
-                      <Pill value="awaiting_approval" />
+                  {runResult.status === "awaiting_approval" && (
+                    <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs font-medium text-amber-900">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Execution Awaiting Human Approval</span>
+                        <Pill value="awaiting_approval" />
+                      </div>
+                      <div className="font-mono text-[11px] text-amber-800">
+                        Run ID: {runResult.execution_id}
+                      </div>
+                      <p className="leading-relaxed text-amber-900">
+                        {runResult.reason ||
+                          "Policy requires authorized engineer or approver sign-off before proceeding."}
+                      </p>
+                      <div>
+                        <Link
+                          href="/approvals"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-neutral-950 px-4 text-xs font-semibold text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2"
+                        >
+                          <span>Review in Approvals</span>
+                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
                     </div>
-                    <div className="text-amber-800 font-mono text-[11px]">Run ID: {runResult.execution_id}</div>
-                    <p className="text-amber-800 leading-relaxed">
-                      {runResult.reason || "Policy requires authorized engineer or approver sign-off before proceeding."}
-                    </p>
-                    <div>
-                      <Link
-                        href="/approvals"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 transition"
-                      >
-                        <span>Review in Approvals</span>
-                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                      </Link>
+                  )}
+
+                  {runResult.status === "rejected" && (
+                    <div className="space-y-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Execution Rejected</span>
+                        <Pill value="rejected" />
+                      </div>
+                      <div className="font-mono text-[11px] text-rose-800">
+                        Run ID: {runResult.execution_id}
+                      </div>
+                      <div>{runResult.reason || "Pipeline policy check denied execution."}</div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
-                {runResult.status === "rejected" && (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Execution Rejected</span>
-                      <Pill value="rejected" />
-                    </div>
-                    <div className="text-rose-700 font-mono text-[11px]">Run ID: {runResult.execution_id}</div>
-                    <div>{runResult.reason || "Pipeline policy check denied execution."}</div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {runError && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-800">
-                {runError}
-              </div>
-            )}
-
-            <form onSubmit={handleRunSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                  Drawing ID
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={runInputs.drawing_id}
-                  onChange={(e) => setRunInputs({ ...runInputs, drawing_id: e.target.value })}
-                  placeholder="e.g. DWG-2026-X1"
-                  className={inputCls}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                  Material Specification
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={runInputs.material}
-                  onChange={(e) => setRunInputs({ ...runInputs, material: e.target.value })}
-                  placeholder="e.g. 6061-T6 Aluminum"
-                  className={inputCls}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={runInputs.quantity}
-                  onChange={(e) => setRunInputs({ ...runInputs, quantity: e.target.value })}
-                  placeholder="e.g. 25"
-                  className={inputCls}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setRunModalPlaybook(null)}
-                  disabled={runBusy}
+              {runError && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-800"
                 >
-                  Close
-                </Button>
-                <Button type="submit" disabled={runBusy}>
-                  {runBusy ? "Executing..." : "Execute Playbook"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  {runError}
+                </div>
+              )}
+
+              <form onSubmit={handleRunSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="run-drawing-id" className="mb-1.5 block text-xs font-semibold text-neutral-800">
+                    Drawing ID
+                  </label>
+                  <input
+                    id="run-drawing-id"
+                    type="text"
+                    required
+                    value={runInputs.drawing_id}
+                    onChange={(e) => setRunInputs({ ...runInputs, drawing_id: e.target.value })}
+                    placeholder="e.g. DWG-2026-X1"
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="run-material" className="mb-1.5 block text-xs font-semibold text-neutral-800">
+                    Material Specification
+                  </label>
+                  <input
+                    id="run-material"
+                    type="text"
+                    required
+                    value={runInputs.material}
+                    onChange={(e) => setRunInputs({ ...runInputs, material: e.target.value })}
+                    placeholder="e.g. 6061-T6 Aluminum"
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="run-quantity" className="mb-1.5 block text-xs font-semibold text-neutral-800">
+                    Quantity
+                  </label>
+                  <input
+                    id="run-quantity"
+                    type="number"
+                    min="1"
+                    required
+                    value={runInputs.quantity}
+                    onChange={(e) => setRunInputs({ ...runInputs, quantity: e.target.value })}
+                    placeholder="e.g. 25"
+                    className={inputCls}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setRunModalPlaybook(null)}
+                    disabled={runBusy}
+                  >
+                    Close
+                  </Button>
+                  <Button type="submit" disabled={runBusy}>
+                    {runBusy ? "Executing..." : "Execute Playbook"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
 
       {/* New Playbook Modal */}
-      {isNewPlaybookOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm duration-200"
-          onClick={() => {
-            if (!modalBusy) setIsNewPlaybookOpen(false);
-          }}
-        >
-          <div
-            className="w-full max-w-lg rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
-                  Create New Playbook
-                </h3>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  Compose a repeatable multi-step FastMCP industrial automation pipeline.
-                </p>
-              </div>
+      <Dialog
+        open={isNewPlaybookOpen}
+        onOpenChange={(open) => {
+          if (!open && !modalBusy) setIsNewPlaybookOpen(false);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Playbook</DialogTitle>
+            <DialogDescription>
+              Compose a repeatable multi-step FastMCP industrial automation pipeline.
+            </DialogDescription>
+          </DialogHeader>
 
-              <button
-                type="button"
-                onClick={() => setIsNewPlaybookOpen(false)}
-                disabled={modalBusy}
-                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition disabled:opacity-40"
-                aria-label="Close modal"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
+          <div className="space-y-4">
             {modalError && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-800">
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-800"
+              >
                 {modalError}
               </div>
             )}
 
             <form onSubmit={handleCreatePlaybook} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                <label htmlFor="new-pb-name" className="mb-1.5 block text-xs font-semibold text-neutral-800">
                   Playbook Name
                 </label>
                 <input
+                  id="new-pb-name"
                   type="text"
                   required
                   value={newPlaybookName}
@@ -1697,23 +1683,24 @@ export function PlaybooksManager({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                <label htmlFor="new-pb-steps" className="mb-1.5 block text-xs font-semibold text-neutral-800">
                   Pipeline Steps (Comma or Line Separated Tool Names)
                 </label>
                 <textarea
+                  id="new-pb-steps"
                   required
                   rows={3}
                   value={newPlaybookSteps}
                   onChange={(e) => setNewPlaybookSteps(e.target.value)}
                   placeholder="erp_lookup_inventory, quality_check, notify_team"
-                  className={`${inputCls} font-mono text-xs`}
+                  className={`${inputCls} h-auto py-2 font-mono text-xs`}
                 />
-                <p className="mt-1 text-[11px] text-neutral-400">
+                <p className="mt-1.5 text-xs text-neutral-600">
                   Unknown tools are auto-registered so your pipeline executes right away.
                 </p>
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -1725,62 +1712,44 @@ export function PlaybooksManager({
                 <Button type="submit" disabled={modalBusy}>
                   {modalBusy ? "Saving..." : "Save Playbook"}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Register Tool Modal */}
-      {isRegisterToolOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm duration-200"
-          onClick={() => {
-            if (!modalBusy) setIsRegisterToolOpen(false);
-          }}
-        >
-          <div
-            className="w-full max-w-lg rounded-3xl border border-neutral-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-neutral-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight text-neutral-900">
-                  Register FastMCP Tool
-                </h3>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  Add an executable action connector with input schema &amp; risk governance.
-                </p>
-              </div>
+      <Dialog
+        open={isRegisterToolOpen}
+        onOpenChange={(open) => {
+          if (!open && !modalBusy) setIsRegisterToolOpen(false);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Register FastMCP Tool</DialogTitle>
+            <DialogDescription>
+              Add an executable action connector with input schema &amp; risk governance.
+            </DialogDescription>
+          </DialogHeader>
 
-              <button
-                type="button"
-                onClick={() => setIsRegisterToolOpen(false)}
-                disabled={modalBusy}
-                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 transition disabled:opacity-40"
-                aria-label="Close modal"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
+          <div className="space-y-4">
             {modalError && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-800">
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-800"
+              >
                 {modalError}
               </div>
             )}
 
             <form onSubmit={handleRegisterTool} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                <label htmlFor="reg-tool-name" className="mb-1.5 block text-xs font-semibold text-neutral-800">
                   Tool Name
                 </label>
                 <input
+                  id="reg-tool-name"
                   type="text"
                   required
                   value={newTool.name}
@@ -1791,10 +1760,11 @@ export function PlaybooksManager({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                <label htmlFor="reg-tool-desc" className="mb-1.5 block text-xs font-semibold text-neutral-800">
                   Description
                 </label>
                 <input
+                  id="reg-tool-desc"
                   type="text"
                   value={newTool.description}
                   onChange={(e) => setNewTool({ ...newTool, description: e.target.value })}
@@ -1803,12 +1773,13 @@ export function PlaybooksManager({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  <label htmlFor="reg-tool-connector" className="mb-1.5 block text-xs font-semibold text-neutral-800">
                     Connector
                   </label>
                   <select
+                    id="reg-tool-connector"
                     value={newTool.connector}
                     onChange={(e) => setNewTool({ ...newTool, connector: e.target.value })}
                     className={inputCls}
@@ -1823,10 +1794,11 @@ export function PlaybooksManager({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  <label htmlFor="reg-tool-risk" className="mb-1.5 block text-xs font-semibold text-neutral-800">
                     Risk Classification
                   </label>
                   <select
+                    id="reg-tool-risk"
                     value={newTool.risk}
                     onChange={(e) => setNewTool({ ...newTool, risk: e.target.value })}
                     className={inputCls}
@@ -1839,19 +1811,20 @@ export function PlaybooksManager({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                <label htmlFor="reg-tool-schema" className="mb-1.5 block text-xs font-semibold text-neutral-800">
                   Input Schema (JSON Schema)
                 </label>
                 <textarea
+                  id="reg-tool-schema"
                   required
                   rows={4}
                   value={newTool.input_schema}
                   onChange={(e) => setNewTool({ ...newTool, input_schema: e.target.value })}
-                  className={`${inputCls} font-mono text-xs`}
+                  className={`${inputCls} h-auto py-2 font-mono text-xs`}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -1863,11 +1836,11 @@ export function PlaybooksManager({
                 <Button type="submit" disabled={modalBusy}>
                   {modalBusy ? "Registering..." : "Register Tool"}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
