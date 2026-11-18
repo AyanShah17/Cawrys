@@ -25,7 +25,7 @@
 | 11 | E2E Test Suite Extension | 15 test cases in `test_09_agent_harness.py`, 6 test cases in `test_10_snapshot_features.py`, offline mock server updates in `mock_server.py` | M3 | Verification Survey |
 | 12 | Combined Branch Integration | Merge `ui` and `openhands` branches into `combined`, verify cross-service flows, SQLite WAL concurrency, zero regression | M4 | ORIGINAL_REQUEST §R3 |
 | 13 | Main Branch Merge & Smoke Test | Merge `combined` into `main`, execute `scripts/verify_all.sh all` and `scripts/smoke_test.sh`, achieving 100% pass | M5 | ORIGINAL_REQUEST §R3 |
-| 14 | Playbook Canvas & Vision OCR | Interactive pipeline DAG canvas (`playbook-canvas.tsx`), natural-language AI pipeline editing (`playbook_ai.py`), macOS Vision OCR (`ingest.py`) | M6 | Pipeline Editor Enhancement |
+| 14 | Playbook Canvas & Vision OCR | Interactive pipeline DAG canvas (`playbooks-manager.tsx`), natural-language AI pipeline editing (`playbook_ai.py`), macOS Vision OCR (`ingest.py`) | M6 | Pipeline Editor Enhancement |
 | 15 | GFM Markdown Preview | Rich GitHub Flavored Markdown renderer (`markdown-preview.tsx`) with tables, code blocks, task lists, and blockquotes | M7 | Chat Interface UI Kit |
 | 16 | Neon Cloud & Multi-Bucket Storage | Dual persistence provider (`storage.py`) with Lakebase Postgres + `cawrys-files`, `image-files`, `text-files` buckets, SHA-256 deduplication, and composer toggle | M8 | Storage & Persistence Specification |
 | 17 | Flat Conversation History & Least-Disclosure Policy | Collapsible dark conversation history sidebar + turn scrubber (`chat-interface.tsx`), `GET /v1/chat/sessions`, and strict Least Information Reveal Policy | M9 | UX & Conversation Management |

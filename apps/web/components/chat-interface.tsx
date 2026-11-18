@@ -82,33 +82,6 @@ type ChatInterfaceProps = {
   initialDocsCount?: number;
 };
 
-const QUICK_ACTION_CARDS = [
-  {
-    title: "Check SAP stock for Part 100",
-    subtitle: "Query SAP S/4HANA inventory, storage locations & lead times",
-    prompt: "Check SAP S/4HANA stock levels for Part 100 in plant 1000",
-    tag: "ERP / Inventory",
-  },
-  {
-    title: "Review Siemens CAD rev",
-    subtitle: "Audit Teamcenter drawing DWG-4002 revisions & engineering BOM",
-    prompt: "Check Siemens CAD revisions for DWG-4002 and summarize BOM status",
-    tag: "Engineering PLM",
-  },
-  {
-    title: "Query CNC telemetry",
-    subtitle: "Inspect live spindle speed, vibration index & motor temperatures",
-    prompt: "Query CNC machine telemetry and evaluate spindle vibration risk",
-    tag: "FastMCP IIoT",
-  },
-  {
-    title: "Adjust production target",
-    subtitle: "Update live shift quota to 1,200 units with optimal OEE",
-    prompt: "Update dashboard production target to 1,200 units and set operational status to Optimal",
-    tag: "Live Dashboard",
-  },
-];
-
 const QUICK_PROVIDER_IDS = [
   "gemini",
   "openai",
@@ -824,10 +797,6 @@ export function ChatInterface({
   const hasOverrides = overrides && Object.keys(overrides).length > 0;
   const isChatEmpty = messages.length === 0;
   const activeToolCount = connections.length || initialTools.length || 3;
-  const activeProviderShort = formatProviderShortName(
-    modelConfig.provider,
-    providerCatalog[modelConfig.provider]?.name || LITELLM_PROVIDERS[modelConfig.provider]?.name
-  );
   const activeModelShort = formatModelShortName(modelConfig.model);
 
   const filteredSessions = useMemo(() => {

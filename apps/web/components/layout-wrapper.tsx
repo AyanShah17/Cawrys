@@ -19,9 +19,9 @@ export function LayoutWrapper({
 }) {
   const { mode } = useAppMode();
   const pathname = usePathname();
-  const isAiPage = mode === "ai" || (pathname && pathname.startsWith("/chat"));
+  const isChatPage = Boolean(pathname && (pathname === "/chat" || pathname.startsWith("/chat/")));
 
-  if (isAiPage) {
+  if (isChatPage) {
     return (
       <div className="h-screen w-screen overflow-hidden bg-[#f4f5f8] relative">
         <TopNav brand={brand} email={email} role={role} />
@@ -33,9 +33,9 @@ export function LayoutWrapper({
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f4f5f8]">
+    <div className="min-h-screen flex flex-col bg-[#f4f5f8] relative">
       <TopNav brand={brand} email={email} role={role} />
-      <main className="min-w-0 flex-1 px-4 py-3 md:px-8 md:py-5">
+      <main className={`min-w-0 flex-1 px-4 py-3 md:px-8 md:py-5 ${mode === "ai" ? "pt-14 md:pt-14" : ""}`}>
         <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>
